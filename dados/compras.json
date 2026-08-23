@@ -1,0 +1,121 @@
+{
+  "_nota": "Parâmetros do módulo Projeção de Compras. Os 13 insumos comprados de outros estados. O salmão é medido em peixes e pedido em quilos: informe o peso da caixa e quantos peixes vêm nela — o peso da caixa varia, e é o único número que costuma mudar. O peixe fica em torno de 4 kg; o valor efetivo sai de kg_por_caixa ÷ peixes_por_caixa.",
+  "dias_a_cobrir_padrao": 7,
+  "janela_media_dias": 14,
+  "insumos": [
+    {
+      "chave": "salmao_equivalente",
+      "nome": "Salmão",
+      "un": "Px",
+      "conversao": {
+        "kg_por_caixa": 30,
+        "peixes_por_caixa": 7,
+        "un_pedido": "Kg"
+      }
+    },
+    {
+      "chave": "camarao_g",
+      "nome": "Camarão (G)",
+      "un": "Kg"
+    },
+    {
+      "chave": "camarao_m",
+      "nome": "Camarão (M)",
+      "un": "Kg"
+    },
+    {
+      "chave": "camarao_p",
+      "nome": "Camarão (P)",
+      "un": "Kg"
+    },
+    {
+      "chave": "atum",
+      "nome": "Atum",
+      "un": "Kg"
+    },
+    {
+      "chave": "file_tilapia",
+      "nome": "Peixe Branco",
+      "un": "Kg"
+    },
+    {
+      "chave": "lula",
+      "nome": "Lula",
+      "un": "Kg"
+    },
+    {
+      "chave": "kani",
+      "nome": "Kani",
+      "un": "Kg"
+    },
+    {
+      "chave": "nori",
+      "nome": "Nori",
+      "un": "Pct"
+    },
+    {
+      "chave": "polvo",
+      "nome": "Polvo",
+      "un": "Kg"
+    },
+    {
+      "chave": "anchova",
+      "nome": "Anchova",
+      "un": "Kg"
+    },
+    {
+      "chave": "cream_cheese",
+      "nome": "Cream Cheese",
+      "un": "Kg"
+    },
+    {
+      "chave": "arroz",
+      "nome": "Arroz p Sushi",
+      "un": "Kg"
+    }
+  ],
+  "fornecedores": [
+    "Bom Peixe",
+    "Bourbon",
+    "Damm",
+    "Frescatto",
+    "Frumar",
+    "Luís do Camarão",
+    "Mar Claro Pescados",
+    "Marcomar",
+    "Nippobraz",
+    "Taichi",
+    "Vitrine do Mar",
+    "Mar e Rio",
+    "Marfrios",
+    "Ganesh",
+    "Maris Pescados"
+  ],
+  "responsaveis": [
+    "EDSON MAUÉS",
+    "JOSÉ COUTO",
+    "DIEGO COSTA"
+  ],
+  "dias_seguranca": 3,
+  "salmao_partes": [
+    {
+      "chave": "inteiro",
+      "nome": "Salmão inteiro eviscerado",
+      "rendimento": 1.0,
+      "nota": "kg de peixe inteiro; é a base da conversão"
+    },
+    {
+      "chave": "file_pele",
+      "nome": "Filé de salmão com pele",
+      "rendimento": 0.6716,
+      "nota": "rendimento da bandagem: 1 kg de inteiro rende 0,6716 kg de filé com pele"
+    },
+    {
+      "chave": "file_limpo",
+      "nome": "Filé de salmão sem pele",
+      "rendimento": 0.538,
+      "nota": "bandagem x filetamento: 0,6716 x 0,8011 — mesmos fatores do Conversor de Salmão"
+    }
+  ],
+  "_nota_salmao": "Partes em que o pedido de salmão pode ser projetado, com o rendimento de cada uma em kg por kg de peixe inteiro. A projeção calcula a necessidade em peixe inteiro; ao informar quilos de filé, o sistema divide pelo rendimento para saber quanto de inteiro aquilo consome. Os fatores são os mesmos do módulo Conversão de Salmão — se recalibrar lá, ajuste aqui."
+}

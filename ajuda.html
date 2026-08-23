@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Manual</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Manual do CDE Web</h1>
+      <p>Como o sistema calcula, o que cada tela faz e o que fazer quando algo dá errado.</p>
+    </div>
+  </div>
+
+<div class="manual-layout">
+  <nav class="manual-indice">
+    <div class="sb-section">Neste manual</div>
+    <a href="#visao">1. O que é o CDE Web</a>
+    <a href="#conceitos">2. As contas por trás</a>
+    <a href="#overview">2b. Visão Geral (tela inicial)</a>
+    <a href="#lancamento">3. Lançamento Diário</a>
+    <a href="#movimentacoes">3b. Movimentações</a>
+    <a href="#painel">4. Painel de Consumo</a>
+    <a href="#ordens">5. Ordens de Compras</a>
+    <a href="#projecao">6. Projeção de Compras</a>
+    <a href="#importar">7. Importar OC</a>
+    <a href="#cadastros">8. Cadastros</a>
+    <a href="#conversao">9. Conversão de Salmão</a>
+    <a href="#rotina">10. A rotina completa</a>
+    <a href="#problemas">11. Quando dá problema</a>
+    <a href="#arquivos">12. Onde ficam os dados</a>
+  </nav>
+
+  <div class="manual">
+
+<!-- ==================================================================== -->
+<section class="cartao" id="visao">
+<h2>1. O que é o CDE Web</h2>
+<p>O CDE Web é a versão em tela do <strong>Controle Diário de Estoque</strong>. Ele guarda o
+que cada casa consumiu por dia, compara com a meta e projeta o que precisa ser comprado.</p>
+
+<p>O sistema roda <strong>no seu computador</strong>, não na internet. Para usar:</p>
+<ol>
+  <li>Abra o arquivo <span class="cod">Servidor.bat</span> na pasta do CDE Web e
+      <strong>deixe a janela preta aberta</strong> — ela é o sistema funcionando.</li>
+  <li>No navegador, acesse <span class="cod">http://localhost:8935</span>.</li>
+  <li>Nos outros computadores da rede, use o endereço que aparece na janela preta,
+      no formato <span class="cod">http://NOME-DO-PC:8935</span>.</li>
+</ol>
+<p class="nota-info">Fechar a janela preta derruba o sistema para todo mundo. Se ela sumir,
+é só abrir o <span class="cod">Servidor.bat</span> de novo — nada se perde.</p>
+
+<h3>O menu lateral</h3>
+<p>O menu fica recolhido, mostrando só os ícones. Passe o mouse por cima que ele abre
+com os nomes. No rodapé ficam a <strong>Ajuda</strong> (esta página) e o
+<strong>alternador de tema</strong> — o ícone mostra o tema que está em uso:
+sol no claro, lua no escuro.</p>
+<p>O número laranja ao lado de <strong>Ordens de Compras</strong> é a quantidade de ordens
+esperando para serem geradas.</p>
+
+<h3>O botão de ações rápidas</h3>
+<p>O botão laranja no canto inferior direito acompanha todas as telas. Ele abre um painel que
+resolve três coisas <strong>sem trocar de tela</strong> — o filtro que você montou continua lá
+quando o painel fecha:</p>
+<ul>
+  <li><strong>Nova Movimentação</strong> — registra entrada, saída, desperdício ou contagem de
+      um insumo. Entrada, saída e desperdício <strong>somam</strong> ao que já foi lançado no
+      dia (chegam vários no mesmo dia); a contagem final <strong>substitui</strong>, porque é
+      medição, não evento. Insumo travado pela planilha é recusado, com aviso.</li>
+  <li><strong>Nova Ordem de Compra</strong> — escolhe o fornecedor, puxa o catálogo dele com o
+      preço já negociado e cria a ordem, que entra pendente na fila de Ordens de Compras.
+      O botão <strong>+ Adicionar à ordem</strong> inclui na lista o item que está preenchido
+      acima (item, quantidade e preço); repita para cada produto, porque uma ordem tem vários.
+      <strong>Ver prévia da OC</strong> abre o PDF exatamente como o fornecedor vai receber,
+      antes de criar a ordem — a prévia <em>não</em> reserva número: o número só é puxado do
+      registro compartilhado quando a OC é gerada de fato.</li>
+  <li><strong>Conversão de Salmão</strong> — o preço do quilo do peixe inteiro vira o custo do
+      filé com pele, do filé sem pele e da raspa. Usa os mesmos fatores da tela de Conversão,
+      inclusive se você os recalibrou lá.</li>
+</ul>
+<p>Cada coisa feita vira uma mensagem no alto do painel, com o que foi gravado — dá para
+lançar três chegadas seguidas e conferir as três sem sair do lugar. <span class="cod">Esc</span>
+fecha o painel.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="conceitos">
+<h2>2. As contas por trás</h2>
+<p>Três contas explicam quase tudo o que aparece no sistema. Vale entender as três.</p>
+
+<h3>Consumo não é digitado — ele é deduzido</h3>
+<p>Ninguém informa "gastei 12 kg". O sistema chega nesse número pela contagem:</p>
+<p class="formula">Uso = Estoque inicial + Chegada − Transferência − Estoque final</p>
+<p>A <strong>transferência</strong> é o que saiu de uma casa para outra. A <strong>perda</strong>
+(desperdício) é controlada à parte e <em>não</em> entra nesta conta.</p>
+<p class="nota-info">Consequência prática: se a contagem do final do dia estiver errada,
+o consumo daquele dia sai errado — e o desvio aparece no painel no dia seguinte.
+Quase todo desvio esquisito é erro de contagem, não de consumo.</p>
+
+<h3>O coeficiente compara casas de tamanhos diferentes</h3>
+<p>Uma casa que vende o dobro consome o dobro — comparar o consumo puro não diz nada.
+Por isso o sistema usa o coeficiente:</p>
+<p class="formula">Coeficiente = (Consumo ÷ Faturamento Bruto) × 1.000</p>
+<p>É quanto se consome do insumo para cada <strong>R$ 1.000 vendidos</strong>. Assim
+Senador Lemos e Delivery Umarizal ficam comparáveis, e a <strong>meta</strong> de cada
+insumo é definida nessa mesma unidade.</p>
+
+<h3>Salmão: quatro faixas viram uma só</h3>
+<p>O salmão entra em quatro faixas de peso, que não são intercambiáveis. Para poder somar,
+tudo é convertido para <strong>peixe-equivalente 08/10</strong>:</p>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Faixa</th><th>Fator de conversão</th></tr></thead>
+  <tbody>
+    <tr><td>08/10</td><td class="calc">1,00</td></tr>
+    <tr><td>10/12</td><td class="calc">1,25</td></tr>
+    <tr><td>12/14</td><td class="calc">1,48</td></tr>
+    <tr><td>14/16</td><td class="calc">1,67</td></tr>
+  </tbody>
+</table></div>
+<p>É a linha <strong>Salmão — equivalente 08/10</strong> que o painel usa e que a projeção
+de compras enxerga.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="overview">
+<h2>2b. Visão Geral</h2>
+<p>É a tela que abre no endereço do sistema (<span class="cod">http://localhost:8935</span>)
+e o primeiro item do menu. Ela responde, numa olhada, o que hoje exigiria abrir quatro telas.</p>
+
+<h3>O que tem nela</h3>
+<ul>
+  <li><strong>Participação das casas</strong> — a rosca mostra quanto cada casa pesa no
+      faturamento bruto do grupo, e a tabela ao lado traz o valor, a fatia e a variação contra o
+      mês anterior.</li>
+  <li><strong>Evolução do grupo</strong> — o faturamento bruto mês a mês e quanto dele virou
+      consumo de insumo. É esta segunda curva que denuncia consumo subindo mais rápido que
+      a venda.</li>
+  <li><strong>Quatro cartões de resumo</strong> — principais insumos (curva ABC), estoque
+      baixo, maiores variações de consumo e últimos movimentos. Cada um mostra só as quatro
+      primeiras linhas: <strong>clicar no cartão abre o relatório completo</strong> lá
+      embaixo e rola até ele.</li>
+  <li><strong>Estoque no limite ou abaixo do mínimo</strong> — o mínimo é o consumo médio do
+      dia multiplicado pelos dias de segurança (hoje 3, ajustável em
+      <span class="cod">dados/compras.json</span>).</li>
+  <li><strong>Posição atual de estoque</strong> — a última contagem de cada item, valorizada,
+      com a cobertura em dias.</li>
+  <li><strong>Variação de consumo</strong> — mês contra mês, em quantidade, em porcentagem e
+      em dinheiro, com uma coluna por casa.</li>
+  <li><strong>Custo unitário das compras</strong> — o preço médio pago por unidade compradora,
+      ponderado pela quantidade, e a diferença contra o mês anterior. Enche-se sozinha
+      conforme as OCs vão sendo geradas.</li>
+  <li><strong>Últimas movimentações</strong> — a ponta do extrato, com atalho para o módulo.</li>
+</ul>
+
+<h3>Blocos de destaque</h3>
+<p>Seis blocos abrem a tela, no lugar das duas faixas que existiam antes — uma de totais e outra
+de variações, que repetiam faturamento e estoque baixo em desenhos diferentes. Cada bloco traz
+o número, a variação contra o mês anterior e a curva do período no mesmo lugar: faturamento bruto do
+grupo, consumo de insumo valorizado, valor parado em estoque, o insumo que mais subiu, o que
+mais caiu e o aperto de estoque (ou o desperdício, quando não há item abaixo do mínimo).</p>
+<p class="nota-info">A cor segue o significado, não o sinal: consumo <strong>subindo</strong> é
+vermelho, porque é gasto a mais; consumo caindo é verde. Faturamento é o contrário. O bloco de
+itens abaixo do mínimo abre a seção detalhada no clique.</p>
+<h3>Relatório longo nasce fechado</h3>
+<p>Da metade da tela para baixo cada relatório é uma faixa recolhida, com a setinha
+<span class="cod">▸</span> à direita: clicar abre, clicar de novo fecha. A escolha fica
+guardada no navegador, por seção — quem abre a posição de estoque todo dia não precisa
+reabrir. A seção pisca a borda quando é aberta pelo cartão de cima, para ficar claro que a
+página andou até ela.</p>
+
+<h3>Mês em curso é comparado com meio mês</h3>
+<p class="nota-info">Quando o mês selecionado ainda está correndo, a comparação usa o
+<strong>mesmo trecho</strong> do mês anterior — dia 1 ao 16 contra dia 1 ao 16. Comparar meio
+mês com mês inteiro mostraria uma queda de 50% todo dia 15, e uma tela que grita sem motivo
+deixa de ser lida.</p>
+
+<h3>De onde vem o custo</h3>
+<p>Primeiro de <span class="cod">dados/custos.json</span>. Onde não houver custo lá, o sistema
+usa o preço do produto vinculado no catálogo de compras — mas <strong>só quando o produto é
+vendido em quilo</strong>. Arroz vendido em fardo de 30 kg a R$ 300 viraria um custo de
+R$ 300 o quilo, então esses casos ficam de fora e o item aparece marcado como
+<span class="selo-mini">Sem custo</span>.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="lancamento">
+<h2>3. Lançamento Diário</h2>
+<p>É a tela onde o dia é fechado. Uma data, as quatro casas, todos os insumos.</p>
+
+<h3>Passo a passo</h3>
+<ol>
+  <li>Confira a <strong>data</strong> no alto — ela vem no dia de hoje.</li>
+  <li>Para cada casa e insumo, preencha as colunas na ordem em que elas aparecem, que é a
+      ordem em que os números acontecem no balcão: <strong>inicial</strong> (vem do dia
+      anterior, calculado), <strong>entrada</strong> (chegada), <strong>saída</strong>
+      (transferência para outra casa), <strong>desperdício</strong> e <strong>final</strong>
+      (a contagem). A coluna de <strong>uso</strong> se calcula sozinha.</li>
+  <li>O <strong>faturamento (bruto)</strong> vem da planilha de controle diário
+      automaticamente. É o bruto de propósito: é o número que a planilha das casas registra
+      e a base de todo coeficiente do sistema. Sem ele, o coeficiente do dia não é
+      calculado.</li>
+  <li>Clique em <strong>Salvar</strong>.</li>
+</ol>
+
+<h3>O número ao lado de cada casa</h3>
+<p>Nas abas <strong>SL</strong>, <strong>DC</strong>, <strong>DLU</strong> e <strong>DLCN</strong>,
+o número em laranja é <strong>quantos insumos ainda estão sem contagem final</strong> naquele dia.
+Serve para varrer as quatro casas sem abrir uma por uma: casa com número alto é lançamento que
+mal começou. Quando tudo foi contado, o número dá lugar a um <span class="cod">✓</span> verde —
+espaço vazio poderia ser lido como "ainda não olhei aqui".</p>
+<p class="nota-info">A linha derivada do salmão equivalente não entra na conta: ela é calculada
+a partir das faixas, não digitada.</p>
+
+<h3>O botão Sincronizar</h3>
+<p>Puxa os lançamentos feitos direto nas planilhas de estoque das casas para dentro do
+sistema. Use quando alguém tiver lançado na planilha em vez de lançar aqui.</p>
+
+<p><strong>Só sincroniza o que estiver aberto no Excel.</strong> Abra a planilha do mês que
+quer trazer e clique no botão: o sistema lê apenas essas e não encosta nos outros meses.
+Com nenhuma planilha aberta, ele avisa e não altera nada.</p>
+<p class="nota-info">É assim de propósito. Reprocessar as 32 planilhas a cada clique é lento
+e reescreve meses que ninguém está mexendo. Abrir o arquivo é a forma mais direta de dizer
+ao sistema "é este mês que eu quero".</p>
+
+<h3>O que vem da planilha fica travado</h3>
+<p>Os valores trazidos pela sincronização aparecem com o selo
+<span class="selo-mini">Planilha</span> e com o campo em <strong>traço pontilhado</strong>:
+são somente leitura. Para alterá-los, corrija na planilha e sincronize de novo.</p>
+<p>Assim o CDE e a planilha não passam a divergir sem que ninguém perceba qual dos dois está
+certo. O que você digita direto no sistema continua livre — e a sincronização
+<strong>não</strong> sobrescreve o que foi digitado aqui.</p>
+<p class="nota-aviso">A sincronização é de <strong>mão única</strong>: da planilha para o
+CDE Web. O que você digita aqui <strong>não</strong> volta para as planilhas das casas.</p>
+
+<h3>Salmão no lançamento</h3>
+<p>As quatro faixas são lançadas separadamente, em peixes, mais o
+<strong>filé em quilos</strong> da produção. O equivalente 08/10 é calculado a partir delas —
+não se digita essa linha.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="movimentacoes">
+<h2>3b. Movimentações</h2>
+<p>O extrato do estoque: cada chegada, transferência, perda e consumo em uma linha, com
+data, casa e insumo. É onde se responde "quando chegou camarão na Duque?" ou "quanto se
+perdeu de anchova na semana passada?".</p>
+<p>Os quatro cartões do topo somam o período por tipo de movimento e funcionam como filtro:
+clicar em <strong>Desperdício</strong> deixa só as perdas na tabela. Há ainda filtros de
+período, casa e insumo, e um botão de <strong>Exportar CSV</strong> que abre direto no Excel.</p>
+<p>A coluna <strong>origem do dado</strong> diz se aquele número foi digitado na tela ou veio
+da planilha da casa pela sincronização.</p>
+<p class="nota-info">Entrada negativa na planilha é <strong>saída</strong>. A planilha das
+casas tem uma coluna só para os dois sentidos ("ENTRADA/SAÍDA DE ESTOQUE"): valor positivo é
+chegada, negativo é transferência para outra casa. O sistema separa os dois na importação —
+antes tudo caía em "entrada" e a coluna de saída ficava sempre vazia.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="painel">
+<h2>4. Painel de Consumo</h2>
+<p>Responde a uma pergunta: <em>onde estamos gastando acima da meta, e quanto isso custa?</em></p>
+
+<h3>A situação vem da média, não do último dia</h3>
+<p>Um único dia ruim não significa problema — pode ser contagem, pode ser um evento.
+Por isso o veredito de cada insumo compara a <strong>média do período</strong> com a meta,
+e não o último lançamento.</p>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Situação</th><th>O que significa</th></tr></thead>
+  <tbody>
+    <tr><td><span class="selo ruim">Crítico</span></td><td>Média muito acima da meta — perde dinheiro todo dia</td></tr>
+    <tr><td><span class="selo aviso">Atenção</span></td><td>Média acima da meta, mas ainda perto</td></tr>
+    <tr><td><span class="selo bom">Dentro</span></td><td>Média igual ou abaixo da meta</td></tr>
+  </tbody>
+</table></div>
+
+<h3>As três visões</h3>
+<p>O seletor no cabeçalho troca a forma de olhar os mesmos dados:</p>
+<ul>
+  <li><strong>Tabela</strong> — todos os números, com miniatura da tendência de cada linha.</li>
+  <li><strong>Mapa</strong> — insumos por casa em cores, para achar o ponto quente de relance.</li>
+  <li><strong>Dinheiro</strong> — o desvio convertido em reais, que é o que decide prioridade.</li>
+</ul>
+<p class="nota-info">A visão de dinheiro só mostra os insumos com <strong>custo cadastrado</strong>.
+Hoje só o salmão tem custo carregado; os demais entram quando a planilha de preços voltar
+preenchida.</p>
+
+<h3>Clicar abre o detalhe</h3>
+<p>Clicar em uma linha ou num quadrado do mapa abre o gráfico daquele insumo naquela casa,
+com a série do período e a comparação com os mesmos dias da semana anteriores — dá para
+escolher quantos dias comparar.</p>
+<p>Os contadores do alto <strong>não</strong> mudam quando você filtra por situação: eles
+continuam mostrando o quadro inteiro, para o filtro não dar a impressão de que o problema sumiu.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="ordens">
+<h2>5. Ordens de Compras</h2>
+<p>Esta é a tela que <strong>emite a Ordem de Compra</strong>. Ela funciona sozinha: dá para
+montar uma ordem de qualquer fornecedor, para qualquer unidade, a qualquer momento — sem
+depender de nada nem de nenhuma outra tela.</p>
+
+<h3>Três portas para a mesma fila</h3>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Selo</th><th>De onde veio</th><th>Quando usar</th></tr></thead>
+  <tbody>
+    <tr><td><span class="selo neutro">Avulsa</span></td><td>montada aqui, pelo catálogo do fornecedor</td>
+        <td>o caminho normal — embalagem, limpeza, manutenção, bebida, qualquer compra</td></tr>
+    <tr><td><span class="selo info">Projeção</span></td><td>pedido salvo na Projeção de Compras</td>
+        <td>os insumos de outros estados, com a quantidade calculada</td></tr>
+    <tr><td><span class="selo info">Importada</span></td><td>planilha da equipe ou PDF da OC</td>
+        <td>quando o pedido já vem pronto de fora</td></tr>
+  </tbody>
+</table></div>
+<p class="nota-info">A Projeção é uma <strong>fonte</strong> desta fila, não a entrada dela.
+Ela calcula quanto comprar dos 14 insumos que o CDE conta todo dia — nunca soube de
+embalagem ou material de limpeza, e nem tem como saber, porque não existe contagem diária
+desses itens. Por isso a ordem avulsa é o caminho principal.</p>
+
+<h3>Como montar uma ordem</h3>
+<ol>
+  <li>Clique em <strong>+ Nova ordem</strong>.</li>
+  <li>Digite as primeiras letras do <strong>fornecedor</strong> — aceita o apelido ou parte da
+      razão social ("hortifruti" acha "C S HORTIFRUTI COMERCIO LTDA").</li>
+  <li>Escolha a <strong>unidade compradora</strong>. São as cinco do cadastro, incluindo
+      <em>Sushi Boulevard Serviços</em> — compra administrativa não pertence a nenhuma das
+      quatro casas de estoque.</li>
+  <li>O <strong>catálogo daquele fornecedor</strong> aparece com unidade e preço já preenchidos.
+      Marque a caixa ou digite a quantidade — um gesto faz o outro.</li>
+  <li>Item que não está no catálogo pode ser incluído à mão, logo abaixo.</li>
+  <li><strong>Criar ordem</strong>. Ela já abre para você conferir os dados da OC e gerar.</li>
+</ol>
+
+<h3>O que dá para fazer em qualquer ordem</h3>
+<ul>
+  <li><strong>Corrigir quantidade e preço</strong> — o total se atualiza sozinho.</li>
+  <li><strong>Incluir outros itens</strong> do mesmo fornecedor, aproveitando a viagem.</li>
+  <li>Abrir <strong>Dados da Ordem de Compra</strong> para pagamento, parcelas, frete, prazos
+      e previsão de entrega. Os prazos vêm do cadastro do fornecedor; se você mudar aqui,
+      o cadastro é atualizado junto.</li>
+  <li><strong>Ver PDF</strong> — a prévia não reserva número, serve para conferir.</li>
+  <li><strong>Gerar OC</strong> — reserva o número, baixa o PDF e marca a ordem como gerada.</li>
+</ul>
+
+<h3>O que impede gerar a OC</h3>
+<p>Duas travas, as mesmas do Gerador de OCs:</p>
+<ul>
+  <li><strong>Fornecedor sem cadastro válido</strong> (sem vínculo, sem razão social ou com
+      CNPJ inválido). Nota fiscal emitida para CNPJ errado volta na portaria.</li>
+  <li><strong>Item pedido sem preço</strong>. Sem preço não há como conferir a entrega.</li>
+</ul>
+<p>Nos dois casos a tela diz exatamente o que falta e onde resolver.</p>
+
+<h3>Duas regras que evitam perder trabalho</h3>
+<p>Itens vindos do cálculo levam o selo <span class="selo-mini">Projeção</span>. Salvar o
+pedido de novo na Projeção <strong>recalcula esses</strong> — os que você incluiu à mão
+<strong>permanecem</strong>.</p>
+<p>Ordem já <strong>gerada</strong> nunca é sobrescrita: salvar o pedido de novo não mexe nela.</p>
+
+<h3>Numeração</h3>
+<p>O número da OC sai do <strong>mesmo contador do Gerador de OCs</strong>, por unidade.
+Não existe numeração separada — OC emitida aqui e OC emitida lá nunca repetem número.
+Deixe o campo <em>Nº da OC</em> vazio para continuar a sequência, ou digite um número para
+forçar o ponto de partida (o contador nunca anda para trás).</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="projecao">
+<h2>6. Projeção de Compras</h2>
+<p>Calcula quanto pedir de cada insumo, por casa. Substitui a planilha PCPOE — sem os
+vínculos externos que quebravam quando o arquivo de origem estava fechado.</p>
+<p class="nota-info">Esta tela é um <strong>atalho para os 14 insumos que o CDE conta todo
+dia</strong>: em vez de você decidir a quantidade, ela calcula e já deixa a ordem montada em
+<a href="#ordens">Ordens de Compras</a>. Não é obrigatória — qualquer compra pode ser feita
+direto em Nova ordem. Use a Projeção quando quiser a quantidade vinda do consumo real.</p>
+
+<h3>O modelo</h3>
+<p class="formula">Duração do estoque = (Estoque + Trânsito) ÷ (Média diária × Fator)</p>
+<p class="formula">Dias a cobrir = Dias desejados − Duração atual</p>
+<p class="formula">Pedido = Dias a cobrir × Média diária × Fator</p>
+
+<h3>O que o sistema preenche e o que é seu</h3>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Campo</th><th>De onde vem</th></tr></thead>
+  <tbody>
+    <tr><td>Estoque</td><td>último lançamento daquele insumo naquela casa</td></tr>
+    <tr><td>Média diária</td><td>consumo médio da janela configurada (padrão: 14 dias)</td></tr>
+    <tr><td><strong>Trânsito</strong></td><td><strong>você</strong> — o que já foi pedido e ainda não chegou</td></tr>
+    <tr><td><strong>Fator</strong></td><td><strong>você</strong> — corrige a média para cima ou para baixo (feriado, evento)</td></tr>
+    <tr><td><strong>Dias a cobrir</strong></td><td><strong>você</strong> — quantos dias o pedido deve durar</td></tr>
+    <tr><td><strong>Fornecedor</strong></td><td><strong>você</strong> — define para quem vai a ordem de compra</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Salmão: conta em peixes, pede em quilos</h3>
+<p>O consumo é medido em peixes, mas o pedido é feito em quilos. A conversão é:</p>
+<p class="formula">Quilos = Peixes × (Peso da caixa ÷ Peixes por caixa)</p>
+<p>O peixe fica em torno de <strong>4 kg</strong>. O que costuma variar é o
+<strong>peso da caixa</strong> — por isso os dois números ficam separados no cadastro,
+e é o peso da caixa que você atualiza.</p>
+
+<h3>"Não pedir"</h3>
+<p>Quando o estoque já cobre os dias desejados, a linha mostra <strong>não pedir</strong>
+em vez de zero — é uma resposta, não um campo vazio.</p>
+
+<h3>Pedido consolidado por fornecedor</h3>
+<p>No fim da tela, o pedido aparece agrupado <strong>por fornecedor</strong> — é assim que a
+compra acontece: uma ligação, uma entrega.</p>
+<p>A lista <strong>Casa</strong> escolhe o que aparece. Por padrão vem uma casa só, para a
+lista não misturar os itens das quatro. Quem quiser o total somado escolhe
+<strong>Todas as casas</strong> — aí a coluna <em>Casa</em> reaparece na tabela, mostrando de
+onde vem cada linha.</p>
+<p class="nota-info">O filtro é só de leitura: o cálculo é sempre das quatro casas, e cada
+casa continua virando uma ordem separada. Esse seletor é independente das abas de cima — dá
+para conferir a tabela de uma casa enquanto se lê o pedido de outra. A escolha fica guardada
+no navegador para a próxima vez.</p>
+<p>A quantidade pode ser <strong>ajustada aqui</strong>: o sistema pede confirmação mostrando
+de quanto para quanto e quantos por cento isso representa em relação ao projetado. Quantidade
+alterada à mão fica marcada e sobrevive ao recálculo.</p>
+
+<h3>Produto na OC — a conciliação com o catálogo</h3>
+<p>O CDE conta <em>Camarão M</em>; o fornecedor vende
+<em>CAMARÃO ROSA 31/50 DESC - SC 1KG</em>. A coluna <strong>Produto na OC</strong> mostra em
+qual produto do catálogo daquele fornecedor o item vai virar — com o preço já negociado, que
+alimenta a coluna de custo estimado.</p>
+<p>Quando o insumo tem mais de um produto possível (nori, kani, as faixas de salmão), a lista
+deixa escolher. O vínculo é declarado em <strong>Cadastros</strong>, na coluna
+<strong>Item do CDE</strong> do catálogo, e vale para as quatro casas.</p>
+<p class="nota-aviso">Se aparecer <em>sem vínculo</em>, o fornecedor escolhido não tem no
+catálogo nenhum produto ligado àquele item. A ordem ainda é criada, mas sai com o nome do CDE
+e sem preço — cadastre o produto e faça o vínculo para a OC sair com o nome que o fornecedor
+reconhece.</p>
+
+<h3>Repartir o salmão</h3>
+<p>A projeção calcula a necessidade em <strong>peixe inteiro</strong>. Quando a compra vai ser
+feita em filé, o botão <strong>repartir</strong> na linha do salmão abre três campos: peixe
+inteiro, filé com pele e filé sem pele.</p>
+<p>Informe os quilos de cada tipo. O sistema mostra quanto de peixe inteiro aquilo consome
+usando os mesmos rendimentos do <a href="conversao.html">Conversor de Salmão</a>
+(1 kg de inteiro rende 0,6716 kg de filé com pele e 0,5380 kg de filé sem pele) e o que
+sobrar da necessidade continua indo como peixe inteiro.</p>
+<p class="nota-info">É por isso que a conta não é direta: pedir 20 kg de filé com pele
+<strong>não</strong> cobre 20 kg da necessidade — cobre 29,8, porque foi esse tanto de peixe
+inteiro que deixou de ser comprado. Sem essa conversão o pedido encolheria sem ninguém
+perceber.</p>
+</section>
+
+<!-- ==================================================================== -->
+<!-- ==================================================================== -->
+<section class="cartao" id="importar">
+<h2>7. Importar OC</h2>
+<p>Quando o pedido já vem pronto de fora, esta tela lê o arquivo e transforma em ordens.
+Duas entradas:</p>
+<ul>
+  <li><strong>Planilha (.xlsx)</strong> — a solicitação da equipe, com uma aba por fornecedor.
+      O nome da aba é o fornecedor; os itens saem da tabela que começa em
+      "Descrição / Quantidade".</li>
+  <li><strong>PDF da OC</strong> — a ordem emitida pela planilha do gerente. O sistema lê a
+      unidade compradora pelo CNPJ impresso, o fornecedor, as datas e a tabela de itens.</li>
+</ul>
+
+<h3>O que ele completa sozinho</h3>
+<ul>
+  <li><strong>O preço</strong>, buscando no catálogo daquele fornecedor.</li>
+  <li><strong>O apelido do cadastro</strong>: o nome no arquivo raramente vem igual ao
+      cadastrado, então o casamento é por aproximação. Quando não acha, avisa e deixa você
+      escolher na lista.</li>
+  <li><strong>Prazos e observação fixa</strong> do fornecedor.</li>
+</ul>
+<p>Linhas de instrução do próprio modelo ("Colocar Nome e Sobrenome — Ex.: …"), a linha de
+total e a aba <span class="cod">BASE</span> são ignoradas.</p>
+
+<h3>Cada cartão tem uma cor</h3>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Selo</th><th>Significa</th></tr></thead>
+  <tbody>
+    <tr><td><span class="selo bom">Pronta</span></td><td>tem pedido e nada falta</td></tr>
+    <tr><td><span class="selo ruim">Precisa de ajuste</span></td><td>falta preço ou cadastro do fornecedor</td></tr>
+    <tr><td><span class="selo aviso">Sem pedido</span></td><td>nenhuma quantidade preenchida — não vira ordem</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Dois destinos</h3>
+<ul>
+  <li><strong>Enviar para Ordens</strong> (o normal): cada fornecedor vira uma ordem pendente.
+      Você termina e emite uma por uma em Ordens de Compras. Nada é numerado aqui.</li>
+  <li><strong>Gerar todas agora (.zip)</strong>: reserva os números de uma vez, baixa todos os
+      PDFs num zip e registra as ordens já como geradas. As que têm pendência ficam de fora e
+      podem ser enviadas para a fila.</li>
+</ul>
+<p class="nota-info">No Gerador de OCs a importação ia direto para o PDF e não deixava
+rastro depois do download. Aqui toda OC emitida fica registrada, não importa por qual
+porta entrou.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="cadastros">
+<h2>8. Cadastros</h2>
+<p class="nota-aviso">Esta tela grava na <strong>mesma planilha do Gerador de OCs</strong>.
+O que você muda aqui vale nos dois sistemas, na hora. Não existe "cadastro do CDE" separado —
+cadastro duplicado significaria o mesmo fornecedor com dois CNPJs diferentes e a OC saindo
+com o dado de quem salvou por último.</p>
+
+<h3>Fornecedores</h3>
+<p>Apelido, CNPJ e razão social são obrigatórios: são o que a OC precisa para ser um
+documento válido. O <strong>CNPJ é validado</strong> (14 dígitos e dígitos verificadores) e é
+a trava contra cadastro duplicado. Campo em vermelho é dado que <em>impede emitir OC</em>.</p>
+<p>A seta expande o resto: e-mail, I.E., endereço, cidade, os dois prazos e a
+<strong>observação fixa</strong> — um texto que entra automaticamente em toda OC daquele
+fornecedor ("agendar entrega com 24h de antecedência", por exemplo).</p>
+<p>Mudar o apelido arrasta junto o catálogo e a observação daquele fornecedor, para ele não
+perder os produtos no meio do caminho.</p>
+
+<h3>Produtos e preços</h3>
+<p>O catálogo é por fornecedor: o mesmo produto existe em vários, com preços diferentes — é
+isso que permite comparar. Produto só entra para fornecedor já cadastrado.</p>
+<p>O placar mostra quantos itens estão <strong>sem preço</strong>: cada um deles é uma OC que
+não vai poder ser gerada.</p>
+<p><strong>Importar planilha</strong> mescla: registro com a mesma chave é atualizado, o resto
+é acrescentado. Nada é apagado — planilha incompleta não zera o cadastro.</p>
+
+<h3>Unidades</h3>
+<p>As unidades compradoras que aparecem na OC (razão social, CNPJ, I.E., endereço).</p>
+<p class="nota-aviso">A <strong>chave</strong> da unidade é o que numera as OCs. Mudar a chave
+começa a contagem daquela unidade do 1 — só mude se for isso mesmo que você quer.</p>
+
+<h3>Salvamento</h3>
+<p>Não existe botão "salvar": a alteração é gravada sozinha cerca de um segundo depois que
+você para de digitar. O indicador no alto da tela mostra o andamento.
+<strong>Exportar cópia</strong> baixa um backup da base; <strong>Recarregar</strong> relê a
+planilha do disco, útil quando alguém editou pelo Excel.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="conversao">
+<h2>9. Conversão de Salmão</h2>
+<p>Responde: <em>pagando R$ X pelo quilo do peixe inteiro, quanto custa de verdade o quilo
+do filé?</em> A resposta nunca é o preço pago — o rendimento cobra seu preço.</p>
+
+<h3>Dois estágios</h3>
+<ol>
+  <li><strong>Bandagem</strong> — peixe inteiro vira filé com pele. Saem cabeça, espinhaço e raspa.</li>
+  <li><strong>Filetamento</strong> — filé com pele vira filé limpo. Saem apara e pele.</li>
+</ol>
+<p>Só o que <strong>vai para o estoque</strong> absorve custo. Descarte não absorve nada:
+o custo dele é empurrado para o produto principal. É por isso que o filé limpo custa
+bem mais que o preço pago no inteiro.</p>
+
+<h3>Como usar</h3>
+<p>Informe o preço por quilo do inteiro. A tabela mostra o custo de cada subproduto e os
+indicadores trazem o custo do filé com pele, do filé limpo e o rendimento total.</p>
+
+<h3>Recalibrar os fatores</h3>
+<p>O painel <strong>Fatores de rendimento</strong> permite ajustar os percentuais quando um
+novo processamento for medido. Duas verificações rodam sozinhas: os fatores de cada estágio
+precisam somar <strong>1,0000</strong>, e o custo distribuído precisa fechar com o que entrou.
+Se algo não fechar, aparece um aviso — o número continua sendo mostrado, mas não confie nele
+até corrigir.</p>
+<p class="nota-info">Ao ler a tabela: <strong>apara</strong> e <strong>pele</strong> estão
+dentro do peso do filé com pele, então a coluna de fatores não soma 1. Quem soma 1 é cada
+estágio separadamente.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="rotina">
+<h2>10. A rotina completa</h2>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Quando</th><th>O quê</th><th>Onde</th></tr></thead>
+  <tbody>
+    <tr><td>Todo dia</td><td>Lançar contagem das 4 casas</td><td>Lançamento Diário</td></tr>
+    <tr><td>Todo dia</td><td>Olhar o que está crítico</td><td>Painel de Consumo</td></tr>
+    <tr><td>Qualquer compra</td><td>Montar a ordem pelo catálogo e emitir</td><td>Ordens de Compras</td></tr>
+    <tr><td>No dia da compra de insumo</td><td>Conferir trânsito e dias a cobrir, salvar o pedido</td><td>Projeção de Compras</td></tr>
+    <tr><td>Pedido pronto de fora</td><td>Ler a planilha ou o PDF e mandar para a fila</td><td>Importar OC</td></tr>
+    <tr><td>Fornecedor ou preço novo</td><td>Cadastrar antes de emitir a OC</td><td>Cadastros</td></tr>
+    <tr><td>Ao negociar salmão</td><td>Conferir o custo real do filé</td><td>Conversão de Salmão</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="problemas">
+<h2>11. Quando dá problema</h2>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+  <tbody>
+    <tr><td>"Servidor fora do ar"</td><td>a janela preta foi fechada</td><td>abrir o <span class="cod">Servidor.bat</span> de novo</td></tr>
+    <tr><td>Faturamento não aparece</td><td>a planilha está aberta no Excel, ou mudou de lugar</td><td>fechar o Excel e recarregar a página</td></tr>
+    <tr><td>Coeficiente vazio no dia</td><td>faturamento bruto do dia ainda não lançado</td><td>lançar o faturamento e recarregar</td></tr>
+    <tr><td>Consumo absurdo em um dia</td><td>contagem de estoque final errada</td><td>corrigir o lançamento daquele dia</td></tr>
+    <tr><td>Insumo sem valor em reais</td><td>custo ainda não cadastrado</td><td>aguardar o cadastro de preços</td></tr>
+    <tr><td>Ordem sem CNPJ</td><td>fornecedor não casou com o cadastro</td><td>escolher o cadastro na própria ordem</td></tr>
+    <tr><td>"Não é possível gerar a OC"</td><td>falta preço de item, ou o cadastro do fornecedor está incompleto</td><td>a mensagem diz o que falta; preço na própria ordem, cadastro em Cadastros</td></tr>
+    <tr><td>Fornecedor sem catálogo na nova ordem</td><td>produtos dele nunca foram cadastrados</td><td>cadastrar em Cadastros, ou incluir os itens à mão na ordem</td></tr>
+    <tr><td>Cadastro não salva</td><td>a planilha está aberta no Excel em alguma máquina</td><td>fechar o Excel e clicar em Recarregar</td></tr>
+    <tr><td>Cadastro mudou e a tela não</td><td>alguém editou pelo Excel enquanto a tela estava aberta</td><td>clicar em <strong>Recarregar</strong> em Cadastros</td></tr>
+    <tr><td>PDF importado sem itens</td><td>o arquivo não é a OC da planilha do gerente</td><td>conferir o arquivo, ou digitar a ordem em Nova ordem</td></tr>
+    <tr><td>A tela não mudou depois do ajuste</td><td>o navegador guardou a versão antiga</td><td>recarregar com <span class="cod">Ctrl + F5</span></td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="arquivos">
+<h2>12. Onde ficam os dados</h2>
+<p>Tudo mora na pasta <span class="cod">CDE Web</span>, em arquivos de texto legíveis —
+nada fica preso em banco de dados.</p>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Arquivo</th><th>O que guarda</th></tr></thead>
+  <tbody>
+    <tr><td><span class="cod">dados/lancamentos.json</span></td><td>o histórico de contagens, dia a dia</td></tr>
+    <tr><td><span class="cod">dados/metas.json</span></td><td>a meta de coeficiente por insumo e casa</td></tr>
+    <tr><td><span class="cod">dados/custos.json</span></td><td>o custo unitário usado na visão de dinheiro</td></tr>
+    <tr><td><span class="cod">dados/compras.json</span></td><td>parâmetros da projeção, fornecedores e conversões</td></tr>
+    <tr><td><span class="cod">dados/pedidos.json</span></td><td>o que foi digitado em cada projeção salva</td></tr>
+    <tr><td><span class="cod">dados/ordens.json</span></td><td>as ordens de compra pendentes e geradas</td></tr>
+    <tr><td><span class="cod">dados/vinculos.json</span></td>
+        <td>a conciliação entre o item do CDE e o produto do catálogo (editável em Cadastros)</td></tr>
+  </tbody>
+</table></div>
+
+<h3>O que não pode sair da pasta</h3>
+<p>O arquivo <span class="cod">.gitignore</span> impede que o histórico de lançamentos, os
+pedidos, as ordens, os custos, a base de cadastros e a pasta de <span class="cod">backups</span>
+sejam enviados para um repositório de código. Dentro deles está o faturamento diário das quatro
+casas e o preço negociado com cada fornecedor — código qualquer um pode ler, isso não.</p>
+<p class="nota-aviso">Isso vale só para o envio ao repositório. Os arquivos continuam no disco e
+dentro do OneDrive: quem tem acesso à pasta continua tendo acesso a eles.</p>
+
+<h3>Dois programas de manutenção</h3>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Programa</th><th>Para que serve</th></tr></thead>
+  <tbody>
+    <tr><td><span class="cod">recalcular_metas.py</span></td>
+        <td>refaz <span class="cod">dados/metas.json</span> a partir do histórico agregado.
+            Rode no começo de cada mês — <span class="cod">--simular</span> mostra sem gravar
+            e <span class="cod">--backtest</span> compara os critérios possíveis.</td></tr>
+    <tr><td><span class="cod">importar_diario.py</span></td>
+        <td>lê as <strong>abas diárias</strong> (01 a 31) das planilhas das casas e traz a
+            movimentação inteira: início, chegada, transferência, perda e contagem final de cada
+            insumo, com o salmão separado por faixa (08/10, 10/12, 12/14, 14/16). O salmão
+            equivalente não é importado — é calculado a partir das faixas. Sem
+            <span class="cod">--gravar</span> ele só confere e mostra o relatório.</td></tr>
+    <tr><td><span class="cod">corrigir_lancamentos.py</span></td>
+        <td>conserta dois defeitos herdados das planilhas: saída gravada como entrada
+            negativa e desperdício que apenas repetia o estoque final na aba do salmão.
+            Já foi aplicado; ficou disponível para o caso de reimportação.</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Dois arquivos que NÃO ficam aqui</h3>
+<p>São compartilhados com o Gerador de OCs de propósito — arquivo separado significaria dado
+divergente entre os dois sistemas:</p>
+<div class="rolagem"><table class="tabela-curta">
+  <thead><tr><th>Arquivo</th><th>Onde fica</th><th>O que guarda</th></tr></thead>
+  <tbody>
+    <tr><td><span class="cod">Base_SushiBoulevard.xlsx</span></td>
+        <td>pasta <span class="cod">Gerador de OCs</span></td>
+        <td>fornecedores, produtos com preço, unidades e observações fixas</td></tr>
+    <tr><td><span class="cod">Registro_OCs.json</span></td>
+        <td>pasta <span class="cod">Gerador de OCs</span></td>
+        <td>o contador de OC por unidade e o histórico das emitidas</td></tr>
+  </tbody>
+</table></div>
+<p>Na primeira vez que o CDE Web grava em cada um deles, ele deixa uma cópia de segurança em
+<span class="cod">backups/</span>. A cópia local
+<span class="cod">CDE Web/Base_SushiBoulevard.xlsx</span> só é usada se a pasta do Gerador
+estiver inacessível — o indicador em Cadastros avisa qual das duas está em uso.</p>
+
+<p class="nota-aviso">O CDE Web é um <strong>teste em evolução</strong>. O Gerador de OCs
+continua funcionando exatamente como antes, na pasta dele, e nada nele foi alterado —
+o módulo de OCs foi <strong>copiado</strong> para cá, não movido. Copie as duas pastas de vez
+em quando para ter backup.</p>
+</section>
+
+  </div>
+</div>
+</main>
+</div>
+<script>montarSidebar("ajuda")</script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

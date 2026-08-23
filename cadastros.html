@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Cadastros</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<!-- xlsx: importar/exportar a base em planilha, mesma versao do Gerador de OCs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Cadastros</h1>
+      <p>Fornecedores, produtos com preço e unidades compradoras. É a mesma base do
+         Gerador de OCs — o que você muda aqui vale nos dois sistemas.</p>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+      <button class="botao" id="btn-exportar" title="Baixa uma cópia da planilha para backup">Exportar cópia</button>
+      <button class="botao" id="btn-recarregar" title="Relê a planilha do disco">Recarregar</button>
+    </div>
+  </div>
+
+  <section class="barra">
+    <nav class="abas abas-cad" id="abas">
+      <button data-t="fornecedores" class="ativa">Fornecedores</button>
+      <button data-t="produtos">Produtos e preços</button>
+      <button data-t="unidades">Unidades</button>
+    </nav>
+    <span class="fonte" id="fonte-arquivo"></span>
+  </section>
+
+  <div id="tela"></div>
+</main>
+</div>
+<script>montarSidebar("cadastros")</script>
+
+<input type="file" id="arquivo-import" accept=".xlsx,.xlsm" hidden>
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/comum.js"></script>
+<script src="js/cadastros.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Projeção de Compras</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Projeção de Compras</h1>
+      <p>Estoque e consumo médio vêm do histórico do sistema. Você informa o que está
+         em trânsito, o fator e quantos dias quer cobrir.</p>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+      <button id="btn-salvar" class="botao primario">Salvar pedido</button>
+    </div>
+  </div>
+
+  <section class="barra">
+    <label class="campo"><span>Data do pedido</span><input type="date" id="data"></label>
+    <label class="campo"><span>Dias a cobrir (padrão)</span>
+      <input type="number" id="dias" min="1" max="60" step="1" style="width:110px"></label>
+    <label class="campo"><span>Responsável</span><select id="responsavel"></select></label>
+    <span class="fonte" id="janela-txt"></span>
+    <nav class="abas" id="abas-casas"></nav>
+  </section>
+
+  <div id="tela"></div>
+
+  <section class="cartao">
+    <div class="cabeca"><h2>Pedido consolidado por fornecedor</h2></div>
+    <div class="filtros">
+      <label class="campo"><span>Casa</span><select id="cons-casa"></select></label>
+      <span class="fonte" id="cons-nota"></span>
+    </div>
+    <div class="rolagem" id="consolidado"></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("compras")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/compras.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Visão Geral</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Visão Geral</h1>
+      <p id="periodo-txt">carregando…</p>
+    </div>
+    <div class="header-acoes">
+      <label class="campo"><span>Mês</span><select id="mes"></select></label>
+    </div>
+  </div>
+
+  <!-- Um bloco só, no lugar das duas faixas que existiam antes. A de cima
+       mostrava totais e a de baixo o que mudou, repetindo faturamento e
+       estoque baixo em desenhos diferentes. Agora cada cartão traz o número,
+       a variação e a curva do período no mesmo lugar. -->
+  <div class="insights" id="insights"></div>
+
+  <section class="cartao">
+    <div class="cabeca"><h2>Participação das casas no Faturamento (Bruto)</h2>
+      <span class="fonte" id="nota-participacao"></span></div>
+    <div class="pizza-bloco">
+      <div id="pizza"></div>
+      <div class="rolagem" id="tabela-casas"></div>
+    </div>
+  </section>
+
+  <!-- Quatro resumos lado a lado: o que pesa, o que vai faltar, o que mudou e
+       o que acabou de acontecer. Cada um é a capa de um relatório — clicar
+       abre a seção correspondente lá embaixo, que fica recolhida esperando. -->
+  <div class="quadro">
+    <section class="cartao card-atalho" data-alvo="abc" role="button" tabindex="0">
+      <div class="ca-topo"><h2>Principais insumos</h2>
+        <span class="fonte" id="nota-top"></span></div>
+      <div id="top-insumos"></div>
+      <span class="ca-ir">curva ABC completa →</span>
+    </section>
+
+    <section class="cartao card-atalho" data-alvo="minimos" role="button" tabindex="0">
+      <div class="ca-topo"><h2>Estoque baixo</h2>
+        <span class="fonte" id="nota-baixo"></span></div>
+      <div id="barras-estoque"></div>
+      <span class="ca-ir">lista completa →</span>
+    </section>
+
+    <section class="cartao card-atalho" data-alvo="variacao" role="button" tabindex="0">
+      <div class="ca-topo"><h2>Maiores variações</h2>
+        <span class="fonte" id="nota-var-topo"></span></div>
+      <div id="top-variacao"></div>
+      <span class="ca-ir">variação mês a mês →</span>
+    </section>
+
+    <section class="cartao card-atalho" data-alvo="movimentos" role="button" tabindex="0">
+      <div class="ca-topo"><h2>Últimos movimentos</h2>
+        <span class="fonte" id="nota-mov-topo"></span></div>
+      <div id="top-movimentos"></div>
+      <span class="ca-ir">extrato completo →</span>
+    </section>
+  </div>
+
+  <section class="cartao">
+    <div class="cabeca"><h2>Evolução do grupo</h2>
+      <span class="fonte">Faturamento bruto por mês e quanto dele virou consumo de insumo</span></div>
+    <div class="graficos" id="graficos-mes"></div>
+  </section>
+
+  <!-- Daqui para baixo é relatório: tudo recolhido, para a página não virar
+       uma rolagem de três telas antes de mostrar a próxima informação. -->
+  <section class="cartao dobravel" data-secao="abc">
+    <div class="cabeca dobra"><h2>Curva ABC completa</h2>
+      <span class="fonte" id="nota-abc"></span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo"><div class="rolagem" id="abc-tabela"></div></div>
+  </section>
+
+  <section class="cartao dobravel" data-secao="minimos">
+    <div class="cabeca dobra"><h2>Estoque no limite ou abaixo do mínimo</h2>
+      <span class="fonte" id="nota-minimo"></span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo"><div class="rolagem" id="tabela-minimos"></div></div>
+  </section>
+
+  <section class="cartao dobravel" data-secao="estoque">
+    <div class="cabeca dobra"><h2>Posição atual de estoque</h2>
+      <span class="fonte" id="nota-estoque"></span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <div class="barra barra-interna">
+        <label class="campo"><span>Casa</span><select id="f-casa-estoque"></select></label>
+      </div>
+      <div class="rolagem" id="tabela-estoque"></div>
+    </div>
+  </section>
+
+  <section class="cartao dobravel" data-secao="variacao">
+    <div class="cabeca dobra"><h2>Variação de consumo — mês contra mês</h2>
+      <span class="fonte" id="nota-variacao"></span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo"><div class="rolagem" id="tabela-variacao"></div></div>
+  </section>
+
+  <section class="cartao dobravel" data-secao="compras">
+    <div class="cabeca dobra"><h2>Custo unitário das compras</h2>
+      <span class="fonte">Preço médio pago por unidade compradora, ponderado pela quantidade</span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo"><div class="rolagem" id="tabela-compras"></div></div>
+  </section>
+
+  <section class="cartao dobravel" data-secao="movimentos">
+    <div class="cabeca dobra"><h2>Últimas movimentações</h2>
+      <span class="fonte">Entradas, saídas, perdas e consumo</span>
+      <span style="flex:1"></span>
+      <a class="botao" href="movimentacoes.html">Histórico completo</a>
+      <span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo"><div class="rolagem" id="tabela-movimentos"></div></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("overview")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/overview.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

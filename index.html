@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Lançamento Diário</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content tela-lancamento">
+  <div class="screen-header">
+    <div>
+      <h1>Lançamento Diário</h1>
+      <p>Preencha na ordem das colunas. O estoque inicial vem do dia anterior
+         e o uso é calculado sozinho.</p>
+    </div>
+    <div class="header-acoes">
+      <button id="btn-sinc" class="botao" title="Traz para o sistema o que foi digitado nas planilhas de cada casa">Sincronizar planilhas</button>
+      <span id="estado" class="estado"></span>
+      <button id="btn-salvar" class="botao primario">Salvar o dia</button>
+    </div>
+  </div>
+
+  <section class="barra">
+    <label class="campo"><span>Data</span><input type="date" id="data"></label>
+    <div class="navdata">
+      <button class="botao" id="dia-anterior" title="Dia anterior">◀</button>
+      <button class="botao" id="dia-hoje">Hoje</button>
+      <button class="botao" id="dia-seguinte" title="Próximo dia">▶</button>
+    </div>
+    <nav class="abas" id="abas-casas"></nav>
+    <span class="fonte legenda-abas">O número ao lado de cada casa é quantos insumos ainda
+      estão sem contagem final no dia; <span class="pend feito">✓</span> é dia fechado.</span>
+  </section>
+
+  <div id="painel"></div>
+</main>
+</div>
+<script>montarSidebar("lancamento")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/app.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

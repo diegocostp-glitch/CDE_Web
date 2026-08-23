@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Painel de Consumo</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Painel de Consumo</h1>
+      <p id="periodo-txt">carregando…</p>
+    </div>
+    <div class="header-acoes">
+      <div class="segmentado" id="visoes">
+        <button data-v="tabela" class="ativo">Tabela</button>
+        <button data-v="mapa">Visão Geral</button>
+        <button data-v="dinheiro">Impacto R$</button>
+      </div>
+      <div class="sino">
+        <button class="sino-btn" id="sino-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+          </svg>
+          <span id="sino-txt">Sem alertas</span>
+        </button>
+        <div class="sino-lista" id="sino-lista" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="barra">
+    <label class="campo"><span>De</span><input type="date" id="inicio"></label>
+    <label class="campo"><span>Até</span><input type="date" id="fim"></label>
+    <button class="botao" id="ultimos30">Últimos 30 dias</button>
+  </section>
+
+  <div class="placar" id="placar"></div>
+
+  <section class="cartao">
+    <div class="filtros">
+      <label class="campo"><span>Loja</span><select id="f-casa"></select></label>
+      <label class="campo"><span>Insumo</span><select id="f-insumo"></select></label>
+      <label class="campo"><span>Situação</span><select id="f-situacao"></select></label>
+      <span class="fonte" id="contagem"></span>
+    </div>
+    <div class="rolagem" id="tabela"></div>
+  </section>
+
+  <section class="cartao" id="detalhe" hidden>
+    <div class="cabeca">
+      <h2 id="det-titulo"></h2>
+      <button class="botao" id="det-fechar">Fechar</button>
+    </div>
+    <div class="graficos" id="det-graficos"></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("painel")</script>
+<script src="js/painel.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

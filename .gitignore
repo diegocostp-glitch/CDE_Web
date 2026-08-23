@@ -1,0 +1,70 @@
+# ============================================================================
+# O que NUNCA vai para o repositório.
+#
+# Este sistema mora junto com os dados da operação: faturamento diário das
+# quatro casas, consumo, preço negociado com fornecedor e CNPJ. Código pode ser
+# lido por qualquer um sem prejuízo; esses arquivos, não. Versionar um deles
+# significa entregar o faturamento do grupo para quem tiver acesso ao
+# repositório — e o histórico do git não esquece, apagar depois não resolve.
+#
+# Mesmo critério já usado no Gerador de OCs, que compartilha a base com este.
+# ============================================================================
+
+# --- movimento e dinheiro da operação ---------------------------------------
+# lancamentos.json guarda o faturamento diário por casa desde janeiro; pedidos e
+# ordens carregam quantidade e preço negociado.
+dados/lancamentos.json
+dados/pedidos.json
+dados/ordens.json
+dados/custos.json
+dados/*.tmp
+dados/*.json.antes-da-importacao
+
+# Medicao de rendimento e perda do filetamento do salmao.
+conversos salmao.xlsx
+
+# --- cópias de segurança -----------------------------------------------------
+# São cópias inteiras dos arquivos acima, com os mesmos dados dentro.
+backups/
+
+# --- cadastro compartilhado com o Gerador de OCs -----------------------------
+# CNPJ, endereço, contato e tabela de preço de cada fornecedor.
+Base_SushiBoulevard.xlsx
+Base_SushiBoulevard*.xlsx
+Registro_OCs*.json
+
+# --- planilhas de origem e temporários do Excel ------------------------------
+*.xlsm
+~$*
+
+# --- imagens de referência de layout -----------------------------------------
+# Prints de modelos usados para desenhar as telas. logo_menu.png e logo_aba.png
+# são assets do sistema e continuam versionados.
+modelo*.png
+modelo*.jpeg
+ocultacao*.jpeg
+ajuste*.png
+pequenos blocos*.png
+
+# --- lixo de execução --------------------------------------------------------
+__pycache__/
+*.pyc
+*.log
+
+# --- lixo do Windows / OneDrive ----------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ============================================================================
+# O que CONTINUA versionado, de propósito: o código (server.py, js/, css/, as
+# telas .html), o manual e os arquivos de parâmetro que não têm dado de
+# operação dentro — dados/compras.json (fornecedores, conversões e janelas),
+# dados/metas.json (coeficiente-alvo por insumo) e dados/vinculos.json (de-para
+# entre o item do CDE e o produto do catálogo). Sem eles o sistema não sobe
+# configurado, e nenhum deles revela faturamento ou preço de compra.
+#
+# Atenção: .gitignore só impede o envio para o repositório. Os arquivos
+# continuam no disco e dentro do OneDrive — quem tem acesso à pasta continua
+# tendo acesso a eles.
+# ============================================================================

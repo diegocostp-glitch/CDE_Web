@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Conversão de Salmão</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Conversão de Salmão</h1>
+      <p>Transforma o preço pago no peixe inteiro no custo real de cada subproduto,
+         em dois estágios de rendimento.</p>
+    </div>
+  </div>
+
+  <section class="barra">
+    <label class="campo"><span>Insumo</span><select id="cv-insumo"></select></label>
+    <label class="campo"><span>Preço pago por quilo do inteiro</span>
+      <input type="text" id="cv-preco" inputmode="decimal" placeholder="R$ 0,00" style="width:150px"></label>
+    <span class="fonte" id="cv-hint">Informe o valor por quilo do insumo inteiro eviscerado.</span>
+  </section>
+
+  <div id="cv-alerta"></div>
+  <div class="placar" id="cv-stats"></div>
+
+  <section class="cartao">
+    <div class="cabeca"><h2>Custo por subproduto</h2>
+      <span class="fonte">Só o que vai para o estoque absorve custo</span></div>
+    <div class="rolagem"><table>
+      <thead><tr><th>Item</th><th>Fator (kg por kg de inteiro)</th>
+        <th>Custo por kg</th><th>Vai para o estoque</th></tr></thead>
+      <tbody id="cv-body"></tbody>
+    </table></div>
+  </section>
+
+  <section class="cartao">
+    <div class="cabeca cv-toggle" id="cv-abrir" role="button" tabindex="0">
+      <h2>Fatores de rendimento</h2>
+      <span class="fonte" id="cv-fonte"></span>
+      <span class="ordem-chev" id="cv-chev">▸</span>
+    </div>
+    <div id="cv-fatores" hidden></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("conversao")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/conversao.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

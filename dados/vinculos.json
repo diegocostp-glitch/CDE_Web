@@ -1,0 +1,47 @@
+{
+ "_nota": "Conciliação entre o item do pedido consolidado (insumo do CDE) e o produto do catálogo de compras. O CDE conta 'camarão M'; o fornecedor vende 'CAMARÃO ROSA 31/50 DESC - SC 1KG' — sem este de-para a OC saía com o nome do CDE, que o fornecedor não reconhece e o financeiro não bate com a nota. Um insumo pode ter mais de um produto (marcas ou faixas diferentes): o primeiro é o padrão e a tela deixa escolher outro na hora do pedido, dentro do catálogo do fornecedor escolhido. Os nomes têm que ser iguais aos da aba Produtos da Base_SushiBoulevard.xlsx. Editável também pela tela de Cadastros, na coluna 'Item do CDE'.",
+ "camarao_g": [
+  "CAMARÃO ROSA 31/35 DESC - SC 1KG"
+ ],
+ "camarao_m": [
+  "CAMARÃO ROSA 31/50 DESC - SC 1KG"
+ ],
+ "camarao_p": [
+  "CAMARÃO ROSA 51/70 DESC - SC 1KG"
+ ],
+ "atum": [],
+ "file_tilapia": [
+  "FILÉ DE TILÁPIA"
+ ],
+ "lula": [
+  "LULA ANEL"
+ ],
+ "kani": [
+  "KANI",
+  "KANI KAMA"
+ ],
+ "nori": [
+  "NORI TENKA GOLD",
+  "NORI FUJI GOLD",
+  "NORI YAKINORI MURASAKI"
+ ],
+ "polvo": [
+  "TENTÁCULOS DE LULA"
+ ],
+ "anchova": [
+  "ANCHOVA DEFUMADA"
+ ],
+ "cream_cheese": [
+  "CREAM CHEESE PHILADELPHIA"
+ ],
+ "arroz": [
+  "ARROZ YANAGI GRÃO LONGO"
+ ],
+ "salmao_equivalente": [
+  "SALMÃO INTEIRO EVISCERADO - 08/10",
+  "SALMÃO INTEIRO EVISCERADO - 10/12",
+  "SALMÃO INTEIRO EVISCERADO - 12/14",
+  "FILÉ DE SALMÃO COM PELE",
+  "FILÉ DE SALMÃO SEM PELE"
+ ]
+}

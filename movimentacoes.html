@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Movimentações</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Movimentações</h1>
+      <p>Cada chegada, transferência, perda e consumo, dia a dia. É o extrato do
+         estoque — serve para conferir o que o lançamento diário registrou.</p>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+      <button class="botao" id="btn-csv">Exportar CSV</button>
+    </div>
+  </div>
+
+  <section class="barra">
+    <label class="campo"><span>De</span><input type="date" id="inicio"></label>
+    <label class="campo"><span>Até</span><input type="date" id="fim"></label>
+    <button class="botao" id="mes-atual">Mês atual</button>
+    <label class="campo"><span>Casa</span><select id="f-casa"></select></label>
+    <label class="campo"><span>Insumo</span><select id="f-insumo"></select></label>
+    <label class="campo"><span>Movimento</span><select id="f-tipo"></select></label>
+    <span class="fonte" id="contagem"></span>
+  </section>
+
+  <div class="placar" id="placar"></div>
+
+  <section class="cartao">
+    <div class="cabeca"><h2>Extrato</h2><span class="fonte" id="nota">—</span></div>
+    <div class="rolagem" id="tabela"></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("movimentacoes")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/movimentacoes.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

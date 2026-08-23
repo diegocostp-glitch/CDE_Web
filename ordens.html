@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Ordens de Compras</title>
+<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<!-- jsPDF + autoTable: as mesmas versoes do Gerador de OCs, para o
+     documento sair identico ao que o fornecedor ja recebe. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Ordens de Compras</h1>
+      <p>Monte a ordem de qualquer fornecedor pelo catálogo. A Projeção de Compras
+         e a importação de planilha entram nesta mesma fila.</p>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+      <button id="btn-nova" class="botao primario">+ Nova ordem</button>
+    </div>
+  </div>
+
+  <!-- NOVA ORDEM — o modulo original de geracao de OCs. Recolhido por padrao
+       porque, no dia a dia, quem abre esta tela vem terminar ordem pendente. -->
+  <section class="cartao" id="painel-nova" hidden>
+    <div class="cabeca">
+      <h2>Nova ordem de compra</h2>
+      <span class="fonte">Escolha o fornecedor e marque os itens</span>
+      <button class="botao-mini" id="fechar-nova" title="Fechar">&#10005;</button>
+    </div>
+
+    <div class="barra barra-interna">
+      <label class="campo campo-largo"><span>Fornecedor</span>
+        <span id="slot-forn"></span></label>
+      <label class="campo"><span>Unidade compradora</span>
+        <select id="nova-unidade"></select></label>
+      <label class="campo"><span>Data do pedido</span>
+        <input type="date" id="nova-data"></label>
+      <label class="campo"><span>Nº da OC</span>
+        <input type="number" id="nova-numero" min="1" placeholder="automático" style="width:120px"></label>
+    </div>
+
+    <div id="nova-catalogo"></div>
+  </section>
+
+  <section class="barra">
+    <label class="campo"><span>Situação</span>
+      <select id="filtro-situacao">
+        <option value="pendente">Pendentes</option>
+        <option value="">Todas</option>
+        <option value="gerada">Geradas</option>
+      </select></label>
+    <label class="campo"><span>Unidade</span><select id="filtro-unidade"></select></label>
+    <label class="campo"><span>Origem</span>
+      <select id="filtro-origem">
+        <option value="">Todas</option>
+        <option value="avulsa">Avulsa</option>
+        <option value="projecao">Projeção</option>
+        <option value="importada">Importada</option>
+      </select></label>
+    <label class="campo campo-largo"><span>Buscar</span>
+      <input type="text" id="filtro-busca" placeholder="fornecedor ou item"></label>
+    <span class="fonte" id="resumo"></span>
+  </section>
+
+  <div id="lista"></div>
+</main>
+</div>
+<script>montarSidebar("ordens")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/comum.js"></script>
+<script src="js/header-img.js"></script>
+<script src="js/oc-pdf.js"></script>
+<script src="js/ordens.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>
