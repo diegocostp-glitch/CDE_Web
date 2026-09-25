@@ -31,8 +31,13 @@ PASTA_EVOLUCAO = {
 
 
 def pasta_mensal(saida, ym):
-    """saida/Relatório <Mês>/ — um mês por pasta, todos os insumos dentro."""
-    d = os.path.join(saida, 'Relatório %s' % MES_NOME[int(ym[5:7])])
+    """saida/<n>. Relatório <Mês>/ — um mês por pasta, os insumos dentro.
+
+    O numero na frente existe para a pasta ordenar por mes e nao por alfabeto:
+    sem ele o explorador lista Abril, Agosto, Fevereiro, Janeiro, Julho...
+    """
+    m = int(ym[5:7])
+    d = os.path.join(saida, '%d. Relatório %s' % (m, MES_NOME[m]))
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -46,7 +51,7 @@ def pasta_evolucao(saida, insumo):
 
 
 def pasta_financeiro(saida):
-    """saida/Evolução/Estoque - Compras/ — o consolidado de todos os insumos."""
-    d = os.path.join(saida, 'Evolução', 'Estoque - Compras')
+    """saida/Evolução/Evolução Estoque - Compras/ — o consolidado de todos."""
+    d = os.path.join(saida, 'Evolução', 'Evolução Estoque - Compras')
     os.makedirs(d, exist_ok=True)
     return d
