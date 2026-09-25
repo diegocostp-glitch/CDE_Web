@@ -1,0 +1,192 @@
+{
+ "estoque": {
+  "camarao_g": {
+   "SL": {
+    "minimo": 5.0
+   },
+   "DC": {
+    "minimo": 5.0
+   },
+   "DLU": {
+    "minimo": 14.0
+   },
+   "DLCN": {
+    "minimo": 5.0
+   }
+  },
+  "camarao_m": {
+   "SL": {
+    "minimo": 14.0
+   },
+   "DC": {
+    "minimo": 14.0
+   },
+   "DLU": {
+    "minimo": 28.0
+   },
+   "DLCN": {
+    "minimo": 14.0
+   }
+  },
+  "camarao_p": {
+   "SL": {
+    "minimo": 28.0
+   },
+   "DC": {
+    "minimo": 14.0
+   },
+   "DLU": {
+    "minimo": 5.0
+   },
+   "DLCN": {
+    "minimo": 28.0
+   }
+  },
+  "file_tilapia": {
+   "SL": {
+    "minimo": 10.0
+   },
+   "DC": {
+    "minimo": 10.0
+   },
+   "DLU": {
+    "minimo": 5.0
+   },
+   "DLCN": {
+    "minimo": 10.0
+   }
+  },
+  "lula_in_natura": {
+   "SL": {
+    "minimo": 10.0
+   },
+   "DC": {
+    "minimo": 10.0
+   },
+   "DLU": {
+    "minimo": 10.0
+   },
+   "DLCN": {
+    "minimo": 10.0
+   }
+  },
+  "lula": {
+   "SL": {
+    "minimo": 6.0
+   },
+   "DC": {
+    "minimo": 6.0
+   },
+   "DLU": {
+    "minimo": 5.0
+   },
+   "DLCN": {
+    "minimo": 6.0
+   }
+  },
+  "polvo_in_natura": {
+   "SL": {
+    "minimo": 10.0
+   },
+   "DC": {
+    "minimo": 10.0
+   },
+   "DLU": {
+    "minimo": 10.0
+   },
+   "DLCN": {
+    "minimo": 10.0
+   }
+  },
+  "polvo": {
+   "SL": {
+    "minimo": 1.5
+   },
+   "DC": {
+    "minimo": 1.5
+   },
+   "DLU": {
+    "minimo": 4.0
+   },
+   "DLCN": {
+    "minimo": 1.5
+   }
+  },
+  "anchova": {
+   "SL": {
+    "minimo": 10.0
+   },
+   "DC": {
+    "minimo": 10.0
+   },
+   "DLU": {
+    "minimo": 10.0
+   },
+   "DLCN": {
+    "minimo": 10.0
+   }
+  },
+  "kani": {
+   "SL": {
+    "minimo": 20.0
+   },
+   "DC": {
+    "minimo": 20.0
+   },
+   "DLU": {
+    "minimo": 20.0
+   },
+   "DLCN": {
+    "minimo": 20.0
+   }
+  },
+  "arroz": {
+   "SL": {
+    "minimo": 12.0
+   },
+   "DC": {
+    "minimo": 12.0
+   },
+   "DLU": {
+    "minimo": 20.0
+   },
+   "DLCN": {
+    "minimo": 12.0
+   }
+  },
+  "cream_cheese": {
+   "SL": {
+    "minimo": 16.0
+   },
+   "DC": {
+    "minimo": 16.0
+   },
+   "DLU": {
+    "minimo": 28.0
+   },
+   "DLCN": {
+    "minimo": 16.0
+   }
+  },
+  "nori": {
+   "SL": {
+    "minimo": 20.0
+   },
+   "DC": {
+    "minimo": 20.0
+   },
+   "DLU": {
+    "minimo": 20.0
+   },
+   "DLCN": {
+    "minimo": 20.0
+   }
+  },
+  "patinho": {
+   "DLU": {
+    "minimo": 15.0
+   }
+  }
+ },
+ "_nota": "Minimo e maximo de estoque por insumo e casa, definidos na tela de Parametros. Minimo em branco faz a Visao Geral voltar a calcular pela media."
+}

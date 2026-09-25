@@ -75,26 +75,22 @@
     }
   ],
   "fornecedores": [
-    "Bom Peixe",
-    "Bourbon",
     "Damm",
-    "Frescatto",
     "Frumar",
-    "Luís do Camarão",
-    "Mar Claro Pescados",
-    "Marcomar",
     "Nippobraz",
     "Taichi",
-    "Vitrine do Mar",
     "Mar e Rio",
     "Marfrios",
     "Ganesh",
-    "Maris Pescados"
+    "Iglu",
+    "Ecil",
+    "Yakumi"
   ],
   "responsaveis": [
     "EDSON MAUÉS",
     "JOSÉ COUTO",
-    "DIEGO COSTA"
+    "DIEGO COSTA",
+    "JOSÉ NETO"
   ],
   "dias_seguranca": 3,
   "salmao_partes": [

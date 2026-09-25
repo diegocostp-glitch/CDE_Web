@@ -32,8 +32,9 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 RAIZ = Path(__file__).parent
@@ -65,17 +66,29 @@ MAPA = [
     ("FILE DE TILAPIA", "file_tilapia"),
     ("PATINHO", "patinho"),
 ]
-# Itens que a planilha quebra em IN NATURA e PROCESSADO: o CDE acompanha o
-# PROCESSADO, que e o que vai para o balcao. O in natura e materia-prima do
-# processamento e ja esta contado dentro dele.
+# Itens que a planilha quebra em IN NATURA e PROCESSADO. O CDE acompanha os
+# DOIS lados: o processado e o que vai para o balcao, e o in natura e a
+# materia-prima que ainda esta na camara esperando processamento.
+#
+# Antes so o processado era importado, e o in natura era descartado como se
+# fosse a mesma coisa contada duas vezes. Nao e: quem compra compra in natura,
+# e a Projecao de Compras precisava adivinhar quanto de cru havia usando um
+# rendimento medio fixo. Com os dois lados no sistema, mais o bloco
+# PROCESSAMENTO (lido em processamento_da_aba), o rendimento passa a ser o
+# medido no dia.
 MAPA_PROCESSADO = [
     ("ANEL DE LULA", "lula"),
     ("TENTACULO DE LULA", "polvo"),
     ("LOMBO DE ATUM", "atum"),
 ]
+SUFIXO_IN_NATURA = "_in_natura"
 # Blocos que existem na planilha e nao entram no CDE Web
 IGNORAR = ["CAMARAO P - C/RABO", "RASPA DE SALMAO", "APARA DE SALMAO", "PELE DE SALMAO",
-           "CAMARAO P (GERAL)", "PROCESSAMENTO", "IN NATURA"]
+           "CAMARAO P (GERAL)", "PROCESSAMENTO"]
+# Rotulos do bloco PROCESSAMENTO -> campo. O rendimento que a planilha calcula
+# nao e lido: aqui ele sai de processado / in_natura, uma conta so.
+CAMPOS_PROC = [("PRODUTO IN NATURA", "in_natura"),
+               ("PRODUTO PROCESSADO", "processado")]
 
 CAMPOS = [("INICIO", "inicial"), ("INÍCIO", "inicial"), ("FINAL", "final"),
           ("CHEGADA", "entrada"), ("TRANSFERENCIA", "transferencia"),
@@ -166,11 +179,14 @@ def insumo_do_titulo(titulo, secao, subtitulo):
     for prefixo, chave in MAPA:
         if t.startswith(prefixo):
             return chave
-    for prefixo, chave in MAPA_PROCESSADO:
-        if sc.startswith(prefixo) and sem_acento(subtitulo).startswith("PROCESSADO"):
-            return chave
-        if t.startswith(prefixo) and sem_acento(subtitulo).startswith("PROCESSADO"):
-            return chave
+    # IN NATURA / PROCESSADO: o lado vem no titulo do bloco, o item na secao
+    sub = sem_acento(subtitulo)
+    lado = (SUFIXO_IN_NATURA if sub.startswith("IN NATURA")
+            else "" if sub.startswith("PROCESSADO") else None)
+    if lado is not None:
+        for prefixo, chave in MAPA_PROCESSADO:
+            if sc.startswith(prefixo) or t.startswith(prefixo):
+                return chave + lado
     # bloco sem nome proprio: vale o nome da secao
     for prefixo, chave in MAPA:
         if sc.startswith(prefixo):
@@ -179,14 +195,14 @@ def insumo_do_titulo(titulo, secao, subtitulo):
 
 
 def ler_aba_dia(ws, iso):
-    """Devolve (data, faturamento, {insumo: campos}) de uma aba de dia."""
+    """Devolve (data, faturamento, {insumo: campos}, conferencias, processamentos)."""
     fat = numero(ws.cell(row=9, column=12).value)           # L9
     if not iso:
-        return None, None, {}, []
+        return None, None, {}, [], {}
 
     # secao vigente por coluna: a ultima linha de titulo vista acima do bloco
     secao = {c: "" for c in COLUNAS}
-    insumos, conferencias = {}, []
+    insumos, conferencias, processamentos = {}, [], {}
 
     for r in range(10, ws.max_row + 1):
         # Linha de secao: os titulos dela mandam nas colunas a partir de onde
@@ -198,6 +214,11 @@ def ler_aba_dia(ws, iso):
         for c in COLUNAS:
             v = ws.cell(row=r, column=c).value
             if not isinstance(v, str) or not v.strip():
+                continue
+            # 'Inicio (Kg):', 'Produto In Natura (Kg):', 'Rendimento (%):' sao
+            # ROTULOS, nao titulo de secao — todos terminam em dois-pontos, e
+            # titulo de verdade ('KANI - SUSHIBAR') nunca termina assim.
+            if v.strip().endswith(":"):
                 continue
             abaixo = ws.cell(row=r + 1, column=c).value
             eh_bloco = isinstance(abaixo, str) and campo_do_rotulo(abaixo)
@@ -214,6 +235,35 @@ def ler_aba_dia(ws, iso):
         for c in COLUNAS:
             titulo = ws.cell(row=r, column=c).value
             if not isinstance(titulo, str) or not titulo.strip():
+                continue
+
+            # Bloco PROCESSAMENTO: tem rotulos proprios (Produto In Natura /
+            # Produto Processado), nao Inicio/Final, e por isso e lido aparte.
+            if sem_acento(titulo).startswith("PROCESSAMENTO"):
+                reg = {}
+                for k in range(1, 6):
+                    rot = ws.cell(row=r + k, column=c).value
+                    if not isinstance(rot, str):
+                        continue
+                    rr = sem_acento(rot)
+                    for prefixo, campo in CAMPOS_PROC:
+                        if rr.startswith(prefixo):
+                            val = numero(ws.cell(row=r + k, column=c + 1).value)
+                            if val is not None:
+                                reg[campo] = round(val, 4)
+                item = None
+                for prefixo, chave_proc in MAPA_PROCESSADO:
+                    if prefixo in sem_acento(titulo):
+                        item = chave_proc
+                if item and reg.get("in_natura"):
+                    processamentos[item] = reg
+                continue
+
+            # Sem esta guarda, 'Transferencia (Kg):' passava por inicio de bloco
+            # — a linha de baixo ('Perda') e rotulo valido —, caia no nome da
+            # secao e relia os rotulos DESLOCADOS: era assim que o kani herdava
+            # o 'Inicio (Pct. c/5Kg): 71' do arroz, tres linhas abaixo.
+            if campo_do_rotulo(titulo):
                 continue
             abaixo = ws.cell(row=r + 1, column=c).value
             if not (isinstance(abaixo, str) and campo_do_rotulo(abaixo)):
@@ -242,11 +292,44 @@ def ler_aba_dia(ws, iso):
                        - campos.get("transferencia", 0) - campos.get("final", 0))
                 if abs(meu - uso_planilha) > 0.011:
                     conferencias.append((chave, uso_planilha, round(meu, 3)))
-    return iso, fat, insumos, conferencias
+    return iso, fat, insumos, conferencias, processamentos
+
+
+def somar_file(dados, gravados=None):
+    """Soma no equivalente o file limpo que sobrou, em peixe 08/10.
+
+    Regra da casa: a sobra de file limpo do dia, convertida, entra no FINAL do
+    proprio dia e vira o INICIAL do dia seguinte. Quem explica o porque e o
+    somar_file_no_equivalente do server.py, que faz a conta — a funcao e
+    importada de la para o fator de conversao nao virar mais uma copia.
+
+    O dia anterior pode nao estar no lote (primeiro dia do mes, ou --casa de
+    uma casa so): nesse caso o file da vespera e procurado no que ja esta
+    gravado, senao a virada de mes abriria sem o file do ultimo dia.
+    """
+    import server
+    for iso in sorted(dados):
+        vespera = (datetime.strptime(iso, "%Y-%m-%d")
+                   - timedelta(days=1)).strftime("%Y-%m-%d")
+        for casa, lan in dados[iso].items():
+            insumos = lan.get("insumos") or {}
+            eq = insumos.get("salmao_equivalente")
+            if not eq:
+                continue
+            ontem = ((dados.get(vespera) or {}).get(casa)
+                     or ((gravados or {}).get(vespera) or {}).get(casa) or {})
+            sobra_ontem = ((ontem.get("insumos") or {}).get("salmao_file") or {}).get("final")
+            sobra_hoje = (insumos.get("salmao_file") or {}).get("final")
+            server.somar_file_no_equivalente(eq, sobra_ontem, sobra_hoje)
+    return dados
 
 
 def equivalente(insumos):
-    """Salmao equivalente 08/10, calculado das faixas — nunca importado."""
+    """Salmao equivalente 08/10, calculado das faixas — nunca importado.
+
+    O file de salmao NAO entra aqui: ele depende do dia anterior, e esta
+    funcao ve um dia so. Quem soma e o somar_file(), depois da leitura.
+    """
     fora = {}
     tem = False
     for campo in ("inicial", "final", "entrada", "transferencia", "desperdicio", "uso"):
@@ -262,32 +345,96 @@ def equivalente(insumos):
     return fora if tem else None
 
 
-def abrir(arq):
-    """Abre a planilha mesmo com o Excel segurando o arquivo."""
-    import openpyxl
+# Quanto esperar entre uma tentativa e a seguinte, num arquivo travado.
+#
+# Sao duas travas diferentes, e so uma delas cede pela copia:
+#
+#   * Excel com a planilha aberta deixa outro processo ler o arquivo, mas nao
+#     pelo caminho original — dai a copia para a pasta temporaria.
+#   * OneDrive sincronizando segura o .xlsm com lock exclusivo: nem a leitura
+#     direta nem a copia passam. Essa e passageira (poucos segundos por
+#     arquivo) e anda de arquivo em arquivo conforme a fila de sincronizacao
+#     avanca, entao insistir resolve. Foi o que travou a importacao inteira
+#     depois de abrir as planilhas de todos os meses de uma vez.
+ESPERA_LOCK = [0.5, 1, 2, 3, 5, 8]
+
+
+def _ler_compartilhado(arq):
+    """Os bytes do arquivo mesmo com lock de escrita de outro processo.
+
+    Por que nao basta a copia para a pasta temporaria: tanto o open() do Python
+    quanto o shutil.copy pedem o arquivo SEM compartilhamento, e o OneDrive
+    (assim como o Excel com o arquivo aberto) nega. O FileStream do .NET aceita
+    dizer FileShare.ReadWrite — "eu leio, e outro pode continuar escrevendo" —,
+    e ai a leitura passa. Foi o que destravou a importacao com as planilhas das
+    casas abertas na tela, que e o estado normal delas no meio do dia.
+    """
+    import subprocess
+    ps = (
+        "$fs=New-Object System.IO.FileStream("
+        "'%s',[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,"
+        "([System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete));"
+        "$ms=New-Object System.IO.MemoryStream;$fs.CopyTo($ms);$fs.Close();"
+        "[Console]::OpenStandardOutput().Write($ms.ToArray(),0,$ms.Length)"
+    ) % str(arq).replace("'", "''")
     try:
-        return openpyxl.load_workbook(arq, data_only=True)
-    except PermissionError:
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                           capture_output=True, timeout=180)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return r.stdout if r.returncode == 0 and r.stdout else None
+
+
+def abrir(arq):
+    """Abre a planilha mesmo travada pelo OneDrive ou aberta no Excel."""
+    import io as _io
+    import openpyxl
+    for espera in [0] + ESPERA_LOCK:
+        if espera:
+            time.sleep(espera)
+        try:
+            return openpyxl.load_workbook(arq, data_only=True)
+        except PermissionError:
+            pass
         copia = Path(tempfile.gettempdir()) / ("cde_tmp_" + arq.name)
         try:
             shutil.copy(arq, copia)
         except PermissionError:
-            return None
-        return openpyxl.load_workbook(copia, data_only=True)
+            # Trava do OneDrive: nem a copia sai. Le por cima do lock.
+            dados = _ler_compartilhado(arq)
+            if dados:
+                return openpyxl.load_workbook(_io.BytesIO(dados), data_only=True)
+            continue          # ainda travada: espera e tenta de novo
+        try:
+            return openpyxl.load_workbook(copia, data_only=True)
+        finally:
+            try:
+                copia.unlink()
+            except OSError:
+                pass
+    return None
 
 
 def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
+    """Le as abas diarias das planilhas das casas.
+
+    mes_filtro aceita o prefixo de uma pasta de mes ("09") ou uma
+    colecao deles (["08", "09"]). A colecao existe porque a tela de
+    Lancamento deixa reimportar um PERIODO escolhido, e periodo atravessa
+    mes: cada mes e uma pasta, com um arquivo por casa.
+    """
     if not ORIGEM.exists():
         raise SystemExit("Pasta de origem nao encontrada:\n  %s" % ORIGEM)
     if arquivos is None:
         arquivos = sorted(ORIGEM.glob("*/*/*.xlsm"))
+    meses = {mes_filtro} if isinstance(mes_filtro, str) else set(mes_filtro or ())
     dados, relato, divergencias, bloqueados, datas_erradas = {}, [], [], [], []
 
     for arq in [Path(a) for a in arquivos]:
         casa = arq.parts[-3]
         if casa not in CASAS or (casa_filtro and casa != casa_filtro):
             continue
-        if mes_filtro and not arq.parts[-2].startswith(mes_filtro):
+        if meses and not any(arq.parts[-2].startswith(m) for m in meses):
             continue
         wb = abrir(arq)
         if wb is None:
@@ -300,7 +447,7 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
             iso, divergiu = data_do_dia(arq, aba, wb[aba].cell(row=7, column=12).value)
             if divergiu:
                 datas_erradas.append("%s %s aba %s" % (casa, arq.parts[-2], aba))
-            iso, fat, insumos, confs = ler_aba_dia(wb[aba], iso)
+            iso, fat, insumos, confs, procs = ler_aba_dia(wb[aba], iso)
             if not iso or not fat:            # dia sem faturamento nao vale leitura
                 continue
             eq = equivalente(insumos)
@@ -311,11 +458,20 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
                 continue
             dia = dados.setdefault(iso, {})
             dia[casa] = {"faturamento": round(fat, 2), "insumos": insumos}
+            if procs:
+                dia[casa]["processamento"] = procs
             dias += 1
             for chave, planilha, meu in confs:
                 divergencias.append((casa, iso, chave, planilha, meu))
         wb.close()
         relato.append((casa, arq.parts[-2], dias))
+    # O file entra depois: ele precisa do dia anterior, que so existe com o
+    # lote inteiro lido (e, na virada de mes, com o que ja esta gravado).
+    gravados = None
+    if DESTINO.exists():
+        with open(DESTINO, encoding="utf-8") as f:
+            gravados = json.load(f)
+    somar_file(dados, gravados)
     return dados, relato, divergencias, bloqueados, datas_erradas
 
 
@@ -362,8 +518,18 @@ def gravar(novos):
                     continue                  # digitado na tela: preservado
                 marcado = dict(campos)
                 marcado[MARCA_PLANILHA] = "planilha"
+                # O preco e cadastrado na tela de Movimentacoes e nao existe na
+                # planilha da casa: sem preservar aqui, cada sincronizacao
+                # apagaria o cadastro de precos do dia.
+                if isinstance(antigo, dict) and antigo.get("precos"):
+                    marcado["precos"] = antigo["precos"]
                 insumos[ik] = marcado
                 tocados += 1
+            if lan.get("processamento"):
+                # A planilha da casa e a fonte do processamento: quem digitou na
+                # tela ve o valor da planilha prevalecer na sincronizacao, igual
+                # ao que ja acontece com os insumos marcados como "planilha".
+                destino.setdefault("processamento", {}).update(lan["processamento"])
             if not destino.get("faturamento"):
                 destino["faturamento"] = lan["faturamento"]
     tmp = DESTINO.with_suffix(".tmp")

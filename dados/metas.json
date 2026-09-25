@@ -1,82 +1,82 @@
 {
- "_nota": "Metas de coeficiente (consumo por R$ 1.000) recalculadas em 18/08/2026 pelo recalcular_metas.py, sobre o historico agregado de 2026-02 a 2026-07 — nao sobre um mes isolado. Cada meta e o menor valor entre o mes anterior completo e a mediana de tres estimadores (mes anterior, media dos 3 meses recentes e mediana dos 6 meses recentes), com piso no melhor mes ja realizado; mes de consumo zero fica fora da conta e insumo sem consumo no ultimo mes completo fica sem meta. Rode o script no inicio de cada mes para reajustar.",
+ "_nota": "Metas de coeficiente (consumo por R$ 1.000) recalculadas em 24/09/2026 pelo recalcular_metas.py, sobre o historico agregado de 2026-03 a 2026-08 — nao sobre um mes isolado. Cada meta e o menor valor entre o mes anterior completo e a mediana de tres estimadores (mes anterior, media dos 3 meses recentes e mediana dos 6 meses recentes), com piso no melhor mes ja realizado; mes de consumo zero fica fora da conta e insumo sem consumo no ultimo mes completo fica sem meta. Rode o script no inicio de cada mes para reajustar.",
  "salmao_equivalente": {
-  "SL": 0.5606,
-  "DC": 0.5112,
-  "DLU": 0.6229,
-  "DLCN": 0.5766
+  "SL": 0.5812,
+  "DC": 0.517,
+  "DLU": 0.6503,
+  "DLCN": 0.592
  },
  "camarao_g": {
-  "SL": 0.0928,
-  "DC": 0.0685,
-  "DLU": 0.1203,
-  "DLCN": 0.079
+  "SL": 0.0549,
+  "DC": 0.0546,
+  "DLU": 0.0964,
+  "DLCN": 0.0739
  },
  "camarao_m": {
-  "SL": 0.2588,
-  "DC": 0.2839,
-  "DLU": 0.286,
-  "DLCN": 0.5035
+  "SL": 0.2321,
+  "DC": 0.216,
+  "DLU": 0.3205,
+  "DLCN": 0.4704
  },
  "camarao_p": {
-  "SL": 0.6461,
-  "DC": 0.4743,
-  "DLU": 0.0134,
-  "DLCN": 0.196
+  "SL": 0.4936,
+  "DC": 0.4332,
+  "DLU": 0.0085,
+  "DLCN": 0.1655
  },
  "atum": {},
  "file_tilapia": {
-  "SL": 0.059,
-  "DC": 0.0584,
-  "DLU": 0.0035,
-  "DLCN": 0.0246
+  "SL": 0.0654,
+  "DC": 0.0454,
+  "DLU": 0.0042,
+  "DLCN": 0.0214
  },
  "polvo": {
-  "SL": 0.0247,
-  "DC": 0.0224,
-  "DLU": 0.0275,
-  "DLCN": 0.0284
+  "SL": 0.0194,
+  "DC": 0.0181,
+  "DLU": 0.0252,
+  "DLCN": 0.0338
  },
  "lula": {
-  "SL": 0.1307,
-  "DC": 0.1475,
-  "DLU": 0.0423,
-  "DLCN": 0.0867
+  "SL": 0.1334,
+  "DC": 0.1657,
+  "DLU": 0.0382,
+  "DLCN": 0.0681
  },
  "anchova": {
-  "SL": 0.0694,
-  "DC": 0.075,
-  "DLU": 0.0399,
-  "DLCN": 0.0443
+  "SL": 0.0724,
+  "DC": 0.0652,
+  "DLU": 0.0418,
+  "DLCN": 0.0425
  },
  "kani": {
-  "SL": 0.1542,
-  "DC": 0.1784,
-  "DLU": 0.0844,
-  "DLCN": 0.1362
+  "SL": 0.1533,
+  "DC": 0.1915,
+  "DLU": 0.083,
+  "DLCN": 0.1442
  },
  "nori": {
-  "SL": 0.1883,
-  "DC": 0.2172,
-  "DLU": 0.1333,
-  "DLCN": 0.1845
+  "SL": 0.1955,
+  "DC": 0.2209,
+  "DLU": 0.1384,
+  "DLCN": 0.1868
  },
  "cream_cheese": {
-  "SL": 0.2597,
-  "DC": 0.3101,
-  "DLU": 0.2653,
-  "DLCN": 0.3084
+  "SL": 0.2646,
+  "DC": 0.3276,
+  "DLU": 0.2564,
+  "DLCN": 0.3135
  },
  "arroz": {
-  "SL": 0.1996,
-  "DC": 0.2133,
-  "DLU": 0.1726,
-  "DLCN": 0.2029
+  "SL": 0.2065,
+  "DC": 0.2174,
+  "DLU": 0.1829,
+  "DLCN": 0.1935
  },
  "patinho": {
-  "SL": 0.6009,
-  "DC": 0.0982,
-  "DLU": 0.1594,
-  "DLCN": 0.095
+  "SL": 0.0707,
+  "DC": 0.0629,
+  "DLU": 0.1605,
+  "DLCN": 0.1057
  }
 }
