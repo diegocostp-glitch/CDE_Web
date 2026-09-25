@@ -131,8 +131,11 @@ M.forEach(m=>{tot.cons+=som('consRs',m.ym);tot.ent+=som('entRs',m.ym);tot.fat+=m
 const estFim=som('estRs',M[M.length-1].ym), estIni=som('estRs',M[0].ym);
 
 T('titulo',`Consolidado financeiro — ${C.de} a ${C.ate}`);
+const SAIU=C.saiuDaOperacao||[];
 T('sub',`Os ${INS.length} insumos controlados, somados, em dinheiro. Quanto saiu do estoque, quanto foi `
-  +`comprado, quanto ficou parado, e — o que decide negociação — quanto do que mudou foi preço e quanto foi volume.`);
+  +`comprado, quanto ficou parado, e — o que decide negociação — quanto do que mudou foi preço e quanto foi volume.`
+  +(SAIU.length?` <b>${SAIU.join(', ')}</b> saiu da operação no período: sem consumo, compra ou estoque no `
+    +`último mês, fica fora das comparações de preço.`:''));
 T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b>Meses:</b> ${M.length}</span>`
   +`<span><b>Insumos:</b> ${INS.length}</span><span><b>Casas:</b> ${C.casas.join(' · ')}</span>`);
 
@@ -246,7 +249,10 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
   T('notaPV',`<b>Como ler as duas colunas de efeito:</b> o efeito preço é o consumo de ${M[M.length-1].nome} `
     +`multiplicado pela diferença de preço; o efeito volume é o preço de ${M[0].nome} multiplicado pela diferença `
     +`de consumo. Somados, explicam a variação do gasto. Separados, dizem o que fazer: <b>efeito preço se resolve `
-    +`negociando; efeito volume, na operação</b> — ou é venda que cresceu, e aí não há o que resolver.`);
+    +`negociando; efeito volume, na operação</b> — ou é venda que cresceu, e aí não há o que resolver.`
+    +(SAIU.length?`<br><br><b>Fora desta tabela:</b> ${SAIU.join(', ')}. O item não teve consumo, `
+      +`compra nem estoque no último mês — comparar o preço de algo que saiu da operação produziria `
+      +`uma alta que ninguém paga e que não cabe em negociação nenhuma.`:''));
 })();
 
 /* ---------------------------------------------------------------- 04 */
@@ -269,7 +275,31 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
     +(soPreco.length?`<div class="lin"><span class="t">Outros ${soPreco.length} baixaram de preço, mas com o consumo
       também caindo: ${soPreco.map(a=>a.nome+' ('+money(a.efPreco)+')').join(', ')}. O ganho é real no caixa,
       mas parte dele é volume menor, não negociação melhor.</span></div>`:''));
-  T('notaGanho',`<b>Por que separar este caso:</b> preço que cai junto com o volume pode ser só mix — comprou menos `
+  /* Ressalva dos processados: o consumo em in natura sobe sozinho quando o
+     rendimento do processamento cai, sem ninguem ter vendido mais. Sem isto
+     escrito, a leitura vira "consumimos mais e pagamos menos", que pode ser
+     o contrario do que aconteceu. */
+  const REND=D.rendimento||{};
+  const alertas=bons.filter(a=>REND[a.chave]&&REND[a.chave].porRendimento>0);
+  T('notaGanho',(alertas.length?alertas.map(a=>{
+    const r=REND[a.chave];
+    const share=r.porRendimento/(r.inAte-r.inDe)*100;
+    return `<b>Atenção ao ler o ganho de ${a.nome}:</b> o consumo que este relatório mede é o <b>in natura</b>, `
+      +`obtido dividindo o processado pelo rendimento do processamento. Quando o rendimento cai, esse número `
+      +`sobe sozinho — sem ninguém ter vendido mais.<br><br>`
+      +`Foi o que aconteceu aqui. O que efetivamente foi ao balcão subiu <b>${pc(r.varProc)}</b> `
+      +`(${nf(r.procDe,1)} para ${nf(r.procAte,1)} ${a.un} de produto processado), mas o rendimento caiu de `
+      +`<b>${nf(r.rendDe*100,2)}% para ${nf(r.rendAte*100,2)}%</b> (${pc(r.varRend)}). Dos `
+      +`${nf(r.inAte-r.inDe,1)} ${a.un} a mais de matéria-prima, <b>${nf(r.porVolume,1)} vieram de volume e `
+      +`${nf(r.porRendimento,1)} vieram da perda maior no processamento</b> — ou seja, `
+      +`<b>${nf(share,0)}% do "aumento de consumo" é perda, não venda</b>.<br><br>`
+      +`A economia de ${money(-a.efPreco)} no preço continua real, porque foi paga a menos por quilo comprado. `
+      +`Mas o ganho líquido é menor do que parece: parte do volume adicional comprado virou perda no processamento, `
+      +`e essa perda custou ${money(r.porRendimento*a.precoAte)} a preço de ${M[M.length-1].nome}. `
+      +`<b>Antes de comemorar a negociação, vale investigar o rendimento</b> — pode ser matéria-prima de qualidade `
+      +`inferior, que é exatamente o que costuma vir junto com preço mais baixo.`;
+  }).join('<br><br>')+'<br><br>':'')
+    +`<b>Por que separar este caso:</b> preço que cai junto com o volume pode ser só mix — comprou menos `
     +`do item caro. Preço que cai <b>com o volume subindo</b> é ganho de negociação ou de escala, e é o que vale `
     +`replicar nos demais itens e cobrar do fornecedor na próxima renovação.`);
 })();
@@ -301,6 +331,7 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
   let h='<thead><tr><th>Insumo</th><th>Un</th>'+M.map(m=>`<th>${m.rotulo}</th>`).join('')
     +'<th>Variação no período</th></tr></thead><tbody>';
   comPreco.forEach(i=>{
+    // mes sem transacao nao tem preco: o campo vem nulo do gerador
     const vs=M.map(m=>(i.meses[m.ym]||{}).preco);
     const a=vs.find(v=>v), b=[...vs].reverse().find(v=>v);
     const d=(a&&b)?b/a-1:null;
@@ -310,7 +341,9 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
   document.getElementById('tblPrecos').innerHTML=h+'</tbody>';
   T('lead06',`O preço médio pago por unidade, mês a mês. É a média ponderada pelo consumo de cada casa — `
     +`uma casa que consome o dobro pesa o dobro.`);
-  T('notaPrecos',`<b>Por que ponderado e não média simples:</b> as quatro casas pagam preços diferentes pelo mesmo `
+  T('notaPrecos',(SAIU.length?`<b>Traço no lugar do preço</b> significa mês sem compra, sem consumo e sem `
+    +`estoque daquele item — não há transação para precificar. É o caso de ${SAIU.join(', ')} nos últimos meses.<br><br>`:'')
+    +`<b>Por que ponderado e não média simples:</b> as quatro casas pagam preços diferentes pelo mesmo `
     +`item, e consomem volumes diferentes. A média simples daria o mesmo peso à casa que comprou 10 kg e à que `
     +`comprou 200 kg, e o número não bateria com o dinheiro que saiu.`);
 })();

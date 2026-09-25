@@ -129,7 +129,16 @@ def coletar(lanc, mensais, lista, piso, rends):
 
                 reg['cons'] += qc; reg['ent'] += qe; reg['est'] += qf
                 reg['consRs'] += qc * pr; reg['entRs'] += qe * pr; reg['estRs'] += qf * pr
-            if precos:
+            # Mes sem consumo, sem compra e sem estoque nao tem preco a mostrar.
+            # O atum acabou em maio: de junho em diante nao houve transacao
+            # nenhuma, e o relatorio herdava o preco antigo e o publicava como
+            # se o item ainda estivesse na operacao — inclusive como alta de 16%.
+            reg['ativo'] = bool(reg['cons'] or reg['ent'] or reg['est'])
+            if k in PROCESSAVEIS and reg['cons'] > 0:
+                # rendimento efetivo do mes: o que foi ao balcao sobre o in natura
+                reg['rend'] = round(sum(rr) / len(rr), 4) if (rr := [
+                    rendimento_de(rends, k, c, ym)[0] for c in CASAS]) else None
+            if precos and reg['ativo']:
                 # preco medio ponderado pelo consumo de cada casa, nao media simples
                 reg['preco'] = (reg['consRs'] / reg['cons']) if reg['cons'] > 0 \
                     else sum(precos) / len(precos)
@@ -140,13 +149,48 @@ def coletar(lanc, mensais, lista, piso, rends):
     return dados
 
 
+def decompor_rendimento(dados, lista, rends):
+    """Separa, nos processados, quanto do consumo em in natura veio de VOLUME e
+    quanto veio da QUEDA DE RENDIMENTO do processamento.
+
+    Existe porque a conversao processado -> in natura divide pelo rendimento: se
+    o rendimento cai, o consumo em in natura sobe sozinho, sem ninguem ter
+    vendido mais. Sem esta separacao o relatorio diria "consumimos mais e
+    pagamos menos" quando o que houve foi perda maior no processamento — e a
+    leitura de ganho ficaria falsa.
+    """
+    base, fim = lista[0], lista[-1]
+    out = {}
+    for k in PROCESSAVEIS:
+        a, b = dados[k]['meses'].get(base), dados[k]['meses'].get(fim)
+        if not a or not b or not a['cons'] or not b['cons'] or not a.get('rend') or not b.get('rend'):
+            continue
+        proc_a, proc_b = a['cons'] * a['rend'], b['cons'] * b['rend']   # o que foi ao balcao
+        se_mantivesse = proc_b / a['rend']        # in natura, se o rendimento nao tivesse mudado
+        out[k] = {
+            'procDe': round(proc_a, 1), 'procAte': round(proc_b, 1),
+            'varProc': (proc_b / proc_a - 1) if proc_a else 0,
+            'rendDe': round(a['rend'], 4), 'rendAte': round(b['rend'], 4),
+            'varRend': (b['rend'] / a['rend'] - 1) if a['rend'] else 0,
+            'inDe': round(a['cons'], 1), 'inAte': round(b['cons'], 1),
+            'varIn': (b['cons'] / a['cons'] - 1) if a['cons'] else 0,
+            'porVolume': round(se_mantivesse - a['cons'], 1),
+            'porRendimento': round(b['cons'] - se_mantivesse, 1),
+        }
+    return out
+
+
 def analisar(dados, lista):
     """Decomposicao preco x volume, entre o primeiro e o ultimo mes da serie."""
     base, fim = lista[0], lista[-1]
     out = []
     for k, d in dados.items():
         a, b = d['meses'].get(base), d['meses'].get(fim)
-        if not a or not b or not a['preco'] or not b['preco'] or a['cons'] <= 0:
+        # sem consumo no mes final nao ha o que comparar: o item saiu da
+        # operacao, e 'o preco subiu 16%' de algo que ninguem compra mais e
+        # ruido para quem precisa decidir negociacao
+        if (not a or not b or not a['preco'] or not b['preco']
+                or a['cons'] <= 0 or b['cons'] <= 0):
             continue
         dPreco = b['preco'] - a['preco']
         dVol = b['cons'] - a['cons']
@@ -173,6 +217,10 @@ def saltos(dados, lista, limite=0.10):
         for i in range(1, len(lista)):
             a, b = d['meses'].get(lista[i - 1]), d['meses'].get(lista[i])
             if not a or not b or not a['preco'] or not b['preco'] or a['preco'] <= 0:
+                continue
+            # sem consumo no mes, o salto de preco nao custou nada — nao entra
+            # na lista de negociacao, que e ordenada por impacto em reais
+            if not b.get('cons'):
                 continue
             v = b['preco'] / a['preco'] - 1
             if v >= limite:
@@ -223,6 +271,7 @@ def main():
                    'dias': len([d for d in lanc if d.startswith(m)])} for m in lista],
         'insumos': [dados[k] for k in dados],
         'analise': analisar(dados, lista),
+        'rendimento': decompor_rendimento(dados, lista, rends),
         'saltos': saltos(dados, lista),
     }
     # Faixa de cobertura da propria Projecao de Compras, para o relatorio julgar
@@ -231,7 +280,10 @@ def main():
     # alvo do pedido.
     cp2 = os.path.join(args.dados, 'compras.json')
     comp = json.load(open(cp2, encoding='utf-8')) if os.path.exists(cp2) else {}
-    cfg = {'de': MESES[int(lista[0][5:7])], 'ate': MESES[int(lista[-1][5:7])],
+    saiu = [dados[k]['nome'] for k in dados
+            if dados[k]['meses'].get(lista[0], {}).get('cons', 0) > 0
+            and not dados[k]['meses'].get(lista[-1], {}).get('ativo')]
+    cfg = {'saiuDaOperacao': saiu, 'de': MESES[int(lista[0][5:7])], 'ate': MESES[int(lista[-1][5:7])],
            'ano': lista[0][:4], 'casas': CASAS, 'nomesCasa': NOMES_CASA,
            'lista': lista,
            'diasAlvo': comp.get('dias_a_cobrir_padrao', 7),
@@ -261,6 +313,8 @@ def main():
     te = sum(sum(d['meses'][m]['entRs'] for m in d['meses']) for d in dados.values())
     ganho = sum(a['efPreco'] for a in pacote['analise'] if a['efPreco'] < 0)
     perda = sum(a['efPreco'] for a in pacote['analise'] if a['efPreco'] > 0)
+    if saiu:
+        print('Fora da operacao no ultimo mes:', ', '.join(saiu))
     print('Consumo no periodo : R$ %.2f' % tc)
     print('Compras no periodo : R$ %.2f' % te)
     print('Efeito preco       : ganho R$ %.2f | alta R$ %.2f | liquido R$ %+.2f'
