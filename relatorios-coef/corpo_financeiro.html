@@ -115,6 +115,16 @@ const pc=(v,d=1)=>(v==null?'—':(v>=0?'+':'−')+nf(Math.abs(v)*100,d)+'%');
 const T=(id,h)=>{const e=document.getElementById(id);if(e)e.innerHTML=h;};
 const som=(k,ym)=>INS.reduce((a,i)=>a+((i.meses[ym]||{})[k]||0),0);
 
+const ALVO=C.diasAlvo, PISO=C.diasPiso;
+const ultimo=M[M.length-1];
+/* dias de cobertura: estoque dividido pelo consumo DIARIO do proprio mes.
+   Pelo proprio mes, e nao pela media do periodo, porque o estoque de agosto
+   tem de ser julgado contra o que agosto gasta. */
+function diasCob(valorOuQtd, mes, consumoDoMes){
+  const cons = consumoDoMes!=null ? consumoDoMes : som('consRs',mes.ym);
+  if(!cons) return null;
+  return valorOuQtd / (cons/mes.dias);
+}
 const tot={cons:0,ent:0,fat:0};
 M.forEach(m=>{tot.cons+=som('consRs',m.ym);tot.ent+=som('entRs',m.ym);tot.fat+=m.fat;});
 const estFim=som('estRs',M[M.length-1].ym), estIni=som('estRs',M[0].ym);
@@ -136,7 +146,7 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
   T('kpis',[
     {r:'Consumo do período',v:money(tot.cons),c:`${nf(tot.cons/tot.fat*100,2)}% do faturamento`},
     {r:'Compras do período',v:money(tot.ent),c:tot.ent>tot.cons?`${money(tot.ent-tot.cons)} acima do consumo`:`${money(tot.cons-tot.ent)} abaixo do consumo`},
-    {r:'Estoque no fim',v:money(estFim),c:`${nf(estFim/(tot.cons/M.length),1)} meses de consumo`},
+    {r:'Estoque no fim',v:money(estFim),c:`${nf(diasCob(estFim,ultimo),1)} dias de consumo`},
     {r:'Efeito preço no período',v:money(ganho+alta),c:(ganho+alta)<0?'a favor do caixa':'contra o caixa'}
   ].map(k=>`<div class="kpi"><div class="lab">${k.r}</div><div class="val num">${k.v}</div>
     <div class="foot">${k.c}</div></div>`).join(''));
@@ -170,7 +180,7 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
   T('lead02',`Comprado, consumido e o que sobrou no fechamento. Quando a barra azul passa muito da salmão, `
     +`o mês abasteceu além do que gastou — e a diferença aparece na barra cinza do mesmo mês.`);
 
-  let h='<thead><tr>'+['Mês','Comprado','Consumido','Compra − consumo','Estoque no fim','Meses de cobertura','% do faturamento']
+  let h='<thead><tr>'+['Mês','Comprado','Consumido','Compra − consumo','Estoque no fim','Dias de cobertura','% do faturamento']
     .map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   M.forEach(m=>{
     const cm=som('consRs',m.ym), em=som('entRs',m.ym), es=som('estRs',m.ym), d=em-cm;
@@ -178,12 +188,12 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
       +`<td class="num-cell">${money(cm)}</td>`
       +`<td class="num-cell ${d>0?'pos':'neg'}">${d>0?'+':'−'}${money(Math.abs(d)).replace('R$ ','R$ ')}</td>`
       +`<td class="num-cell">${money(es)}</td>`
-      +`<td class="num-cell">${nf(es/cm,2)}</td>`
+      +`<td class="num-cell" style="${(es/(cm/m.dias))<PISO?'color:var(--bad);font-weight:700':''}">${nf(es/(cm/m.dias),1)}</td>`
       +`<td class="num-cell">${nf(cm/m.fat*100,2)}%</td></tr>`;});
   h+=`<tr class="total-row"><td>PERÍODO</td><td class="num-cell">${money(tot.ent)}</td>`
     +`<td class="num-cell">${money(tot.cons)}</td>`
     +`<td class="num-cell ${(tot.ent-tot.cons)>0?'pos':'neg'}">${(tot.ent-tot.cons)>0?'+':'−'}${money(Math.abs(tot.ent-tot.cons))}</td>`
-    +`<td class="num-cell">${money(estFim)}</td><td class="num-cell">${nf(estFim/(tot.cons/M.length),2)}</td>`
+    +`<td class="num-cell">${money(estFim)}</td><td class="num-cell">${nf(diasCob(estFim,ultimo),1)}</td>`
     +`<td class="num-cell">${nf(tot.cons/tot.fat*100,2)}%</td></tr></tbody>`;
   document.getElementById('tblMeses').innerHTML=h;
   T('notaMeses',`<b>"Compra − consumo" é acerto de abastecimento</b>, não lucro nem perda: positivo significa `
@@ -300,32 +310,49 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
 
 /* ---------------------------------------------------------------- 07 */
 (function(){
-  const ult=M[M.length-1].ym;
+  const ym=ultimo.ym, nd=ultimo.dias;
   const linhas=INS.map(i=>{
-    const r=i.meses[ult]||{};
-    if(!r.estRs) return null;
-    const cob=r.cons>0?r.est/r.cons:null;   // meses de consumo que o estoque cobre
-    return {nome:i.nome,un:i.un,est:r.est,estRs:r.estRs,cons:r.cons,cob:cob};
-  }).filter(Boolean).sort((a,b)=>(b.cob==null?99:b.cob)-(a.cob==null?99:a.cob));
-  const parado=linhas.filter(l=>l.cob==null||l.cob>1);
+    const r=i.meses[ym]||{};
+    if(!r.estRs&&!r.est) return null;
+    const dia=r.cons>0?r.cons/nd:null;          // consumo diario do proprio mes
+    return {nome:i.nome,un:i.un,est:r.est,estRs:r.estRs,cons:r.cons,
+            dia:dia, dias:dia?r.est/dia:null};
+  }).filter(Boolean).sort((a,b)=>(b.dias==null?1e9:b.dias)-(a.dias==null?1e9:a.dias));
+
+  const abaixo=linhas.filter(l=>l.dias!=null&&l.dias<PISO);
+  const acima=linhas.filter(l=>l.dias!=null&&l.dias>ALVO);
   const totEst=linhas.reduce((s,l)=>s+l.estRs,0);
-  let h='<thead><tr>'+['Insumo','Estoque em '+M[M.length-1].nome,'Valor','Consumo do mês','Cobertura','Situação']
-    .map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+
+  let h='<thead><tr>'+['Insumo','Estoque em '+ultimo.nome,'Valor','Consumo/dia',
+    'Dias de cobertura','Contra o parâmetro'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   linhas.forEach(l=>{
-    const sit=l.cob==null?'sem consumo no mês':(l.cob>2?'muito acima do giro':(l.cob>1?'acima de um mês':'dentro do giro'));
-    const cor=l.cob==null||l.cob>2?'var(--bad)':(l.cob>1?'var(--warn)':'var(--good)');
+    let sit,cor;
+    if(l.dias==null){sit='sem consumo no mês';cor='var(--muted)';}
+    else if(l.dias<PISO){sit=`abaixo do piso de ${PISO} dias`;cor='var(--bad)';}
+    else if(l.dias>ALVO){sit=`${nf(l.dias-ALVO,1)} dias além do alvo`;cor='var(--warn)';}
+    else {sit='dentro da faixa';cor='var(--good)';}
     h+=`<tr><td><b>${l.nome}</b></td><td class="num-cell">${nf(l.est,1)} ${l.un}</td>`
-      +`<td class="num-cell">${money(l.estRs)}</td><td class="num-cell">${nf(l.cons,1)} ${l.un}</td>`
-      +`<td class="num-cell">${l.cob==null?'—':nf(l.cob,2)+' mês'}</td>`
+      +`<td class="num-cell">${money(l.estRs)}</td>`
+      +`<td class="num-cell">${l.dia?nf(l.dia,1)+' '+l.un:'—'}</td>`
+      +`<td class="num-cell" style="color:${cor};font-weight:700">${l.dias==null?'—':nf(l.dias,1)}</td>`
       +`<td style="color:${cor};font-weight:600">${sit}</td></tr>`;});
   document.getElementById('tblParado').innerHTML=h+'</tbody>';
-  T('lead07',`O estoque no fechamento de ${M[M.length-1].nome}, valorizado ao preço do mês, ordenado pelo que `
-    +`tem mais cobertura. São <b>${money(totEst)}</b> parados, dos quais <b>${money(parado.reduce((s,l)=>s+l.estRs,0))}</b> `
-    +`em itens que cobrem mais de um mês de consumo.`);
-  T('notaParado',`<b>Cobertura</b> é o estoque final dividido pelo consumo do próprio mês: 0,5 significa meio mês `
-    +`de giro, 3 significa três meses parados. Não existe número certo — item de entrega semanal pede cobertura `
-    +`baixa, item importado pede mais. O que o relatório aponta é <b>onde há capital parado acima do padrão do `
-    +`próprio item</b>, para a conversa acontecer com número na mão.`);
+
+  T('lead07',`O estoque no fechamento de ${ultimo.nome}, valorizado ao preço do mês e medido em <b>dias de `
+    +`consumo do próprio mês</b>. A Projeção de Compras trabalha com <b>${ALVO} dias de alvo</b> e `
+    +`<b>${PISO} dias de segurança</b> — é contra essa faixa que cada linha é julgada. `
+    +`São ${money(totEst)} parados no total.`
+    +(abaixo.length?` <b>${abaixo.length} item(ns) abaixo do piso:</b> ${abaixo.map(l=>l.nome+' ('+nf(l.dias,1)+' dias)').join(', ')} — risco de ruptura.`:'')
+    +(acima.length?` <b>${acima.length} acima do alvo:</b> ${acima.map(l=>l.nome+' ('+nf(l.dias,1)+' dias)').join(', ')}.`:''));
+
+  T('notaParado',`<b>Dias de cobertura</b> é o estoque do fechamento dividido pelo consumo diário daquele mês. `
+    +`O parâmetro vem de <code>dados/compras.json</code>: <code>dias_a_cobrir_padrao</code> = ${ALVO} é o alvo do `
+    +`pedido e <code>dias_seguranca</code> = ${PISO} é o piso do estoque mínimo. Os ${INS.length} insumos usam o `
+    +`padrão — nenhum tem parâmetro próprio hoje.<br><br>`
+    +`<b>Duas ressalvas antes de agir pelo número:</b> ele é uma <b>foto do último dia do mês</b>, então depende de `
+    +`a contagem cair antes ou depois do recebimento — se o caminhão chega no dia 1º, o dia 31 é o vale e o estoque `
+    +`médio foi maior. E o consumo diário é a média do mês inteiro, que achata o pico do fim de semana: um item no `
+    +`piso pela média pode estar em ruptura no sábado.`);
 })();
 
 /* ---------------------------------------------------------------- 08 */

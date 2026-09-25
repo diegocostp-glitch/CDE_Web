@@ -219,14 +219,23 @@ def main():
 
     pacote = {
         'meses': [{'ym': m, 'rotulo': MES_ABR[int(m[5:7])], 'nome': MESES[int(m[5:7])],
-                   'fat': fat[m]} for m in lista],
+                   'fat': fat[m],
+                   'dias': len([d for d in lanc if d.startswith(m)])} for m in lista],
         'insumos': [dados[k] for k in dados],
         'analise': analisar(dados, lista),
         'saltos': saltos(dados, lista),
     }
+    # Faixa de cobertura da propria Projecao de Compras, para o relatorio julgar
+    # o estoque pelo parametro que a operacao usa, e nao por um numero inventado
+    # aqui. dias_seguranca e o piso do estoque minimo; dias_a_cobrir_padrao e o
+    # alvo do pedido.
+    cp2 = os.path.join(args.dados, 'compras.json')
+    comp = json.load(open(cp2, encoding='utf-8')) if os.path.exists(cp2) else {}
     cfg = {'de': MESES[int(lista[0][5:7])], 'ate': MESES[int(lista[-1][5:7])],
            'ano': lista[0][:4], 'casas': CASAS, 'nomesCasa': NOMES_CASA,
-           'lista': lista}
+           'lista': lista,
+           'diasAlvo': comp.get('dias_a_cobrir_padrao', 7),
+           'diasPiso': comp.get('dias_seguranca', 3)}
 
     txt = open(args.modelo, encoding='utf-8').read()
     css = re.search(r'<style>(.*?)</style>', txt, re.S).group(1)
