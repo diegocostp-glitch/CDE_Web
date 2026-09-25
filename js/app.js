@@ -31,6 +31,61 @@ const num = (v) => {
 const fmt = (n, casas = 2) => n == null ? "—" : n.toLocaleString("pt-BR",
   { minimumFractionDigits: casas, maximumFractionDigits: casas });
 
+// Valor que vai DENTRO de um campo de digitação, sempre no padrão pt-BR.
+//
+// Não é enfeite: o num() acima decide pela vírgula se o ponto é milhar. Um
+// número cru do servidor chega no campo como "0.184" — sem vírgula, e casando
+// com o padrão de milhar —, e ao salvar voltava como 184. Mil vezes maior, em
+// silêncio. Com "0,184" no campo o caminho de volta é o mesmo que o de quem
+// digita à mão, e o valor fecha.
+//
+// Três casas SEMPRE, como na planilha da casa (formato #,##0.000): antes o
+// mínimo era livre e a coluna misturava "14" com "3,850", o que atrapalha a
+// leitura de cima para baixo. O caminho de volta continua fechando — num()
+// lê "14,000" como 14, porque a vírgula manda.
+const qtd = (n) => (n === null || n === undefined || n === "") ? ""
+  : Number(n).toLocaleString("pt-BR", { minimumFractionDigits: 3,
+                                        maximumFractionDigits: 3 });
+
+// As quatro colunas do meio, na ordem da tela.
+const COLS_DERIVADAS = ["entrada", "transferencia", "desperdicio", "final"];
+
+// Meio milésimo: a tela mostra três casas, então tudo abaixo disso É zero para
+// quem olha. O limite existe porque soma de decimais em binário não fecha em
+// zero exato — a Cidade Nova tinha 20,945 + 9,995 − 30,940, que dá
+// -0,0000000000000036 e acendia "contagem maior que o disponível" num dia em
+// que o estoque fechava na vírgula. Comparar com zero cru acusava o usuário de
+// um erro que era da aritmética.
+const QUASE_ZERO = 0.0005;
+const zerado = (n) => Math.abs(n) < QUASE_ZERO;
+
+// Quilos de filé limpo -> peixes inteiros equivalentes. Os fatores vêm do
+// servidor (que os lê de dados/compras.json) para não existir uma terceira
+// versão do mesmo rendimento entre tela, servidor e Conversor de Salmão.
+const fileEmPeixes = (kg) => {
+  const c = (CONFIG && CONFIG.conversao_file) || {};
+  const rend = c.rendimento > 0 ? c.rendimento : 0.538;
+  const kgPeixe = c.kg_por_peixe > 0 ? c.kg_por_peixe : 30 / 7;
+  return !kg ? 0 : (kg / rend) / kgPeixe;
+};
+
+// O que está digitado numa linha agora, mais o uso do dia. Campo vazio vira
+// null (e não 0) para a linha derivada saber distinguir "não contaram ainda"
+// de "contaram e deu zero".
+function valoresDaLinha(chave) {
+  const linha = document.querySelector('tr[data-chave="' + chave + '"]');
+  const ins = DIA.casas[CASA].insumos.find((i) => i.chave === chave);
+  if (!linha || !ins) return null;
+  const v = { inicial: num(ins.inicial) };
+  COLS_DERIVADAS.forEach((c) => {
+    const el = linha.querySelector('[data-campo="' + c + '"]');
+    v[c] = (!el || el.value === "") ? null : num(el.value);
+  });
+  v.uso = v.final === null ? null
+    : v.inicial + num(v.entrada) - num(v.transferencia) - v.final;
+  return v;
+}
+
 function hoje() {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -141,33 +196,56 @@ function desenhar() {
     }
     const tr = document.createElement("tr");
     tr.dataset.chave = ins.chave;
-    // linha derivada (salmao equivalente): so leitura, ela vem das faixas acima
+    // Linha derivada: só leitura. Só existe uma, o salmão equivalente 08/10.
+    // As quatro colunas do meio deixaram de ser uma frase e passaram a mostrar
+    // o número: entrada, saída, perda e contagem também somam.
     if (ins.derivado) {
       tr.classList.add("derivada");
+      const origem = "Soma das libragens convertidas para peixe-equivalente 08/10, "
+        + "mais o filé limpo que sobrou, também convertido. O filé entra no final "
+        + "do dia e vira o inicial do dia seguinte — calculado.";
       tr.innerHTML =
-        "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span></td>" +
+        "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span>" +
+          ' <span class="selo-mini" title="' + origem + '">calculado</span></td>' +
         '<td class="calc">' + fmt(ins.inicial, 3) + "</td>" +
-        '<td colspan="4" class="fonte">Soma das faixas convertidas — calculado</td>' +
+        '<td class="calc d-entrada"></td><td class="calc d-transferencia"></td>' +
+        '<td class="calc d-desperdicio"></td><td class="calc d-final"></td>' +
         '<td class="calc uso"></td><td class="calc coef"></td>';
       corpo.appendChild(tr);
       return;
     }
-    // Veio da planilha: fica travado. Só outra sincronização muda esses
-    // valores — assim o CDE e a planilha não divergem sem ninguém notar.
-    const trava = ins.travado
-      ? ' readonly title="Valor vindo da planilha. Para alterar, clique em Sincronizar planilhas."'
-      : "";
-    if (ins.travado) tr.classList.add("travada");
+    // Veio da planilha: o selo diz de onde, mas o campo ACEITA correção. Ao
+    // salvar um número diferente, o servidor solta a marca de planilha e a
+    // sincronização passa a respeitar o valor digitado — antes a linha era
+    // somente-leitura e não havia como corrigir contagem sem abrir o Excel.
+    const dica = ins.editado
+      ? ' title="Corrigido aqui, por cima do valor da planilha. A sincronização não sobrescreve mais esta linha."'
+      : ins.da_planilha
+        ? ' title="Valor sincronizado da planilha. Pode corrigir: ao salvar, este número passa a valer."'
+        : "";
+    if (ins.da_planilha) tr.classList.add("da-planilha");
+    if (ins.editado) tr.classList.add("editada");
     const campo = (nome, valor) =>
       '<td><input data-campo="' + nome + '" type="text" inputmode="decimal" value="' +
-      (valor ?? "") + '"' + trava + "></td>";
+      qtd(valor) + '"' + dica + "></td>";
+    const selo = ins.editado
+      ? ' <span class="selo-mini editado" title="Corrigido no sistema, por cima da planilha">editado</span>'
+      : ins.da_planilha
+        ? ' <span class="selo-mini" title="Sincronizado da planilha">planilha</span>' : "";
+    // Linha de contagem (o filé de produção): só início e fim. As colunas de
+    // movimento ficam vazias porque não existem — filé não é comprado nem
+    // transferido, é produzido do peixe que a libragem já contou —, e uso e
+    // coeficiente também, porque o consumo do salmão é medido no equivalente,
+    // que já soma este filé.
+    const vazias = '<td class="calc"></td>';
     tr.innerHTML =
-      "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span>" +
-        (ins.travado ? ' <span class="selo-mini" title="Sincronizado da planilha">planilha</span>' : "") + "</td>" +
+      "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span>" + selo + "</td>" +
       '<td class="calc">' + fmt(ins.inicial, 3) + "</td>" +
-      campo("entrada", ins.entrada) + campo("transferencia", ins.transferencia) +
-      campo("desperdicio", ins.desperdicio) + campo("final", ins.final) +
-      '<td class="calc uso"></td><td class="calc coef"></td>';
+      (ins.so_contagem
+        ? vazias + vazias + vazias + campo("final", ins.final) + vazias + vazias
+        : campo("entrada", ins.entrada) + campo("transferencia", ins.transferencia) +
+          campo("desperdicio", ins.desperdicio) + campo("final", ins.final) +
+          '<td class="calc uso"></td><td class="calc coef"></td>');
     corpo.appendChild(tr);
   });
 
@@ -178,9 +256,96 @@ function desenhar() {
   cartao.appendChild(rol);
   alvo.innerHTML = "";
   alvo.appendChild(cartao);
+  alvo.appendChild(desenharProcessamento(casa));
 
   alvo.addEventListener("input", aoDigitar);
+  alvo.addEventListener("focusout", aoSairDoCampo);
   recalcular();
+}
+
+// ------------------------------------------------------ processamento
+// Anel de lula, tentaculo de lula e lombo de atum chegam crus e passam pelo
+// processamento antes de ir ao balcao. Aqui a casa informa DOIS numeros: quanto
+// colocou para processar e quanto rendeu. A perda e o rendimento saem dessa
+// conta — nao sao digitados, justamente para nao existir um rendimento
+// "combinado" diferente do que a balanca mostrou.
+//
+// O rendimento daqui e o que a Projecao de Compras usa para transformar o
+// estoque processado de volta em in natura. Antes disso ela usava uma media
+// fixa (lula 70%, polvo 30%, atum 85%), que e so o meio da faixa padrao.
+function desenharProcessamento(casa) {
+  const itens = Object.values(casa.processamento || {});
+  // servidor antigo (ou resposta em cache) nao manda o bloco: melhor nada do
+  // que um cartao vazio no meio da tela
+  if (!itens.length) return document.createDocumentFragment();
+  const sec = document.createElement("section");
+  sec.className = "cartao cartao-processamento";
+
+  sec.innerHTML =
+    '<div class="cabeca"><h2>Processamento do dia</h2></div>' +
+    '<p class="fonte">Informe quanto foi para processar e quanto rendeu. A perda e o ' +
+    "rendimento são calculados. É este rendimento que a Projeção de Compras usa para " +
+    "converter o estoque processado de volta em in natura.</p>";
+
+  const tab = document.createElement("table");
+  tab.className = "tabela-lancamento tabela-processamento";
+  tab.innerHTML = "<thead><tr>" +
+    "<th>Item</th>" +
+    "<th>In natura<br><span class=\"un\">foi processar</span></th>" +
+    "<th>Processado<br><span class=\"un\">rendeu</span></th>" +
+    "<th>Perda<br><span class=\"un\">no processamento</span></th>" +
+    "<th>Rendimento</th><th>Faixa padrão</th></tr></thead>";
+  const corpo = document.createElement("tbody");
+
+  itens.forEach((p) => {
+    const tr = document.createElement("tr");
+    tr.dataset.proc = p.chave;
+    const campo = (nome, valor) =>
+      '<td><input data-pcampo="' + nome + '" type="text" inputmode="decimal" value="' +
+      qtd(valor) + '"></td>';
+    tr.innerHTML =
+      "<td>" + p.nome + ' <span class="un">(' + p.un + ")</span></td>" +
+      campo("in_natura", p.in_natura) + campo("processado", p.processado) +
+      '<td class="calc perda"></td><td class="calc rend"></td>' +
+      '<td class="fonte faixa">' + fmt(p.padrao_min * 100, 0) + "% a " +
+        fmt(p.padrao_max * 100, 0) + "%</td>";
+    corpo.appendChild(tr);
+  });
+  tab.appendChild(corpo);
+  const rol = document.createElement("div");
+  rol.className = "rolagem";
+  rol.appendChild(tab);
+  sec.appendChild(rol);
+  return sec;
+}
+
+function recalcularProcessamento() {
+  const casa = DIA.casas[CASA];
+  document.querySelectorAll("tr[data-proc]").forEach((tr) => {
+    const p = (casa.processamento || {})[tr.dataset.proc];
+    if (!p) return;
+    const bruto = tr.querySelector('[data-pcampo="in_natura"]').value;
+    const rendeu = tr.querySelector('[data-pcampo="processado"]').value;
+    const tdPerda = tr.querySelector(".perda");
+    const tdRend = tr.querySelector(".rend");
+    if (bruto === "" || num(bruto) <= 0) {
+      tdPerda.textContent = "—";
+      tdRend.textContent = "—";
+      tdRend.className = "calc rend";
+      return;
+    }
+    const perda = num(bruto) - num(rendeu);
+    const r = num(rendeu) / num(bruto);
+    // Perda negativa quer dizer que rendeu mais do que entrou: ou o peso do
+    // cru foi anotado errado, ou o processado ja tinha saldo somado ali.
+    tdPerda.className = "calc perda" + (perda < 0 ? " neg" : "");
+    tdPerda.innerHTML = fmt(perda, 3) + (perda < 0
+      ? '<span class="msg-neg">rendeu mais do que entrou</span>' : "");
+    const fora = r < p.padrao_min || r > p.padrao_max;
+    tdRend.className = "calc rend" + (fora ? " neg" : "");
+    tdRend.innerHTML = fmt(r * 100, 2) + "%" + (fora
+      ? '<span class="msg-neg">fora da faixa padrão</span>' : "");
+  });
 }
 
 // ------------------------------------------------------------------ calculo
@@ -190,32 +355,64 @@ function recalcular() {
   document.querySelectorAll("tbody tr[data-chave]").forEach((tr) => {
     const ins = casa.insumos.find((i) => i.chave === tr.dataset.chave);
     if (ins.derivado) {
-      let eq = 0, tem = false;
-      for (const [banda, fator] of Object.entries(FATOR_LIBRA)) {
-        const linha = document.querySelector('tr[data-chave="' + banda + '"]');
-        if (!linha) continue;
-        const f = linha.querySelector('[data-campo="final"]');
-        if (!f || f.value === "") continue;
-        const b = casa.insumos.find((x) => x.chave === banda);
-        const u = num(b.inicial) + num(linha.querySelector('[data-campo="entrada"]').value)
-                - num(linha.querySelector('[data-campo="transferencia"]').value) - num(f.value);
-        eq += u * fator; tem = true;
+      const col = { entrada: 0, transferencia: 0, desperdicio: 0, final: 0 };
+      let uso = 0, temUso = false, temCol = false;
+      const somar = (o, fator) => {
+        if (!o) return;
+        COLS_DERIVADAS.forEach((c) => {
+          if (o[c] !== null) { col[c] += o[c] * fator; temCol = true; }
+        });
+        if (o.uso !== null) { uso += o.uso * fator; temUso = true; }
+      };
+      {
+        for (const [banda, fator] of Object.entries(FATOR_LIBRA)) {
+          somar(valoresDaLinha(banda), fator);
+        }
+        // O filé limpo que sobrou é salmão parado na geladeira, então entra no
+        // FINAL do dia. O inicial já chega do servidor com o filé de ONTEM
+        // somado — é o mesmo número, visto como fechamento de um dia e como
+        // abertura do outro.
+        //
+        // Com o filé nos dois lados, o uso do equivalente deixa de ser a soma
+        // dos usos das faixas e passa a ser a conta de estoque, a mesma das
+        // linhas digitadas. Somar os usos das faixas ignoraria o filé e o dia
+        // sairia com consumo inflado.
+        const fil = valoresDaLinha("salmao_file");
+        if (fil && fil.final !== null) {
+          col.final += fileEmPeixes(fil.final);
+          temCol = true;
+        }
+        if (temCol) {
+          uso = num(ins.inicial) + col.entrada - col.transferencia - col.final;
+          temUso = true;
+        }
       }
-      tr.querySelector(".uso").textContent = tem ? fmt(eq, 3) : "—";
-      tr.querySelector(".coef").textContent = tem && fat > 0 ? fmt((eq / fat) * 1000, 3) : "—";
+      COLS_DERIVADAS.forEach((c) => {
+        const td = tr.querySelector(".d-" + c);
+        if (td) td.textContent = temCol ? fmt(col[c], 3) : "—";
+      });
+      tr.querySelector(".uso").textContent = temUso ? fmt(uso, 3) : "—";
+      tr.querySelector(".coef").textContent = temUso && fat > 0 ? fmt((uso / fat) * 1000, 3) : "—";
       return;
     }
-    const val = (c) => tr.querySelector('[data-campo="' + c + '"]').value;
+    if (ins.so_contagem) return;   // só início e fim: não há uso a calcular
+    const val = (c) => {
+      const el = tr.querySelector('[data-campo="' + c + '"]');
+      return el ? el.value : "";
+    };
     const temFinal = val("final") !== "";
     const uso = num(ins.inicial) + num(val("entrada")) - num(val("transferencia")) - num(val("final"));
     const tdUso = tr.querySelector(".uso");
     const tdCoef = tr.querySelector(".coef");
     if (!temFinal) { tdUso.textContent = "—"; tdCoef.textContent = "—"; tdUso.className = "calc uso"; return; }
-    tdUso.className = "calc uso" + (uso < 0 ? " neg" : "");
-    tdUso.innerHTML = fmt(uso, 3) + (uso < 0
+    const negativo = uso < -QUASE_ZERO;
+    tdUso.className = "calc uso" + (negativo ? " neg" : "");
+    // zerado() também na exibição: sem isso a coluna mostrava "-0,000".
+    tdUso.innerHTML = fmt(zerado(uso) ? 0 : uso, 3) + (negativo
       ? '<span class="msg-neg">contagem maior que o disponível</span>' : "");
     tdCoef.textContent = fat > 0 ? fmt((uso / fat) * 1000, 3) : "—";
   });
+  recalcularProcessamento();
 }
 
 function aoDigitar(e) {
@@ -223,6 +420,23 @@ function aoDigitar(e) {
   sujo = true;
   estado("Não salvo", "erro");
   recalcular();
+}
+
+// Ao sair do campo, o que foi digitado volta no formato 0,000 — quem digita
+// "14" ou "14," vê "14,000" e a coluna inteira fica na mesma régua. Só as
+// caixas de quantidade: o faturamento é dinheiro e tem duas casas.
+//
+// Campo VAZIO continua vazio, nunca vira "0,000": vazio quer dizer "não
+// contado", que é diferente de contado zero — e é essa diferença que o
+// servidor usa para não gravar contagem que ninguém fez.
+function aoSairDoCampo(e) {
+  const el = e.target;
+  if (!el.matches) return;
+  if (el.value.trim() === "") return;
+  // O faturamento e dinheiro: duas casas, e nao as tres da quantidade.
+  if (el.id === "faturamento") { el.value = fmt(num(el.value)); return; }
+  if (!el.matches("input[data-campo], input[data-pcampo]")) return;
+  el.value = qtd(num(el.value));
 }
 
 // ------------------------------------------------------------------ salvar
@@ -233,8 +447,23 @@ async function salvar() {
     const ins = casa.insumos.find((i) => i.chave === tr.dataset.chave);
     if (ins.derivado) return;
     ["final", "entrada", "transferencia", "desperdicio"].forEach((c) => {
-      const v = tr.querySelector('[data-campo="' + c + '"]').value.trim();
+      // A linha de contagem não tem as caixas de movimento: sem esta guarda o
+      // querySelector devolve null e o salvamento inteiro quebra.
+      const el = tr.querySelector('[data-campo="' + c + '"]');
+      if (!el) return;
+      const v = el.value.trim();
       ins[c] = v === "" ? null : num(v);
+    });
+  });
+
+  // processamento da casa aberta: so os dois numeros digitados vao ao servidor,
+  // que recalcula perda e rendimento na leitura
+  document.querySelectorAll("tr[data-proc]").forEach((tr) => {
+    const p = (casa.processamento || {})[tr.dataset.proc];
+    if (!p) return;
+    ["in_natura", "processado"].forEach((c) => {
+      const v = tr.querySelector('[data-pcampo="' + c + '"]').value.trim();
+      p[c] = v === "" ? null : num(v);
     });
   });
 
@@ -245,7 +474,12 @@ async function salvar() {
       insumos[i.chave] = { final: i.final, entrada: i.entrada,
                           transferencia: i.transferencia, desperdicio: i.desperdicio };
     });
-    corpo.casas[ck] = { faturamento: c.faturamento, insumos: insumos };
+    const proc = {};
+    Object.entries(c.processamento || {}).forEach(([pk, p]) => {
+      proc[pk] = { in_natura: p.in_natura, processado: p.processado };
+    });
+    corpo.casas[ck] = { faturamento: c.faturamento, insumos: insumos,
+                        processamento: proc };
   });
 
   $("#btn-salvar").disabled = true;
@@ -274,27 +508,46 @@ async function salvar() {
 // ------------------------------------------------------------------ sincronizar
 // Enquanto o sistema roda em paralelo com o Excel, o que voce digita nas
 // planilhas de cada casa nao chega aqui sozinho. Este botao traz.
-async function sincronizar() {
+//
+// Sem periodo, le o mes do ultimo lancamento — o caso de todo dia. Com periodo
+// (a setinha ao lado do botao), reimporta os dias escolhidos mesmo que ja
+// estejam aqui: planilha corrigida dias depois, num mes que a leitura normal
+// nao alcanca, so chegava ao sistema por linha de comando.
+async function sincronizar(periodo) {
   if (sujo && !confirm("Há alterações não salvas. Sincronizar vai recarregar o dia. Continuar?")) return;
-  const btn = $("#btn-sinc");
+  const btn = periodo ? $("#btn-sinc-periodo") : $("#btn-sinc");
   btn.disabled = true;
   const rotulo = btn.textContent;
   btn.textContent = "Lendo as planilhas…";
   estado("Sincronizando…");
   try {
-    const r = await fetch("/api/sincronizar");
+    const busca = periodo
+      ? "?inicio=" + periodo.inicio + "&fim=" + periodo.fim : "";
+    const r = await fetch("/api/sincronizar" + busca);
     const d = await r.json();
     if (!d.ok) throw new Error(d.erro || "falha no servidor");
-    if (d.nenhuma_aberta) {
-      estado("Nada a sincronizar");
-      aviso("Nenhuma planilha aberta no Excel. Abra a do mês que quer sincronizar e clique de novo.", "");
+    // Não existe mais "nenhuma planilha aberta": a sincronização lê a planilha
+    // fechada também. O que pode acontecer é o arquivo estar travado na hora.
+    if ((d.bloqueadas || []).length) {
+      aviso(`Não consegui ler: ${d.bloqueadas.join(", ")}. Tente de novo em alguns segundos — `
+            + "o OneDrive costuma soltar o arquivo rápido.", "mau");
+      estado("Sincronizado em parte", "erro");
+      await carregarDia($("#data").value);
       return;
     }
     const n = d.dias_novos.length, a = d.dias_alterados.length;
     const lidas = (d.planilhas || []).join(", ");
-    aviso(n || a
-      ? `${n} dia(s) novo(s) e ${a} atualizado(s) — de ${lidas}.`
-      : `Nada novo em ${lidas} — já estava tudo aqui.`, "bom");
+    const onde = d.periodo ? ` no período ${brData(d.periodo[0])} a ${brData(d.periodo[1])}` : "";
+    // Dia corrigido na tela não é reescrito pela planilha (regra do gravar do
+    // importar_diario). Sem dizer isso, quem pede o período de novo e vê "nada
+    // novo" fica achando que a sincronização não leu o arquivo.
+    const mantidos = (d.dias_preservados || []).length;
+    const nota = mantidos
+      ? ` ${mantidos} dia(s) já corrigidos aqui na tela continuam como estão.`
+      : "";
+    aviso((n || a
+      ? `${n} dia(s) novo(s) e ${a} atualizado(s)${onde} — de ${lidas}.`
+      : `Nada novo${onde} em ${lidas} — já estava tudo aqui.`) + nota, "bom");
     estado("Sincronizado", "ok");
     await carregarDia($("#data").value);
   } catch (e) {
@@ -304,6 +557,52 @@ async function sincronizar() {
     btn.disabled = false;
     btn.textContent = rotulo;
   }
+}
+
+// ------------------------------------------- escolha do periodo a reimportar
+const brData = (iso) => (iso || "").split("-").reverse().join("/");
+const primeiroDoMes = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+const isoLocal = (d) =>
+  new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+function abrirPeriodo(abrir) {
+  $("#painel-periodo").hidden = !abrir;
+  $("#btn-periodo").setAttribute("aria-expanded", abrir ? "true" : "false");
+  // Abre no mês atual: é o pedido mais comum, e um campo de data em branco
+  // obrigaria a digitar duas datas para o caso de sempre.
+  if (abrir && !$("#sinc-inicio").value) presetPeriodo("mes");
+}
+
+function presetPeriodo(qual) {
+  const agora = new Date();
+  let inicio = primeiroDoMes(agora), fim = agora;
+  if (qual === "anterior") {
+    inicio = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+    fim = new Date(agora.getFullYear(), agora.getMonth(), 0);
+  } else if (qual === "7") {
+    inicio = new Date(agora.getTime() - 6 * 86400000);
+  }
+  $("#sinc-inicio").value = isoLocal(inicio);
+  $("#sinc-fim").value = isoLocal(fim);
+}
+
+function ligarPeriodo() {
+  $("#btn-periodo").onclick = () => abrirPeriodo($("#painel-periodo").hidden);
+  $("#painel-periodo").querySelectorAll("[data-preset]").forEach((b) => {
+    b.onclick = () => presetPeriodo(b.dataset.preset);
+  });
+  $("#btn-sinc-periodo").onclick = async () => {
+    const inicio = $("#sinc-inicio").value, fim = $("#sinc-fim").value;
+    if (!inicio || !fim) { aviso("Informe as duas datas do período.", "mau"); return; }
+    abrirPeriodo(false);
+    await sincronizar({ inicio, fim });
+  };
+  document.addEventListener("click", (e) => {
+    if (!$("#painel-periodo").hidden && !e.target.closest(".botao-duplo")) abrirPeriodo(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("#painel-periodo").hidden) abrirPeriodo(false);
+  });
 }
 
 // ------------------------------------------------------------------ inicio
@@ -331,7 +630,8 @@ function mudarDia(passo) {
   $("#dia-seguinte").onclick = () => mudarDia(1);
   $("#dia-hoje").onclick = () => { $("#data").value = hoje(); carregarDia(hoje()); };
   $("#btn-salvar").onclick = salvar;
-  $("#btn-sinc").onclick = sincronizar;
+  $("#btn-sinc").onclick = () => sincronizar();
+  ligarPeriodo();
   window.addEventListener("beforeunload", (e) => { if (sujo) e.preventDefault(); });
   carregarDia(hoje());
 })();

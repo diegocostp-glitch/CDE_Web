@@ -68,6 +68,118 @@ async function carregar() {
   desenhar();
 }
 
+// ======================================================================
+// A VISTA — a Visão Geral inteira recortada pela casa escolhida.
+//
+// O filtro existe para avaliação específica, e avaliação específica não é a
+// tela da rede escondendo linhas: o número de cada cartão, a série de doze
+// meses e a classe A/B/C da curva têm de ser os DAQUELA casa. Por isso o
+// recorte vira uma estrutura própria — a VISTA — com a mesma forma do que o
+// servidor manda, e todo desenho lê dela. Sem casa escolhida, a vista É o
+// dado do servidor, sem cópia nem custo.
+//
+// O que o recorte NÃO tenta reconstruir fica explícito em vez de sair errado:
+// a pizza de participação continua sendo a da rede (é a comparação entre
+// casas, filtrá-la não faria sentido) e a minicurva de cada insumo é omitida,
+// porque a série que o servidor manda por insumo é da rede — mostrá-la ao
+// lado dos números de uma casa seria uma mentira discreta.
+// ======================================================================
+let VISTA = null;
+
+function casaAtual() {
+  const el = $("#f-casa");
+  return el ? el.value : "";
+}
+
+function nomeCasa(ck) {
+  const c = (DADOS.participacao || []).find((x) => x.casa === ck);
+  return c ? c.nome : ck;
+}
+
+// A curva ABC recortada é reclassificada: o corte de 80% cai sobre o consumo
+// DAQUELA casa. Sem isso, um insumo que é A na rede apareceria como A ali
+// mesmo pesando pouco na casa — o engano que o filtro quer evitar. O camarão P
+// é A na rede e C na Umarizal.
+function abcDaCasa(ck) {
+  const fatCasa = (DADOS.faturamento_por_casa || {})[ck] || 0;
+  const linhas = (DADOS.abc || []).map((a) => ({
+    ...a,
+    qtd: (a.qtd_por_casa || {})[ck] || 0,
+    valor: (a.por_casa || {})[ck] || 0,
+  })).filter((a) => a.valor > 0 || a.qtd > 0);
+
+  linhas.sort((x, y) => y.valor - x.valor);
+  const total = linhas.reduce((s, a) => s + a.valor, 0) || 1;
+  let acumulado = 0;
+  linhas.forEach((a) => {
+    a.parte = a.valor / total;
+    acumulado += a.parte;
+    a.acumulado = acumulado;
+    a.classe = acumulado <= 0.8 ? "A" : (acumulado <= 0.95 ? "B" : "C");
+    a.sobre_faturamento = fatCasa ? a.valor / fatCasa : null;
+  });
+  return linhas;
+}
+
+function variacaoDaCasa(ck) {
+  return (DADOS.variacao || []).map((v) => {
+    const c = (v.por_casa || {})[ck];
+    if (!c) return null;
+    return {
+      ...v, atual: c.atual, anterior: c.anterior, variacao: c.variacao,
+      diferenca: c.atual - c.anterior,
+      // Impacto em reais e minicurva vêm da rede: sem recorte por casa, é
+      // melhor não mostrar do que mostrar o número de outro conjunto.
+      impacto_reais: null, serie: null,
+    };
+  }).filter(Boolean)
+    .sort((a, b) => Math.abs(b.variacao || 0) - Math.abs(a.variacao || 0));
+}
+
+function montarVista() {
+  const ck = casaAtual();
+  if (!ck) return DADOS;
+
+  const part = (DADOS.participacao || []).find((x) => x.casa === ck) || {};
+  return {
+    ...DADOS,
+    casa_filtro: ck,
+    casa_filtro_nome: nomeCasa(ck),
+    consumo_valor: (DADOS.consumo_valor_por_casa || {})[ck] || 0,
+    consumo_valor_anterior: (DADOS.consumo_valor_anterior_por_casa || {})[ck] || 0,
+    faturamento_total: (DADOS.faturamento_por_casa || {})[ck] || 0,
+    faturamento_anterior: part.anterior || 0,
+    serie_meses: (DADOS.serie_meses || []).map((m) => ({
+      ...m,
+      faturamento: (m.por_casa || {})[ck] || 0,
+      consumo_valor: (m.consumo_por_casa || {})[ck] || 0,
+      faturamento_trecho: (m.por_casa || {})[ck] || 0,
+      consumo_valor_trecho: (m.consumo_por_casa || {})[ck] || 0,
+      peso: (m.por_casa || {})[ck]
+        ? ((m.consumo_por_casa || {})[ck] || 0) / m.por_casa[ck] : null,
+    })),
+    abc: abcDaCasa(ck),
+    variacao: variacaoDaCasa(ck),
+    estoque: (DADOS.estoque || []).filter((l) => l.casa === ck),
+    criticos: (DADOS.criticos || []).filter((l) => l.casa === ck),
+    perdas: (DADOS.perdas || []).filter((l) => l.casa === ck),
+    movimentos: (DADOS.movimentos || []).filter((l) => l.casa === ck),
+    compras: (DADOS.compras || []).filter((l) => !l.casa || l.casa === ck),
+  };
+}
+
+// O seletor de casa guarda a escolha entre trocas de mes: quem esta olhando
+// uma casa quer continuar nela ao andar no tempo.
+function montarCasas() {
+  const sel = $("#f-casa");
+  if (!sel || sel.options.length) return;
+  sel.innerHTML = '<option value="">Todas as casas</option>' +
+    (DADOS.participacao || []).map((c) =>
+      `<option value="${esc(c.casa)}">${esc(c.nome)}</option>`).join("");
+}
+
+// Mes e metadado, nao recorte: le do dado cru, e e chamado antes de a vista
+// existir.
 function montarMeses() {
   const sel = $("#mes");
   if (sel.options.length !== DADOS.meses.length) {
@@ -79,6 +191,8 @@ function montarMeses() {
 
 // ------------------------------------------------------------------ desenhar
 function desenhar() {
+  montarCasas();
+  VISTA = montarVista();
   const d = DADOS;
   $("#periodo-txt").textContent = `${mesBR(d.mes)}` +
     (d.parcial ? ` · mês em curso, até o dia ${d.dia_limite} — comparado com o mesmo trecho de ${mesFrase(d.mes_anterior)}`
@@ -167,19 +281,25 @@ function destaques() {
   const caiu = comVar.filter((v) => v.diferenca < 0)
     .sort((a, b) => (a.impacto_reais || 0) - (b.impacto_reais || 0))[0];
 
+  // o número grande é a DIFERENÇA, não o total consumido: o cartão fala de
+  // mudança, e o total ia no mesmo tamanho fazendo parecer que "subiu 120 kg"
+  // quando 120 kg era o consumo inteiro. O total continua legível no rodapé.
   if (subiu) fora.push({
-    rotulo: `${subiu.insumo} subiu`, valor: `${fmt(subiu.atual, 1)} ${subiu.un}`,
+    rotulo: `${subiu.insumo} subiu`, valor: `+${fmt(subiu.diferenca, 1)} ${subiu.un}`,
     delta: subiu.variacao, bomSeSobe: false, icone: ICO_INS.alta,
-    contexto: subiu.impacto_reais ? `${curto(subiu.impacto_reais)} a mais no período`
-                                  : `${fmt(subiu.diferenca, 1)} ${subiu.un} a mais`,
+    contexto: subiu.impacto_reais
+      ? `${curto(subiu.impacto_reais)} a mais no período · ${fmt(subiu.atual, 1)} ${subiu.un} no total`
+      : `${fmt(subiu.atual, 1)} ${subiu.un} no total`,
     serie: subiu.serie,
   });
 
   if (caiu) fora.push({
-    rotulo: `${caiu.insumo} caiu`, valor: `${fmt(caiu.atual, 1)} ${caiu.un}`,
+    rotulo: `${caiu.insumo} caiu`,
+    valor: `−${fmt(Math.abs(caiu.diferenca), 1)} ${caiu.un}`,
     delta: caiu.variacao, bomSeSobe: false, icone: ICO_INS.queda,
-    contexto: caiu.impacto_reais ? `${curto(Math.abs(caiu.impacto_reais))} economizados`
-                                 : `${fmt(Math.abs(caiu.diferenca), 1)} ${caiu.un} a menos`,
+    contexto: caiu.impacto_reais
+      ? `${curto(Math.abs(caiu.impacto_reais))} economizados · ${fmt(caiu.atual, 1)} ${caiu.un} no total`
+      : `${fmt(caiu.atual, 1)} ${caiu.un} no total`,
     serie: caiu.serie,
   });
 
@@ -288,7 +408,7 @@ function gomoPath(a0, a1, rInt, rExt) {
 }
 
 function pizzaCasas() {
-  const dados = (DADOS.participacao || []).filter((p) => p.valor > 0);
+  const dados = (VISTA.participacao || []).filter((p) => p.valor > 0);
   const total = dados.reduce((s, p) => s + p.valor, 0);
   if (!total) { $("#pizza").innerHTML = '<p class="vazio">Sem faturamento bruto lançado no mês.</p>'; return; }
 
@@ -337,13 +457,13 @@ function pizzaCasas() {
     el.onmouseleave = () => acender(null);
   });
 
-  $("#nota-participacao").textContent = DADOS.parcial
-    ? `Dia 1 ao ${DADOS.dia_limite} de ${mesFrase(DADOS.mes)}` : mesBR(DADOS.mes);
+  $("#nota-participacao").textContent = VISTA.parcial
+    ? `Dia 1 ao ${VISTA.dia_limite} de ${mesFrase(VISTA.mes)}` : mesBR(VISTA.mes);
 
   $("#tabela-casas").innerHTML = `<table>
     <thead><tr><th>Casa</th><th>Faturamento (Bruto)</th><th>Participação</th>
-      <th>${DADOS.parcial ? "Mesmo trecho do mês anterior" : "Mês anterior"}</th><th>Variação</th></tr></thead>
-    <tbody>${DADOS.participacao.map((p) => `
+      <th>${VISTA.parcial ? "Mesmo trecho do mês anterior" : "Mês anterior"}</th><th>Variação</th></tr></thead>
+    <tbody>${VISTA.participacao.map((p) => `
       <tr data-casa="${p.casa}">
         <td><span class="ponto" style="background:${corCasa(p.casa)}"></span>${esc(p.nome)}
           <span class="un">${p.casa}</span></td>
@@ -353,11 +473,11 @@ function pizzaCasas() {
         <td class="calc ${p.variacao !== null && p.variacao < 0 ? "neg" : ""}">${pct(p.variacao)}</td>
       </tr>`).join("")}
       <tr class="linha-total"><td><strong>Grupo</strong></td>
-        <td class="calc"><strong>${reais(DADOS.faturamento_total)}</strong></td>
+        <td class="calc"><strong>${reais(VISTA.faturamento_total)}</strong></td>
         <td class="calc">100%</td>
-        <td class="calc">${reais(DADOS.faturamento_anterior)}</td>
-        <td class="calc">${pct(DADOS.faturamento_anterior
-          ? (DADOS.faturamento_total - DADOS.faturamento_anterior) / DADOS.faturamento_anterior : null)}</td>
+        <td class="calc">${reais(VISTA.faturamento_anterior)}</td>
+        <td class="calc">${pct(VISTA.faturamento_anterior
+          ? (VISTA.faturamento_total - VISTA.faturamento_anterior) / VISTA.faturamento_anterior : null)}</td>
       </tr>
     </tbody></table>`;
 
@@ -413,18 +533,28 @@ function grafico(serie, rotulo, cor, formata) {
   }).join("");
 
   // faixa vertical arredondada atrás do mês em destaque
-  const faixa = `<rect x="${(x(k) - 19).toFixed(1)}" y="${y(serie[k].v).toFixed(1)}"
+  const faixa = `<rect class="g-faixa" x="${(x(k) - 19).toFixed(1)}" y="${y(serie[k].v).toFixed(1)}"
        width="38" height="${(T + PH - y(serie[k].v)).toFixed(1)}" rx="19" fill="url(#${id}b)"/>`;
 
   const rot = serie.map((p, i) =>
-    `<text x="${x(i).toFixed(1)}" y="${H - 12}" text-anchor="middle"
+    `<text x="${x(i).toFixed(1)}" y="${H - 12}" text-anchor="middle" data-i="${i}"
        class="eixo${i === k ? " eixo-forte" : ""}">${p.rotulo}</text>`).join("");
+  // Alvos invisiveis, um por ponto: guardam a posicao ja no sistema do viewBox,
+  // que e o que o modo dinamico precisa para mover o destaque sem recalcular a
+  // escala. O <title> continua servindo de dica nativa quando o modo esta off.
   const alvos = serie.map((p, i) =>
-    `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="10" fill="transparent">
+    `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="10" fill="transparent"
+             class="g-alvo" data-i="${i}">
        <title>${p.titulo}</title></circle>`).join("");
 
-  return `<div class="grafico-bloco"><h3>${rotulo}</h3>
-    <svg viewBox="0 0 ${W} ${H}" class="grafico">
+  // O estado inicial e o mes mais recente — o mesmo de antes. O modo dinamico
+  // so muda QUAL indice esta em destaque; o desenho da curva nao se refaz.
+  const base = T + PH;
+  return `<div class="grafico-bloco" data-dinamico="1">
+    <h3>${rotulo}</h3>
+    <div class="g-leitura">${serie[k].titulo}</div>
+    <svg viewBox="0 0 ${W} ${H}" class="grafico"
+         data-k="${k}" data-base="${base.toFixed(1)}" data-cor="${cor}">
       <defs>
         <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="${cor}" stop-opacity=".34"/>
@@ -439,9 +569,12 @@ function grafico(serie, rotulo, cor, formata) {
       <path d="${area}" fill="url(#${id})"/>
       <path d="${linha}" fill="none" stroke="${cor}" stroke-width="2.4"
             stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${x(k).toFixed(1)}" cy="${y(serie[k].v).toFixed(1)}" r="9"
+      <line class="g-guia" x1="${x(k).toFixed(1)}" y1="${T}" x2="${x(k).toFixed(1)}"
+            y2="${base.toFixed(1)}" stroke="${cor}" stroke-width="1"
+            stroke-dasharray="3 3" opacity="0"/>
+      <circle class="g-halo" cx="${x(k).toFixed(1)}" cy="${y(serie[k].v).toFixed(1)}" r="9"
               fill="${cor}" opacity=".22"/>
-      <circle cx="${x(k).toFixed(1)}" cy="${y(serie[k].v).toFixed(1)}" r="4.5"
+      <circle class="g-ponto" cx="${x(k).toFixed(1)}" cy="${y(serie[k].v).toFixed(1)}" r="4.5"
               fill="${cor}" stroke="var(--card)" stroke-width="2"/>
       ${rot}${alvos}
     </svg>
@@ -449,8 +582,89 @@ function grafico(serie, rotulo, cor, formata) {
     </div>`;
 }
 
+// ------------------------------------------------- gráficos dinâmicos (hover)
+// Antes o "onde está" era sempre o último mês: a faixa arredondada, o ponto
+// cheio e o rótulo em negrito ficavam presos na ponta direita da curva, e para
+// ler um mês do meio só havia a dica nativa do <title> — que demora a aparecer
+// e não move o destaque. Aqui o mesmo destaque passa a seguir o mouse.
+//
+// Nada é redesenhado: só a faixa, a guia, o halo, o ponto e o rótulo em negrito
+// trocam de posição. Redesenhar o bloco a cada mousemove piscava a curva inteira.
+//
+// Não há chave de liga/desliga, e de propósito: em repouso o gráfico é IGUAL ao
+// de antes — o destaque fica no mês mais recente e a guia some quando o mouse
+// sai. Desligar não mudaria nada visível, então a caixa de opção só ocupava o
+// cabeçalho de cada gráfico sem oferecer escolha de verdade.
+
+function destacar(svg, i) {
+  const alvo = svg.querySelector(`.g-alvo[data-i="${i}"]`);
+  if (!alvo) return;
+  const cx = alvo.getAttribute("cx"), cy = alvo.getAttribute("cy");
+  const base = svg.dataset.base;
+  const faixa = svg.querySelector(".g-faixa");
+  if (faixa) {
+    // 38 de largura centrada no ponto: nas duas pontas da curva ela passaria da
+    // area do grafico e apareceria cortada pela borda do SVG.
+    const fx = Math.min(Math.max(parseFloat(cx) - 19, 0), 900 - 38);
+    faixa.setAttribute("x", fx.toFixed(1));
+    faixa.setAttribute("y", cy);
+    faixa.setAttribute("height", Math.max(0, base - parseFloat(cy)).toFixed(1));
+  }
+  const guia = svg.querySelector(".g-guia");
+  if (guia) { guia.setAttribute("x1", cx); guia.setAttribute("x2", cx); }
+  ["g-halo", "g-ponto"].forEach((c) => {
+    const el = svg.querySelector("." + c);
+    if (el) { el.setAttribute("cx", cx); el.setAttribute("cy", cy); }
+  });
+  svg.querySelectorAll("text[data-i]").forEach((t) => {
+    t.classList.toggle("eixo-forte", Number(t.dataset.i) === i);
+  });
+  const leitura = svg.parentElement.querySelector(".g-leitura");
+  const titulo = alvo.querySelector("title");
+  if (leitura && titulo) leitura.textContent = titulo.textContent;
+}
+
+function ativarGraficosDinamicos(raiz) {
+  raiz.querySelectorAll(".grafico-bloco[data-dinamico]").forEach((bloco) => {
+    const svg = bloco.querySelector("svg.grafico");
+    if (!svg) return;
+    const guia = svg.querySelector(".g-guia");
+    const k = Number(svg.dataset.k);
+
+    const voltarAoPadrao = () => {
+      destacar(svg, k);
+      if (guia) guia.setAttribute("opacity", "0");
+    };
+    // O mouse raramente cai exatamente sobre um ponto: o indice sai da posicao
+    // horizontal, arredondada para o ponto mais proximo. Assim a curva inteira
+    // responde, nao apenas os circulos de 10px de raio.
+    const mover = (e) => {
+      const r = svg.getBoundingClientRect();
+      if (!r.width) return;
+      const alvos = svg.querySelectorAll(".g-alvo");
+      if (!alvos.length) return;
+      const vbX = ((e.clientX - r.left) / r.width) * 900;
+      let melhor = 0, dist = Infinity;
+      alvos.forEach((a) => {
+        const d = Math.abs(parseFloat(a.getAttribute("cx")) - vbX);
+        if (d < dist) { dist = d; melhor = Number(a.dataset.i); }
+      });
+      destacar(svg, melhor);
+      if (guia) guia.setAttribute("opacity", ".45");
+    };
+
+    svg.addEventListener("mousemove", mover);
+    svg.addEventListener("mouseleave", voltarAoPadrao);
+    // Toque: um toque na curva destaca o periodo apontado
+    svg.addEventListener("touchmove", (e) => {
+      if (e.touches[0]) mover(e.touches[0]);
+    }, { passive: true });
+    voltarAoPadrao();
+  });
+}
+
 function graficosMes() {
-  const s = DADOS.serie_meses || [];
+  const s = VISTA.serie_meses || [];
   const fatur = s.map((m) => ({ v: m.faturamento, rotulo: mesBR(m.mes).slice(0, 3),
     titulo: `${mesBR(m.mes)} — ${reais(m.faturamento)}` }));
   const peso = s.filter((m) => m.peso !== null).map((m) => ({ v: m.peso * 100,
@@ -463,11 +677,14 @@ function graficosMes() {
                 (v) => fmt(v, 1) + "%")
       : "") +
     '<p class="fonte">O último mês pode estar em curso — a curva sobe de novo quando o mês fecha.</p>';
+  ativarGraficosDinamicos($("#graficos-mes"));
 }
 
 // ------------------------------------------------------------------ curva ABC
+// A curva já chega recortada e reclassificada pela VISTA quando há casa
+// escolhida — veja abcDaCasa lá em cima.
 function curvaABC() {
-  const abc = DADOS.abc || [];
+  const abc = VISTA.abc || [];
   if (!abc.length) {
     $("#top-insumos").innerHTML = '<p class="vazio">Sem consumo valorizado no mês.</p>';
     $("#abc-tabela").innerHTML = "";
@@ -477,7 +694,8 @@ function curvaABC() {
   const top = abc.slice(0, 4);
 
   $("#nota-abc").textContent =
-    `${abc.length} insumos · ${reais(total)} consumidos no mês`;
+    `${abc.length} insumos · ${reais(total)} consumidos no mês`
+    + (VISTA.casa_filtro ? ` · ${VISTA.casa_filtro_nome}` : " · todas as casas");
   $("#nota-top").textContent = `Levam ${parte(top.reduce((s, a) => s + a.parte, 0))} do custo`;
 
   // Uma linha por insumo: posição, nome e valor. O detalhe (quantidade, peso no
@@ -507,8 +725,8 @@ function curvaABC() {
         <td class="calc">${parte(a.acumulado)}</td>
         <td class="calc">${parte(a.sobre_faturamento)}</td>
       </tr>`).join("")}</tbody></table>` +
-    (DADOS.sem_custo.length
-      ? `<p class="fonte" style="margin-top:8px">Sem custo cadastrado: ${DADOS.sem_custo.map(esc).join(", ")}.
+    (VISTA.sem_custo.length
+      ? `<p class="fonte" style="margin-top:8px">Sem custo cadastrado: ${VISTA.sem_custo.map(esc).join(", ")}.
          Preencha <code>dados/custos.json</code> ou vincule o produto do catálogo em Cadastros —
          o custo do catálogo só é aproveitado quando o produto é vendido em KG.</p>`
       : "");
@@ -519,8 +737,8 @@ function curvaABC() {
 // até 100% do mínimo: passar disso não interessa aqui, o que interessa é o
 // quanto falta para o item acabar.
 function barrasEstoque() {
-  const lista = (DADOS.criticos || []).slice(0, 4);
-  $("#nota-baixo").textContent = `${DADOS.criticos.length} item(ns) no limite ou abaixo`;
+  const lista = (VISTA.criticos || []).slice(0, 4);
+  $("#nota-baixo").textContent = `${VISTA.criticos.length} item(ns) no limite ou abaixo`;
   if (!lista.length) {
     $("#barras-estoque").innerHTML =
       '<p class="vazio">Estoque coberto.</p>';
@@ -545,8 +763,8 @@ function barrasEstoque() {
 // As quatro maiores mudanças de consumo contra o mês anterior, em dinheiro.
 // Seta para cima é consumo a mais — que é gasto a mais, por isso vermelha.
 function topVariacao() {
-  const lista = (DADOS.variacao || []).slice(0, 4);
-  $("#nota-var-topo").textContent = DADOS.parcial ? "No mesmo trecho do mês" : "Contra o mês anterior";
+  const lista = (VISTA.variacao || []).slice(0, 4);
+  $("#nota-var-topo").textContent = VISTA.parcial ? "No mesmo trecho do mês" : "Contra o mês anterior";
   if (!lista.length) { $("#top-variacao").innerHTML = '<p class="vazio">Sem comparação.</p>'; return; }
   $("#top-variacao").innerHTML = `<div class="lista-top">
     ${lista.map((v) => {
@@ -564,7 +782,7 @@ function topVariacao() {
 
 // ------------------------------------------------------------------ últimos movimentos
 function topMovimentos() {
-  const lista = (DADOS.movimentos || []).slice(0, 4);
+  const lista = (VISTA.movimentos || []).slice(0, 4);
   $("#nota-mov-topo").textContent = lista.length ? brDate(lista[0].data) : "";
   if (!lista.length) { $("#top-movimentos").innerHTML = '<p class="vazio">Sem movimento.</p>'; return; }
   $("#top-movimentos").innerHTML = `<div class="lista-top">
@@ -581,9 +799,10 @@ function topMovimentos() {
 
 // ------------------------------------------------------------------ mínimos
 function minimos() {
-  const lista = DADOS.criticos || [];
-  $("#nota-minimo").textContent = `${lista.length} item(ns) · Mínimo = consumo médio do dia`
-    + ` × ${DADOS.dias_seguranca} dia(s) de segurança`;
+  const lista = VISTA.criticos || [];
+  $("#nota-minimo").textContent = `${lista.length} item(ns) · Mínimo = média diária dos`
+    + ` últimos ${VISTA.janela_media_dias} dias × ${VISTA.dias_seguranca} dia(s) de uso`
+    + ` — ajustável em Parâmetros`;
   if (!lista.length) {
     $("#tabela-minimos").innerHTML =
       '<p class="vazio">Nenhum item abaixo do mínimo de segurança. Estoque coberto.</p>';
@@ -610,14 +829,14 @@ function minimos() {
 function posicaoEstoque() {
   const sel = $("#f-casa-estoque");
   if (!sel.options.length) {
-    const casas = [...new Set(DADOS.estoque.map((l) => l.casa))];
+    const casas = [...new Set(VISTA.estoque.map((l) => l.casa))];
     sel.innerHTML = '<option value="">Todas</option>' + casas.map((c) => {
-      const nome = (DADOS.estoque.find((l) => l.casa === c) || {}).casa_nome || c;
+      const nome = (VISTA.estoque.find((l) => l.casa === c) || {}).casa_nome || c;
       return `<option value="${c}">${esc(nome)}</option>`;
     }).join("");
     sel.onchange = () => { CASA_ESTOQUE = sel.value; posicaoEstoque(); };
   }
-  const lista = DADOS.estoque.filter((l) => !CASA_ESTOQUE || l.casa === CASA_ESTOQUE);
+  const lista = VISTA.estoque.filter((l) => !CASA_ESTOQUE || l.casa === CASA_ESTOQUE);
   const total = lista.reduce((s, l) => s + (l.valor || 0), 0);
   $("#nota-estoque").textContent =
     `${lista.length} linha(s) · ${reais(total)} · última contagem de cada item`;
@@ -644,11 +863,11 @@ function posicaoEstoque() {
 
 // ------------------------------------------------------------------ variação
 function variacaoMensal() {
-  const lista = DADOS.variacao || [];
-  const casas = DADOS.participacao.map((p) => p.casa);
-  $("#nota-variacao").textContent = DADOS.parcial
-    ? `${mesBR(DADOS.mes)} até o dia ${DADOS.dia_limite} contra o mesmo trecho de ${mesFrase(DADOS.mes_anterior)}`
-    : `${mesBR(DADOS.mes)} contra ${mesFrase(DADOS.mes_anterior)}`;
+  const lista = VISTA.variacao || [];
+  const casas = VISTA.participacao.map((p) => p.casa);
+  $("#nota-variacao").textContent = VISTA.parcial
+    ? `${mesBR(VISTA.mes)} até o dia ${VISTA.dia_limite} contra o mesmo trecho de ${mesFrase(VISTA.mes_anterior)}`
+    : `${mesBR(VISTA.mes)} contra ${mesFrase(VISTA.mes_anterior)}`;
   if (!lista.length) { $("#tabela-variacao").innerHTML = '<p class="vazio">Sem consumo nos dois meses.</p>'; return; }
 
   $("#tabela-variacao").innerHTML = `<table>
@@ -675,7 +894,7 @@ function variacaoMensal() {
 
 // ------------------------------------------------------------------ compras
 function custosDeCompra() {
-  const lista = DADOS.compras || [];
+  const lista = VISTA.compras || [];
   if (!lista.length) {
     $("#tabela-compras").innerHTML = '<p class="vazio">Nenhuma ordem de compra com preço no mês.<br>' +
       '<span class="fonte">Esta tabela se enche sozinha conforme as OCs vão sendo geradas em ' +
@@ -699,7 +918,7 @@ function custosDeCompra() {
 
 // ------------------------------------------------------------------ movimentos
 function movimentos() {
-  const lista = DADOS.movimentos || [];
+  const lista = VISTA.movimentos || [];
   if (!lista.length) { $("#tabela-movimentos").innerHTML = '<p class="vazio">Sem movimentação no mês.</p>'; return; }
   $("#tabela-movimentos").innerHTML = `<table>
     <thead><tr><th>Data</th><th>Casa</th><th>Insumo</th><th>Movimento</th><th>Quantidade</th><th>Origem</th></tr></thead>
@@ -769,6 +988,9 @@ function ligarDobras() {
 
 // ------------------------------------------------------------------ início
 $("#mes").onchange = carregar;
+// Trocar de casa não vai ao servidor: a resposta já traz tudo por casa, e o
+// recorte é uma releitura do que está em memória.
+$("#f-casa").onchange = () => { if (DADOS) desenhar(); };
 ligarDobras();
 ligarAtalhos();
 carregar();

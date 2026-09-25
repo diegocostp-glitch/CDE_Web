@@ -18,9 +18,27 @@ Tres estimadores do patamar, cada um com um vies conhecido:
 
 A mediana dos tres descarta justamente o estimador que discordou dos outros:
 se o mes passado disparou, m1 fica de fora; se o semestre inteiro mudou de
-patamar, quem sai e o m6. Testado contra o que realmente aconteceu em junho,
-julho e agosto/2026, esse criterio errou menos que usar qualquer um dos tres
-sozinho (rode com --backtest para ver os numeros no historico atual).
+patamar, quem sai e o m6.
+
+Sobre o --backtest, e uma armadilha: ele mede abs(real - meta) / META, ou seja,
+divide pelo alvo. Isso pune por construcao todo criterio que escolhe o menor
+estimador — quanto mais apertada a meta, maior o desvio relativo, mesmo que a
+meta esteja perfeita para o que ela e. Nele o min(m1, mediana) aparece como o
+pior dos seis e a mediana de 6 meses como a melhor. Serve para comparar
+PREVISAO, nao meta.
+
+Medido do jeito que importa para meta — quantas series ficaram DENTRO do alvo
+no mes seguinte, sobre o historico corrigido de 2026 —, o erro mediano dos seis
+criterios fica todo entre 10% e 13% e o que muda e a exigencia:
+
+    mediana 6 meses (m6)      meta atingida em 77% / 65% / 46% (jul, ago, set)
+    mediana(m1, m3, m6)       76% / 61% / 43%
+    min(m1, mediana)          57% / 46% / 35%   <- o daqui
+    menor dos tres            50% / 41% / 33%
+
+Ou seja: a escolha do criterio nao e precisao, e politica. O min(m1, mediana)
+entrega uma meta que a casa bate perto de metade das vezes. Se a diretoria
+quiser alvo mais confortavel, o caminho e o m6; mais duro, o menor dos tres.
 
 O "menor entre m1 e a mediana" existe porque isto e meta, nao previsao: se o
 mes passado foi melhor que o patamar historico, o ganho vira o novo alvo em
@@ -93,8 +111,30 @@ def coeficientes_por_mes():
     """
     with open(ARQ_LANC, encoding="utf-8") as f:
         dados = json.load(f)
+
+    # Piso de faturamento por casa: 10% da mediana dela no historico.
+    #
+    # Existe por um dia real: 16/08/2026 a Senador Lemos ficou com R$ 20,80 de
+    # faturamento gravado (a mediana da casa e R$ 16.551), e o consumo daquele
+    # dia foi lancado normal. O coeficiente do dia deu 584 onde o normal e 0,6,
+    # e a media dos 31 dias saiu 19,43 em vez de 0,57 — sozinho, aquele dia
+    # multiplicaria por trinta a meta de catorze series da casa.
+    #
+    # O 'f_dia > 0' que existia antes nao pega esse caso: 20,80 e maior que
+    # zero. Piso relativo, e nao um valor fixo, porque cada casa tem outra
+    # escala (a DLU fatura o dobro da DC). Varrendo 2026 inteiro, 1.004 pares
+    # dia-casa, este piso descarta exatamente um dia — o menor faturamento
+    # legitimo do ano e R$ 4.330, ainda 32% da mediana da casa.
+    fats = defaultdict(list)
+    for dia in dados.values():
+        for ck, lan in dia.items():
+            if isinstance(lan, dict) and float(lan.get("faturamento") or 0) > 0:
+                fats[ck].append(float(lan["faturamento"]))
+    piso = {ck: mediana(v) * 0.10 for ck, v in fats.items()}
+
     coefs = defaultdict(list)
     meses = set()
+    fora_do_piso = []
     for iso in sorted(dados):
         mes = iso[:7]
         for ck, lan in dados[iso].items():
@@ -103,11 +143,21 @@ def coeficientes_por_mes():
             f_dia = float(lan.get("faturamento") or 0)
             if f_dia <= 0:                    # sem faturamento nao ha coeficiente
                 continue
+            if f_dia < piso.get(ck, 0):
+                fora_do_piso.append((iso, ck, f_dia))
+                continue
             meses.add(mes)
             for ik, campos in (lan.get("insumos") or {}).items():
                 if campos.get("uso") is None:
                     continue
                 coefs[(ik, ck, mes)].append(float(campos["uso"]) / f_dia * 1000)
+    # Nunca em silencio: dia descartado e dado que precisa de conserto na fonte.
+    if fora_do_piso:
+        print("dia(s) fora do piso de faturamento, nao entraram no calculo:")
+        for iso, ck, f in fora_do_piso:
+            print("   %s %-5s R$ %.2f  (piso da casa: R$ %.2f)" % (iso, ck, f, piso[ck]))
+        print()
+
     fora = defaultdict(dict)
     for (ik, ck, mes), v in coefs.items():
         if v:

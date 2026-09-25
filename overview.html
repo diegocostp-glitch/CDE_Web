@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CDE — Visão Geral</title>
-<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="icon" type="image/png" href="centurion_aba.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/navegacao.js"></script>
 </head>
@@ -19,6 +19,7 @@
     </div>
     <div class="header-acoes">
       <label class="campo"><span>Mês</span><select id="mes"></select></label>
+      <label class="campo"><span>Casa</span><select id="f-casa"></select></label>
     </div>
   </div>
 
@@ -78,7 +79,7 @@
 
   <!-- Daqui para baixo é relatório: tudo recolhido, para a página não virar
        uma rolagem de três telas antes de mostrar a próxima informação. -->
-  <section class="cartao dobravel" data-secao="abc">
+  <section class="cartao dobravel" data-secao="abc" id="cartao-abc">
     <div class="cabeca dobra"><h2>Curva ABC completa</h2>
       <span class="fonte" id="nota-abc"></span>
       <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
@@ -120,7 +121,7 @@
 
   <section class="cartao dobravel" data-secao="movimentos">
     <div class="cabeca dobra"><h2>Últimas movimentações</h2>
-      <span class="fonte">Entradas, saídas, perdas e consumo</span>
+      <span class="fonte">Entrada por nota fiscal, transferência entre lojas e desperdício</span>
       <span style="flex:1"></span>
       <a class="botao" href="movimentacoes.html">Histórico completo</a>
       <span class="ordem-chev">▸</span></div>

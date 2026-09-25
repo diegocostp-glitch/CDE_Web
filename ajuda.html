@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CDE — Manual</title>
-<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="icon" type="image/png" href="centurion_aba.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/navegacao.js"></script>
 </head>
@@ -82,8 +82,9 @@ quando o painel fecha:</p>
       antes de criar a ordem — a prévia <em>não</em> reserva número: o número só é puxado do
       registro compartilhado quando a OC é gerada de fato.</li>
   <li><strong>Conversão de Salmão</strong> — o preço do quilo do peixe inteiro vira o custo do
-      filé com pele, do filé sem pele e da raspa. Usa os mesmos fatores da tela de Conversão,
-      inclusive se você os recalibrou lá.</li>
+      <strong>salmão bandado</strong> (o peixe sem cabeça, espinhaço, espinha e líquido, do jeito
+      que vai para a câmara), do filé com pele, do filé sem pele e da raspa. Usa os mesmos
+      fatores da tela de Conversão, inclusive se você os recalibrou lá.</li>
 </ul>
 <p>Cada coisa feita vira uma mensagem no alto do painel, com o que foi gravado — dá para
 lançar três chegadas seguidas e conferir as três sem sair do lugar. <span class="cod">Esc</span>
@@ -254,6 +255,13 @@ perdeu de anchova na semana passada?".</p>
 <p>Os quatro cartões do topo somam o período por tipo de movimento e funcionam como filtro:
 clicar em <strong>Desperdício</strong> deixa só as perdas na tabela. Há ainda filtros de
 período, casa e insumo, e um botão de <strong>Exportar CSV</strong> que abre direto no Excel.</p>
+<p>O filtro de <strong>insumo</strong> aceita <strong>mais de um</strong>: o botão abre a lista
+com caixas de marcação, agrupada como no lançamento diário, e dá para marcar os três
+camarões ou as quatro libragens de salmão de uma vez — a tabela, os cartões do topo e o CSV
+passam a somar o conjunto escolhido. Nada marcado significa <strong>todos</strong>, e
+<strong>Limpar</strong> volta a esse estado. A busca sai meio segundo depois do último clique
+(ou na hora, se você fechar a lista antes), para marcar três insumos não virar três
+consultas ao histórico.</p>
 <p>A coluna <strong>origem do dado</strong> diz se aquele número foi digitado na tela ou veio
 da planilha da casa pela sincronização.</p>
 <p class="nota-info">Entrada negativa na planilha é <strong>saída</strong>. A planilha das

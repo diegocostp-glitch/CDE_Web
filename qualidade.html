@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Qualidade do Salmão</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<!-- As mesmas versoes do Importar OC: planilha, leitura de PDF e geracao de
+     PDF. O relatorio que sai daqui e irmao do PDF da OC, e sai da mesma
+     biblioteca para chegar igual na caixa de entrada do fornecedor. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Qualidade do Salmão</h1>
+      <p>Leia o PCQS — planilha ou PDF — e emita o Relatório de Recebimento de
+         Salmão: divergência de peso, não conformidades e o valor a acertar com o
+         fornecedor.</p>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+    </div>
+  </div>
+
+  <!-- ENVIO ------------------------------------------------------------- -->
+  <section class="cartao" id="cartao-envio">
+    <div class="zona-envio" id="zona">
+      <input type="file" id="arquivo" accept=".xlsx,.xlsm,.csv,.pdf">
+      <div class="zona-ico">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l7 3v5c0 4.5-3 7.6-7 10-4-2.4-7-5.5-7-10V6z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </div>
+      <div class="zona-txt">Arraste o PCQS (.xlsx) ou o PDF da planilha — ou clique para escolher</div>
+      <div class="fonte" style="margin-top:6px">
+        Planilha Controle de Qualidade Salmão, preenchida pela gerência no recebimento
+      </div>
+    </div>
+
+    <div class="arquivo-escolhido" id="escolhido" hidden>
+      <strong id="nome-arquivo"></strong>
+      <span style="flex:1"></span>
+      <button class="botao primario" id="btn-ler">Ler arquivo</button>
+      <button class="botao" id="btn-cancelar">Cancelar</button>
+    </div>
+  </section>
+
+  <!-- RELATORIO ---------------------------------------------------------- -->
+  <div id="painel" hidden>
+
+    <div class="barra" id="barra-acoes">
+      <div id="seletor"></div>
+      <span style="flex:1"></span>
+      <button class="botao" id="btn-outro">Ler outro arquivo</button>
+      <button class="botao" id="btn-previa">Ver prévia</button>
+      <button class="botao primario" id="btn-pdf">Baixar relatório em PDF</button>
+    </div>
+
+    <div class="veredito" id="veredito"></div>
+
+    <section class="cartao">
+      <div class="cabeca">
+        <h2>Conferência do recebimento</h2>
+        <span class="fonte">peso da nota contra o peso medido na loja</span>
+      </div>
+      <div class="placar" id="placar"></div>
+      <div id="comparativo"></div>
+    </section>
+
+    <section class="cartao">
+      <div class="cabeca">
+        <h2>Não conformidades</h2>
+        <span class="fonte">o que o relatório leva para tratativa</span>
+      </div>
+      <div id="ncs"></div>
+    </section>
+
+    <section class="cartao">
+      <div class="cabeca">
+        <h2>Caixa a caixa — peso</h2>
+        <span class="fonte">etiqueta do fornecedor contra a balança da loja</span>
+      </div>
+      <div id="caixas-peso"></div>
+    </section>
+
+    <section class="cartao">
+      <div class="cabeca">
+        <h2>Caixa a caixa — sensorial, gelo e validade</h2>
+        <span class="fonte">como a gerência registrou na abertura das caixas</span>
+      </div>
+      <div id="caixas-sensorial"></div>
+    </section>
+
+    <section class="cartao">
+      <div class="cabeca">
+        <h2>Dados do documento</h2>
+        <span class="fonte">confira antes de emitir — vale o que estiver aqui</span>
+      </div>
+      <p class="fonte" style="margin-bottom:14px">
+        A leitura preenche estes campos com o que a planilha traz. Corrigir aqui
+        muda o relatório emitido, não o PCQS da loja. Peso, lote, sensorial e
+        validade de cada caixa saem como a gerência registrou.
+      </p>
+      <div class="grade-oc" id="form-cab"></div>
+      <p class="fonte" id="rodape-doc" style="margin-top:16px"></p>
+    </section>
+
+  </div>
+</main>
+</div>
+<script>montarSidebar("qualidade")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/comum.js"></script>
+<script src="js/header-img.js"></script>
+<script src="js/pcqs.js"></script>
+<script src="js/pcqs-pdf.js"></script>
+<script src="js/qualidade.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

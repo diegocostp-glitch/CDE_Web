@@ -9,7 +9,7 @@ if not errorlevel 1 (
     exit /b
 )
 
-python --version >/dev/null 2>&1
+python --version >nul 2>&1
 if errorlevel 1 (
     echo Python nao encontrado. Instale o Python e tente de novo.
     pause

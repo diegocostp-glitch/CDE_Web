@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Parâmetros</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/navegacao.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content tela-parametros">
+  <div class="screen-header">
+    <div>
+      <h1>Parâmetros</h1>
+      <p>O que o sistema não tem como adivinhar: quanto de cada insumo cada casa
+         precisa ter em estoque, quem responde pela projeção de compras e de
+         quantos dias ela olha para trás. Fora daqui, tudo é calculado do
+         lançamento diário.</p>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+      <button class="botao primario" id="btn-salvar">Salvar</button>
+    </div>
+  </div>
+
+  <section class="cartao dobravel aberta" data-secao="estoque">
+    <div class="cabeca dobra"><h2>Mínimo e máximo de estoque</h2>
+      <span class="fonte" id="nota-estoque"></span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <p class="fonte nota-secao" id="nota-regra"></p>
+      <p class="fonte nota-secao">A coluna <strong>Calculado</strong> é o que essa regra dá hoje —
+        é o valor que vale enquanto o mínimo estiver em branco. Preencher o
+        <strong>Mínimo</strong> substitui o cálculo para aquele insumo naquela casa; apagar
+        devolve o cálculo. O <strong>Máximo</strong> aponta o contrário do mínimo: estoque parado
+        além do necessário.</p>
+      <div class="param-barra">
+        <label class="campo"><span>Filtrar insumo</span>
+          <input type="text" id="f-insumo" placeholder="nome do insumo"></label>
+        <label class="campo"><span>Casa</span><select id="f-casa"></select></label>
+        <button class="botao" id="btn-sugerir" type="button">Preencher mínimos com a sugestão</button>
+        <span class="fonte" id="nota-sugestao"></span>
+      </div>
+      <div class="rolagem" id="tabela-estoque"></div>
+    </div>
+  </section>
+
+  <section class="cartao dobravel aberta" data-secao="projecao">
+    <div class="cabeca dobra"><h2>Projeção de compras</h2>
+      <span class="fonte">Janela de cálculo e quem assina</span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <div class="param-grade">
+        <label class="campo"><span>Dias a cobrir (padrão)</span>
+          <input type="number" id="p-dias-cobrir" min="1" max="60" step="1">
+          <small class="fonte">Quantos dias de consumo o pedido deve cobrir, quando ninguém
+            muda na tela.</small></label>
+        <label class="campo"><span>Janela da média (dias)</span>
+          <input type="number" id="p-janela" min="1" max="120" step="1">
+          <small class="fonte">De quantos dias para trás sai o consumo médio que projeta o
+            pedido.</small></label>
+        <label class="campo"><span>Dias de segurança</span>
+          <input type="number" id="p-seguranca" min="0" max="60" step="1">
+          <small class="fonte">Usado no mínimo calculado, para o insumo que não tem mínimo
+            definido acima.</small></label>
+      </div>
+      <div class="param-listas">
+        <div class="param-lista">
+          <h3>Responsáveis</h3>
+          <p class="fonte">Quem pode assinar uma projeção. Aparece na lista da tela de
+            Projeção de Compras.</p>
+          <div id="lista-responsaveis" class="fichas"></div>
+          <div class="param-add">
+            <input type="text" id="novo-responsavel" placeholder="nome do responsável">
+            <button class="botao" id="btn-add-responsavel" type="button">Adicionar</button>
+          </div>
+        </div>
+        <div class="param-lista">
+          <h3>Fornecedores</h3>
+          <p class="fonte">Para quem o pedido pode ser endereçado.</p>
+          <div id="lista-fornecedores" class="fichas"></div>
+          <div class="param-add">
+            <input type="text" id="novo-fornecedor" placeholder="nome do fornecedor">
+            <button class="botao" id="btn-add-fornecedor" type="button">Adicionar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <h2>O que não se define aqui</h2>
+    <ul class="notas-param">
+      <li><strong>Metas de coeficiente</strong> — saem do histórico pelo
+        <code>recalcular_metas.py</code>, que compara três estimadores e põe piso no melhor mês
+        já realizado. Meta digitada à mão perderia esse critério.</li>
+      <li><strong>Custo unitário dos insumos</strong> — vem do preço cadastrado em
+        Movimentações e da planilha Cadastro de Preços, por data e casa. Um valor fixo aqui
+        brigaria com o preço real de cada compra.</li>
+      <li><strong>Rendimento de processamento</strong> (lula, tentáculo, atum) — medido do
+        processamento que a casa lança, não estipulado.</li>
+      <li><strong>Unidade de cada insumo</strong> — é a que a planilha da casa usa para contar;
+        mudar aqui descolaria o sistema da origem.</li>
+    </ul>
+  </section>
+</main>
+
+</div>
+<script src="js/comum.js"></script>
+<script src="js/parametros.js"></script>
+</body>
+</html>

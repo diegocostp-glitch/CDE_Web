@@ -43,12 +43,17 @@
   // calibração vale aqui também — dois números diferentes para o mesmo peixe
   // seria pior que não ter o atalho.
   const CV_KEY = "cde_conversor_fatores_v1";
-  const FATORES = { file_com_pele: 0.6716, raspa: 0.0109, file_limpo: 0.8011 };
+  const FATORES = { bandado: 0.8015, file_com_pele: 0.6716, raspa: 0.0109,
+                    file_limpo: 0.8011 };
   function fatores() {
     try {
       const salvo = (JSON.parse(localStorage.getItem(CV_KEY)) || {}).SALMAO_INTEIRO_EVISCERADO;
       if (!salvo) return FATORES;
+      // Campo a campo, como em conversao.js: uma calibracao gravada antes do
+      // bandado existir nao tem o bloco dele, e ai vale o padrao — nao um zero,
+      // que apagaria a linha em vez de mostrar o numero medido.
       return {
+        bandado: (salvo.intermediario || {}).fator_bandado || FATORES.bandado,
         file_com_pele: salvo.estagio1.fator_file_com_pele,
         raspa: salvo.estagio1.fator_raspa,
         file_limpo: salvo.estagio2.fator_file_limpo,
@@ -176,7 +181,9 @@
         <label class="campo"><span>Casa</span><select id="mv-casa">${cfg.casas.map((c) =>
           `<option value="${c.chave}">${esc(c.nome)}</option>`).join("")}</select></label>
         <label class="campo campo-largo"><span>Insumo</span><select id="mv-insumo">${cfg.insumos
-          .filter((i) => !i.derivado || i.chave === "salmao_equivalente")
+          // Linha calculada não é destino de lançamento: a chegada de salmão
+          // entra na libragem que chegou, e o equivalente se recalcula dela.
+          .filter((i) => !i.derivado)
           .map((i) => `<option value="${i.chave}">${esc(i.nome)} (${esc(i.un)})</option>`).join("")}</select></label>
         <label class="campo campo-largo"><span>Movimento</span><select id="mv-tipo">${TIPOS.map(([v, t]) =>
           `<option value="${v}">${esc(t)}</option>`).join("")}</select></label>
@@ -454,6 +461,11 @@
       $$$("#cv-saida").innerHTML = '<p class="acao-nota">Informe o valor por quilo do peixe inteiro eviscerado.</p>';
       return;
     }
+    // O bandado é o mesmo peixe um passo antes do filé: cabeça, espinhaço,
+    // espinha e líquido saem como descarte e não absorvem custo, então o quilo
+    // do inteiro se concentra no que sobra. É a linha que vai para a câmara,
+    // e era a única da tela completa que faltava aqui.
+    const bandado = f.bandado > 0 ? preco / f.bandado : 0;
     // a raspa absorve o custo do próprio peso; o que sobra sobe para o filé
     const comPele = f.file_com_pele > 0 ? (preco - f.raspa * preco) / f.file_com_pele : 0;
     const semPele = f.file_limpo > 0 ? comPele / f.file_limpo : 0;
@@ -461,6 +473,8 @@
       <div class="cv-linha"><span class="cv-item">${nome}<small>${nota}</small></span>
         <span class="cv-val">R$ ${fmt(valor)}</span></div>`;
     $$$("#cv-saida").innerHTML = `<div class="acao-itens">
+      ${linha("Salmão bandado", bandado,
+              `armazenamento · rendimento de ${fmt(f.bandado * 100, 2)}%`)}
       ${linha("Filé com pele", comPele, `rendimento de ${fmt(f.file_com_pele * 100, 2)}%`)}
       ${linha("Filé sem pele", semPele, `rendimento de ${fmt(f.file_com_pele * f.file_limpo * 100, 2)}%`)}
       ${linha("Raspa", preco, "absorve o custo do próprio peso")}

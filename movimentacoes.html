@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CDE — Movimentações</title>
-<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="icon" type="image/png" href="centurion_aba.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/navegacao.js"></script>
 </head>
@@ -15,8 +15,15 @@
   <div class="screen-header">
     <div>
       <h1>Movimentações</h1>
-      <p>Cada chegada, transferência, perda e consumo, dia a dia. É o extrato do
-         estoque — serve para conferir o que o lançamento diário registrou.</p>
+      <p>O que entrou e saiu do estoque, dia a dia: chegada por nota fiscal,
+         transferência entre lojas e desperdício. É aqui também que o preço
+         unitário é cadastrado — digite na coluna de preço e saia do campo para
+         salvar. Desperdício não recebe preço — não se paga para jogar fora, e o
+         produto perdido já foi pago na linha da chegada dele —, mas é
+         valorizado pelo último preço pago por aquele insumo até a data da perda —
+         da própria casa, ou da rede quando a casa ainda não o tinha comprado. Esse valor fica na coluna de valor em tom apagado e tem
+         total próprio no placar: é o quanto se perdeu, e nunca entra no valor
+         das compras.</p>
     </div>
     <div class="header-acoes">
       <span id="estado" class="estado"></span>
@@ -29,8 +36,26 @@
     <label class="campo"><span>Até</span><input type="date" id="fim"></label>
     <button class="botao" id="mes-atual">Mês atual</button>
     <label class="campo"><span>Casa</span><select id="f-casa"></select></label>
-    <label class="campo"><span>Insumo</span><select id="f-insumo"></select></label>
+    <!-- Insumo aceita mais de um: um <select> comum obrigava a ver camarão G,
+         M e P em três consultas e somar de cabeça. O botão abre a lista com
+         caixas de marcação e resume a escolha ("3 insumos"). -->
+    <div class="campo"><span>Insumo</span>
+      <div class="multi" id="f-insumo">
+        <button type="button" class="multi-botao" id="f-insumo-botao"
+                aria-expanded="false" aria-haspopup="true">
+          <span class="multi-rotulo" id="f-insumo-rotulo">Todos</span>
+          <span class="multi-seta" aria-hidden="true">▾</span>
+        </button>
+        <div class="multi-lista" id="f-insumo-lista" hidden role="group"
+             aria-label="Insumos do extrato"></div>
+      </div>
+    </div>
     <label class="campo"><span>Movimento</span><select id="f-tipo"></select></label>
+    <label class="campo"><span>Preço</span>
+      <select id="f-preco">
+        <option value="">Todos</option>
+        <option value="1">Sem preço cadastrado</option>
+      </select></label>
     <span class="fonte" id="contagem"></span>
   </section>
 

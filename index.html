@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CDE — Lançamento Diário</title>
-<link rel="icon" type="image/png" href="logo_aba.png">
+<link rel="icon" type="image/png" href="centurion_aba.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/navegacao.js"></script>
 </head>
@@ -19,7 +19,31 @@
          e o uso é calculado sozinho.</p>
     </div>
     <div class="header-acoes">
-      <button id="btn-sinc" class="botao" title="Traz para o sistema o que foi digitado nas planilhas de cada casa">Sincronizar planilhas</button>
+      <!-- Sincronizar continua a um clique (o mês do último lançamento). A
+           setinha ao lado abre a escolha de período, para reimportar dias que
+           JÁ estão no sistema — o caso de a planilha ter sido corrigida
+           depois, num mês que a sincronização normal não relê. -->
+      <div class="botao-duplo">
+        <button id="btn-sinc" class="botao" title="Traz para o sistema o que foi digitado nas planilhas de cada casa">Sincronizar planilhas</button>
+        <button id="btn-periodo" class="botao botao-caret" title="Escolher o período a reimportar"
+                aria-expanded="false" aria-haspopup="true">&#9662;</button>
+        <div class="painel-periodo" id="painel-periodo" hidden role="group"
+             aria-label="Sincronizar um período">
+          <p class="fonte">Relê as planilhas e reimporta <strong>todos os dias</strong> do
+            período, não só os que ainda faltam. Dia corrigido aqui na tela continua
+            como está.</p>
+          <div class="pp-datas">
+            <label class="campo"><span>De</span><input type="date" id="sinc-inicio"></label>
+            <label class="campo"><span>Até</span><input type="date" id="sinc-fim"></label>
+          </div>
+          <div class="pp-atalhos">
+            <button type="button" class="multi-acao" data-preset="mes">Mês atual</button>
+            <button type="button" class="multi-acao" data-preset="anterior">Mês anterior</button>
+            <button type="button" class="multi-acao" data-preset="7">Últimos 7 dias</button>
+          </div>
+          <button class="botao primario" id="btn-sinc-periodo">Sincronizar o período</button>
+        </div>
+      </div>
       <span id="estado" class="estado"></span>
       <button id="btn-salvar" class="botao primario">Salvar o dia</button>
     </div>

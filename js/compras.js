@@ -118,6 +118,32 @@ function calcular(ins, campos) {
            un_pedido: c ? c.un_pedido : ins.un };
 }
 
+// Lula, tentaculo e atum: a casa CONTA o processado e COMPRA o in natura. A
+// linha ja vem convertida para in natura pelo servidor; o selo diz com que
+// rendimento, e se ele foi medido num processamento real ou ainda e a media de
+// partida — a diferenca entre "o pedido saiu da balanca" e "o pedido saiu de um
+// palpite do meio da faixa".
+function selo(i) {
+  const p = i.processamento;
+  if (!p) return "";
+  return p.medido
+    ? ` <span class="selo-mini" title="Convertido para in natura pelo rendimento` +
+      ` medido em ${brDate(p.rendimento_de)}: ${fmt(p.rendimento * 100, 2)}%">` +
+      `${fmt(p.rendimento * 100, 1)}%</span>`
+    : ` <span class="selo-mini aviso" title="Nenhum processamento lançado ainda —` +
+      ` usando o rendimento médio de partida (${fmt(p.rendimento_padrao * 100, 0)}%).` +
+      ` Lance o processamento no dia para o pedido usar o rendimento real.">` +
+      `${fmt(p.rendimento_padrao * 100, 0)}% est.</span>`;
+}
+
+function dicaEstoque(i) {
+  const base = `lançado em ${brDate(i.estoque_de)}`;
+  const p = i.processamento;
+  if (!p) return base;
+  return `${base} — ${fmt(p.estoque_in_natura, 3)} in natura + ` +
+         `${fmt(p.estoque_processado, 3)} processado ÷ ${fmt(p.rendimento * 100, 2)}%`;
+}
+
 function desenhar() {
   const casa = PROJ.casas[CASA];
   const cab = ["Insumo", "Estoque", "Trânsito", "Média/dia", "Fator", "Duração",
@@ -129,8 +155,8 @@ function desenhar() {
       <div class="rolagem"><table><thead><tr>${cab.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${casa.insumos.map((i) => `
         <tr data-k="${i.chave}">
-          <td>${i.nome} <span class="un">(${i.un})</span></td>
-          <td class="calc" title="lançado em ${brDate(i.estoque_de)}">${fmt(i.estoque, 3)}</td>
+          <td>${i.nome} <span class="un">(${i.un})</span>${selo(i)}</td>
+          <td class="calc" title="${dicaEstoque(i)}">${fmt(i.estoque, 3)}</td>
           <td><input data-c="transito" type="text" inputmode="decimal" value="${i.transito ?? ""}"></td>
           <td class="calc" title="${i.dias_com_uso} dia(s) com consumo na janela">${fmt(i.media_diaria, 3)}</td>
           <td><input data-c="fator" type="text" inputmode="decimal" value="${i.fator ?? 1}" style="width:64px"></td>
