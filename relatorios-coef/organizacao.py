@@ -43,15 +43,19 @@ def pasta_mensal(saida, ym):
 
 
 def pasta_evolucao(saida, insumo):
-    """saida/Evolução/<nome da operação>/ — uma pasta por insumo."""
+    """saida/0. Evolução/<nome da operação>/ — uma pasta por insumo.
+
+    O zero na frente poe a evolucao acima dos meses numerados: ela cobre o
+    periodo inteiro e e por onde a leitura comeca.
+    """
     nome = PASTA_EVOLUCAO.get(insumo, 'Evolução %s' % insumo)
-    d = os.path.join(saida, 'Evolução', nome)
+    d = os.path.join(saida, '0. Evolução', nome)
     os.makedirs(d, exist_ok=True)
     return d
 
 
 def pasta_financeiro(saida):
-    """saida/Evolução/Evolução Estoque - Compras/ — o consolidado de todos."""
-    d = os.path.join(saida, 'Evolução', 'Evolução Estoque - Compras')
+    """saida/0. Evolução/Evolução Estoque - Compras/ — o consolidado de todos."""
+    d = os.path.join(saida, '0. Evolução', 'Evolução Estoque - Compras')
     os.makedirs(d, exist_ok=True)
     return d
