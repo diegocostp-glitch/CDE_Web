@@ -617,9 +617,10 @@ def main():
                .replace('{{DATA}}', json.dumps(data, ensure_ascii=False, default=str))
                .replace('{{CONFIG}}', json.dumps(config, ensure_ascii=False)))
 
-    os.makedirs(args.saida, exist_ok=True)
+    from organizacao import pasta_mensal
+    destino = pasta_mensal(args.saida, cur)      # saida/Relatório <Mês>/
     base = f'Relatorio_{args.insumo}_{cur}'
-    html_path = os.path.join(args.saida, base + '.html')
+    html_path = os.path.join(destino, base + '.html')
     open(html_path, 'w', encoding='utf-8').write(html)
     print('HTML :', html_path)
 
@@ -628,7 +629,7 @@ def main():
         if not br:
             print('AVISO: Chrome/Edge não encontrado — PDF não gerado (use --no-pdf para silenciar).')
         else:
-            pdf_path = os.path.join(args.saida, base + '.pdf')
+            pdf_path = os.path.join(destino, base + '.pdf')
             ok = render_pdf(br, html_path, pdf_path)
             print('PDF  :', pdf_path if ok else '(falhou)')
 

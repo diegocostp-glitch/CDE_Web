@@ -143,15 +143,16 @@ def main():
                  .replace('{{DADOS}}', json.dumps(dados, ensure_ascii=False))
                  .replace('{{CFG}}', json.dumps(cfg, ensure_ascii=False)))
 
-    os.makedirs(args.saida, exist_ok=True)
+    from organizacao import pasta_evolucao
+    destino = pasta_evolucao(args.saida, args.insumo)   # saida/Evolução/<insumo>/
     base = 'Evolucao_%s_%s_a_%s' % (args.insumo, args.de, args.ate)
-    hp = os.path.join(args.saida, base + '.html')
+    hp = os.path.join(destino, base + '.html')
     open(hp, 'w', encoding='utf-8').write(html)
     print('HTML :', hp)
     if not args.no_pdf:
         br = find_browser()
         if br:
-            pp = os.path.join(args.saida, base + '.pdf')
+            pp = os.path.join(destino, base + '.pdf')
             print('PDF  :', pp if render_pdf(br, hp, pp) else '(falhou)')
         else:
             print('AVISO: Chrome/Edge não encontrado — PDF não gerado.')

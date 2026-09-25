@@ -298,15 +298,16 @@ def main():
                  .replace('{{DADOS}}', json.dumps(pacote, ensure_ascii=False))
                  .replace('{{CFG}}', json.dumps(cfg, ensure_ascii=False)))
 
-    os.makedirs(args.saida, exist_ok=True)
+    from organizacao import pasta_financeiro
+    destino = pasta_financeiro(args.saida)     # saida/Evolução/Estoque - Compras/
     base = 'Consolidado_financeiro_%s_a_%s' % (lista[0], lista[-1])
-    hp = os.path.join(args.saida, base + '.html')
+    hp = os.path.join(destino, base + '.html')
     open(hp, 'w', encoding='utf-8').write(html)
     print('HTML :', hp)
     if not args.no_pdf:
         br = find_browser()
         if br:
-            pp = os.path.join(args.saida, base + '.pdf')
+            pp = os.path.join(destino, base + '.pdf')
             print('PDF  :', pp if render_pdf(br, hp, pp) else '(falhou)')
 
     tc = sum(sum(d['meses'][m]['consRs'] for m in d['meses']) for d in dados.values())
