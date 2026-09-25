@@ -59,6 +59,7 @@
       <h3>Preço × volume, do primeiro ao último mês</h3>
       <div class="csub">À esquerda o que o preço fez; à direita o que o volume fez. Verde é a favor do caixa.</div>
       <div class="chart-wrap" id="chPV"></div>
+      <div class="legend" id="legPV"></div>
     </div>
     <div class="tbl-wrap"><table id="tblPV"></table></div>
     <div class="note" id="notaPV"></div>
@@ -222,9 +223,15 @@ T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b
   s+=`<text x="${meio+8}" y="${H-10}" font-size="10" style="fill:var(--muted)">contra o caixa</text>`;
   document.getElementById('chPV').innerHTML=s+'</svg>';
 
-  T('lead03',`Cada linha traz duas barras: em cima o <b>efeito preço</b> (verde quando o preço caiu, `
-    +`vermelho quando subiu) e embaixo, em azul, o <b>efeito volume</b>. O número à direita é o efeito preço `
-    +`em reais — é ele que uma negociação muda.`);
+  T('legPV',`<span><i style="background:var(--good)"></i>Preço caiu — economia</span>`
+    +`<span><i style="background:var(--bad)"></i>Preço subiu — custo a mais</span>`
+    +`<span><i style="background:var(--ocean);opacity:.55"></i>Efeito do volume (barra de baixo)</span>`
+    +`<span>│ a linha central é o zero: à esquerda dela o caixa ganhou, à direita perdeu</span>`
+    +`<span>O valor à direita de cada linha é o <b>efeito preço</b> em reais</span>`);
+  T('lead03',`Cada insumo tem <b>duas barras</b>: a de cima é o <b>efeito preço</b> e a de baixo, em azul, `
+    +`o <b>efeito volume</b>. O comprimento é o tamanho em reais e o lado diz a direção — à esquerda da `
+    +`linha central o caixa ganhou, à direita perdeu. A ordem é do maior ganho ao maior custo, e o número `
+    +`à direita repete o efeito preço, que é o que uma negociação muda.`);
 
   let h='<thead><tr>'+['Insumo','Preço '+M[0].rotulo,'Preço '+M[M.length-1].rotulo,'Variação do preço',
     'Variação do consumo','Efeito preço','Efeito volume'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';

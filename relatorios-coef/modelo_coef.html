@@ -58,7 +58,7 @@
   .kicker{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--salmon);font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
   .kicker::before{content:"";width:26px;height:2px;background:var(--salmon);display:inline-block}
   header.hero h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.02em}
-  header.hero .sub{color:var(--ink-2);font-size:17px;max-width:60ch;margin-top:14px}
+  header.hero .sub{color:var(--ink-2);font-size:17px;max-width:78ch;margin-top:14px}
   .meta-row{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:22px;font-size:13.5px;color:var(--muted)}
   .meta-row b{color:var(--ink-2);font-weight:600}
   .formula{margin:26px 0 6px;background:var(--surface);border:1px solid var(--hair);border-left:3px solid var(--salmon);border-radius:12px;padding:16px 20px;box-shadow:var(--shadow);display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
@@ -68,8 +68,11 @@
   .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
   .sec-num{font-family:var(--display);font-size:13px;font-weight:700;color:var(--salmon);letter-spacing:.08em;border:1.5px solid var(--salmon-soft);border-radius:6px;padding:2px 8px}
   section h2{font-size:clamp(21px,3vw,27px);letter-spacing:-.01em}
-  .lead{color:var(--ink-2);font-size:16.5px;max-width:70ch;margin:12px 0 24px}
-  p{max-width:72ch}
+  /* 70ch dava 54% da largura util: o texto parava na metade e ficava
+     desalinhado das tabelas e graficos, que ocupam a pagina inteira. 90ch e o
+     limite superior do que se le confortavelmente e fecha em ~70% da pagina. */
+  .lead{color:var(--ink-2);font-size:16.5px;max-width:90ch;margin:12px 0 24px}
+  p{max-width:90ch}
   .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
   .kpi{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:18px 18px 16px;box-shadow:var(--shadow);overflow:hidden}
   .kpi .lab{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -138,7 +141,7 @@
   .tag.watch{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
   .tag.win{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
   .tag.act{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
-  ul.clean{margin:14px 0;padding-left:0;list-style:none;max-width:72ch}
+  ul.clean{margin:14px 0;padding-left:0;list-style:none;max-width:90ch}
   ul.clean li{padding:8px 0 8px 26px;position:relative;border-bottom:1px solid var(--hair);font-size:14.5px;color:var(--ink-2)}
   ul.clean li::before{content:"";position:absolute;left:4px;top:15px;width:7px;height:7px;border-radius:2px;background:var(--salmon)}
   ul.clean li:last-child{border-bottom:none}
