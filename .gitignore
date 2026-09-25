@@ -27,6 +27,28 @@ conversos salmao.xlsx
 # São cópias inteiras dos arquivos acima, com os mesmos dados dentro.
 backups/
 
+# --- relatorios de coeficiente: fonte versiona, saida e preco nao -------------
+# Os relatorios trazem faturamento diario por casa, consumo e custo unitario —
+# exatamente o que as regras acima protegem, so que em HTML e PDF. E sao
+# regeneraveis: 124 arquivos e 230 MB saem de seis arquivos de fonte mais os
+# dados. Versionar o produto ao lado da receita nao acrescenta nada e leva o
+# faturamento junto.
+relatorios-coef/saida/
+# Preco negociado por insumo, casa e mes. Mesma natureza de dados/custos.json,
+# que ja esta ignorado acima.
+relatorios-coef/custos_mensais.json
+# Planilhas de preco unitario da empresa, usadas como entrada do relatorio.
+Custo Unit*.xlsx
+PRE*OS.xlsx
+Base_de_custo_*.xlsx
+
+# --- relatorios prontos com dado de operacao ---------------------------------
+# Saidas fechadas que carregam faturamento do grupo dentro.
+Relat*rio de Estoque*.html
+Resumo para a Diretoria*.html
+relatorio-consumo.html
+Relat*rio salm*o*/
+
 # --- cadastro compartilhado com o Gerador de OCs -----------------------------
 # CNPJ, endereço, contato e tabela de preço de cada fornecedor.
 Base_SushiBoulevard.xlsx
@@ -42,6 +64,12 @@ Registro_OCs*.json
 # são assets do sistema e continuam versionados.
 modelo*.png
 modelo*.jpeg
+centurion*.png
+centurion*.jpeg
+celulas de digitacao.png
+# print de tela de erro: o traceback vem por cima da tela de Movimentacoes, com
+# preco e nome de casa visiveis atras.
+erro.png
 ocultacao*.jpeg
 ajuste*.png
 pequenos blocos*.png
