@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+  :root{
+    --paper:#FBFAF8; --surface:#FFFFFF; --surface-2:#F4F1EC;
+    --ink:#211C18; --ink-2:#4A423B; --muted:#8A8078; --hair:#E6E0D8;
+    --salmon:#E0603F; --salmon-soft:#F4C7B7; --ocean:#2F5C68; --ocean-soft:#Bcd3d6;
+    --good:#2E876B; --bad:#C24A34; --warn:#C98A2B;
+    --shadow:0 1px 2px rgba(33,28,24,.05),0 8px 24px rgba(33,28,24,.06);
+    /* Escala divergente do mapa do mes: 3 passos por braco mais um cinza
+       neutro no meio. Os valores de cada tema sao ESCOLHIDOS, nao derivados:
+       antes a cor era misturada no fundo da pagina, e no tema escuro isso
+       fazia a metade neutra da escala virar quase-preto — o mapa inteiro
+       ficava escuro e sem leitura. No claro a neutra e a mais CLARA e os
+       bracos escurecem para fora; no escuro e o contrario, a neutra e a mais
+       escura (mas ainda destacada da pagina) e os bracos clareiam. Todos os
+       passos foram conferidos com no minimo 4,5:1 de contraste do texto. */
+    --m-b3:#9ED4BE; --m-b2:#C4E4D6; --m-b1:#E3F1EA; --m-md:#F0EEE9;
+    --m-a1:#FBE7E1; --m-a2:#F4C3B6; --m-a3:#E9A08D; --m-tinta:#211C18;
+    --maxw:1120px;
+    --font:"Segoe UI Variable Text","Segoe UI",-apple-system,system-ui,Roboto,Helvetica,Arial,sans-serif;
+    --display:"Segoe UI Variable Display","Segoe UI Semibold","Segoe UI",var(--font);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --paper:#17140F; --surface:#201C16; --surface-2:#2A251E;
+    --ink:#F2ECE3; --ink-2:#C9C0B4; --muted:#948B7E; --hair:#332E26;
+    --salmon:#EE7A5A; --salmon-soft:#5A3226; --ocean:#5FA0AE; --ocean-soft:#22383E;
+    --good:#4CB48C; --bad:#E27058; --warn:#E0A94A;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    --m-b3:#307556; --m-b2:#2C6449; --m-b1:#2E5140; --m-md:#4A443A;
+    --m-a1:#66402F; --m-a2:#7E4C35; --m-a3:#96593C; --m-tinta:#F2ECE3;}}
+  :root[data-theme="dark"]{
+    --paper:#17140F; --surface:#201C16; --surface-2:#2A251E;
+    --ink:#F2ECE3; --ink-2:#C9C0B4; --muted:#948B7E; --hair:#332E26;
+    --salmon:#EE7A5A; --salmon-soft:#5A3226; --ocean:#5FA0AE; --ocean-soft:#22383E;
+    --good:#4CB48C; --bad:#E27058; --warn:#E0A94A;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    --m-b3:#307556; --m-b2:#2C6449; --m-b1:#2E5140; --m-md:#4A443A;
+    --m-a1:#66402F; --m-a2:#7E4C35; --m-a3:#96593C; --m-tinta:#F2ECE3;}
+  :root[data-theme="light"]{
+    --paper:#FBFAF8; --surface:#FFFFFF; --surface-2:#F4F1EC;
+    --ink:#211C18; --ink-2:#4A423B; --muted:#8A8078; --hair:#E6E0D8;
+    --salmon:#E0603F; --salmon-soft:#F4C7B7; --ocean:#2F5C68; --ocean-soft:#Bcd3d6;
+    --good:#2E876B; --bad:#C24A34; --warn:#C98A2B;
+    --shadow:0 1px 2px rgba(33,28,24,.05),0 8px 24px rgba(33,28,24,.06);
+    --m-b3:#9ED4BE; --m-b2:#C4E4D6; --m-b1:#E3F1EA; --m-md:#F0EEE9;
+    --m-a1:#FBE7E1; --m-a2:#F4C3B6; --m-a3:#E9A08D; --m-tinta:#211C18;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);line-height:1.6;font-size:16px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px 80px}
+  h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.15;text-wrap:balance;margin:0}
+  .num{font-variant-numeric:tabular-nums}
+  header.hero{padding:56px 0 34px;border-bottom:1px solid var(--hair);margin-bottom:8px}
+  .kicker{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--salmon);font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+  .kicker::before{content:"";width:26px;height:2px;background:var(--salmon);display:inline-block}
+  header.hero h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.02em}
+  header.hero .sub{color:var(--ink-2);font-size:17px;max-width:60ch;margin-top:14px}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:22px;font-size:13.5px;color:var(--muted)}
+  .meta-row b{color:var(--ink-2);font-weight:600}
+  .formula{margin:26px 0 6px;background:var(--surface);border:1px solid var(--hair);border-left:3px solid var(--salmon);border-radius:12px;padding:16px 20px;box-shadow:var(--shadow);display:flex;gap:16px;align-items:baseline;flex-wrap:wrap}
+  .formula code{font-family:"Cascadia Code",ui-monospace,"Consolas",monospace;font-size:15px;color:var(--ink);background:var(--surface-2);padding:4px 10px;border-radius:7px}
+  .formula .exp{font-size:13.5px;color:var(--ink-2);max-width:52ch}
+  section{margin-top:56px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+  .sec-num{font-family:var(--display);font-size:13px;font-weight:700;color:var(--salmon);letter-spacing:.08em;border:1.5px solid var(--salmon-soft);border-radius:6px;padding:2px 8px}
+  section h2{font-size:clamp(21px,3vw,27px);letter-spacing:-.01em}
+  .lead{color:var(--ink-2);font-size:16.5px;max-width:70ch;margin:12px 0 24px}
+  p{max-width:72ch}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+  .kpi{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:18px 18px 16px;box-shadow:var(--shadow);overflow:hidden}
+  .kpi .lab{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .kpi .val{font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:8px;line-height:1}
+  .kpi .val small{font-size:15px;color:var(--muted);font-weight:600}
+  .kpi .delta{font-size:13px;font-weight:600;margin-top:9px;display:inline-flex;align-items:center;gap:5px}
+  .kpi .delta.up{color:var(--bad)} .kpi .delta.down{color:var(--good)}
+  .kpi .delta .arw{font-size:11px;font-weight:700;margin-right:3px}
+  .kpi .foot{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .card{background:var(--surface);border:1px solid var(--hair);border-radius:16px;box-shadow:var(--shadow);padding:22px 22px 18px;margin-top:22px}
+  .card h3{font-size:16px;letter-spacing:-.01em}
+  .card .csub{font-size:13px;color:var(--muted);margin-top:3px}
+  .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .chart-wrap{width:100%;overflow-x:auto}
+  svg.chart{display:block;width:100%;height:auto}
+  .legend{display:flex;gap:18px;font-size:12.5px;color:var(--ink-2);margin-top:4px;flex-wrap:wrap}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:-1px}
+  /* rótulo que pode cair sobre uma barra ou sobre a linha da média: o contorno
+     da cor do papel abre o texto do fundo sem precisar de espaço reservado */
+  svg.chart text.halo{paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+  /* A rolagem horizontal vinha daqui: 12 colunas com 28px de respiro cada e
+     nada podendo quebrar linha estouravam a página. O overflow continua como
+     rede de segurança para telas estreitas, mas no tamanho normal a tabela
+     cabe inteira — em papel ela PRECISA caber, porque no PDF o que passa da
+     margem é cortado, não vira barra de rolagem. */
+  .tbl-wrap{overflow-x:auto;margin-top:20px;border:1px solid var(--hair);border-radius:14px;box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--surface);table-layout:auto}
+  thead th{background:var(--surface-2);text-align:right;padding:9px 9px;font-weight:700;color:var(--ink-2);border-bottom:1px solid var(--hair);font-size:10.5px;letter-spacing:.02em;text-transform:uppercase;line-height:1.25}
+  thead th:first-child,tbody td:first-child{text-align:left}
+  /* só a coluna da casa pode quebrar linha; número quebrado fica ilegível */
+  thead th:first-child,tbody td:first-child{white-space:normal;min-width:132px}
+  thead th:not(:first-child),tbody td:not(:first-child){white-space:nowrap}
+  tbody td{padding:8px 9px;text-align:right;border-bottom:1px solid var(--hair)}
+  .num-cell{font-variant-numeric:tabular-nums}
+  tbody tr:last-child td{border-bottom:none}
+  tr.total-row td{font-weight:700;background:var(--surface-2);border-top:2px solid var(--hair)}
+  .pos{color:var(--bad);font-weight:600}.neg{color:var(--good);font-weight:600}
+  .house{border:1px solid var(--hair);border-radius:18px;background:var(--surface);box-shadow:var(--shadow);padding:24px;margin-top:24px}
+  .house-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  .badge{font-family:var(--display);font-weight:700;font-size:13px;color:#fff;background:var(--ocean);padding:4px 11px;border-radius:8px;letter-spacing:.03em}
+  .house h3{font-size:20px}
+  .house .verdict{margin-left:auto;font-size:12.5px;font-weight:700;padding:5px 12px;border-radius:20px}
+  .v-good{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+  .v-bad{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+  .v-flat{background:var(--surface-2);color:var(--ink-2)}
+  .mini-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 8px}
+  .mini{background:var(--surface-2);border-radius:11px;padding:12px 13px}
+  .mini .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+  .mini .v{font-family:var(--display);font-size:19px;font-weight:700;margin-top:5px;letter-spacing:-.01em}
+  .mini .d{font-size:11.5px;font-weight:600;margin-top:3px}
+  .mini .d.up{color:var(--bad)}.mini .d.down{color:var(--good)}
+  .house-charts{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-top:14px}
+  .narr{font-size:14.5px;color:var(--ink-2);margin-top:16px}
+  .narr b{color:var(--ink)}
+  .dest{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .dest .d{background:var(--surface-2);border-radius:10px;padding:9px 13px;font-size:12.5px;flex:1;min-width:140px}
+  .dest .d .dl{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;font-weight:600}
+  .dest .d .dv{font-family:var(--display);font-weight:700;font-size:16px;margin-top:3px}
+  .reco{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px}
+  .reco .r{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow);border-top:3px solid var(--salmon)}
+  .reco .r.watch{border-top-color:var(--bad)}
+  .reco .r.win{border-top-color:var(--good)}
+  .reco .r h4{font-family:var(--display);font-size:15px;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+  .reco .r p{font-size:13.5px;color:var(--ink-2);margin:0;max-width:none}
+  .tag{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px}
+  .tag.watch{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+  .tag.win{background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good)}
+  .tag.act{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+  ul.clean{margin:14px 0;padding-left:0;list-style:none;max-width:72ch}
+  ul.clean li{padding:8px 0 8px 26px;position:relative;border-bottom:1px solid var(--hair);font-size:14.5px;color:var(--ink-2)}
+  ul.clean li::before{content:"";position:absolute;left:4px;top:15px;width:7px;height:7px;border-radius:2px;background:var(--salmon)}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li b{color:var(--ink)}
+  .note{background:var(--surface-2);border-radius:12px;padding:16px 20px;font-size:13.5px;color:var(--ink-2);margin-top:20px}
+  footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--hair);font-size:12.5px;color:var(--muted)}
+  /* ---------------------------------------------------- seções novas */
+  /* mapa do mês: uma linha por casa, uma coluna por dia. Serve para achar o
+     dia isolado que fugiu do padrão — coisa que a média do mês esconde. */
+  .mapa{overflow-x:auto;margin-top:16px}
+  table.mapa-t{border-collapse:separate;border-spacing:2px;width:100%;min-width:640px}
+  table.mapa-t th{background:none;border:none;padding:0 0 4px;font-size:9px;color:var(--muted);
+    text-transform:none;letter-spacing:0;text-align:center;font-weight:600}
+  table.mapa-t th.cs{text-align:left;padding-right:8px;font-size:11px;color:var(--ink-2);font-weight:700}
+  table.mapa-t td{padding:0;border:none;text-align:center}
+  .cel{display:block;height:26px;line-height:26px;border-radius:4px;font-size:9.5px;font-weight:600;
+    color:var(--m-tinta);font-variant-numeric:tabular-nums}
+  .cel.b3{background:var(--m-b3)} .cel.b2{background:var(--m-b2)} .cel.b1{background:var(--m-b1)}
+  .cel.md{background:var(--m-md)}
+  .cel.a1{background:var(--m-a1)} .cel.a2{background:var(--m-a2)} .cel.a3{background:var(--m-a3)}
+  .cel.vazio{background:repeating-linear-gradient(45deg,var(--surface-2),var(--surface-2) 3px,transparent 3px,transparent 6px);color:var(--muted)}
+  /* consumo negativo: não é eficiência, é divergência de contagem. Cinza com
+     borda tracejada para não ser lido como "dia muito bom" na escala verde. */
+  .cel.incons{background:var(--surface-2);color:var(--muted);border:1px dashed var(--muted);font-weight:700}
+  .cel.fds{box-shadow:inset 0 -2px 0 var(--ocean)}
+  .mapa-esc{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);margin-top:12px;flex-wrap:wrap}
+  .mapa-esc .q{width:26px;height:12px;border-radius:3px;display:inline-block}
+
+  /* semana a semana */
+  .sem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+  .sem{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+  .sem .r{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+  .sem .dias{font-size:11px;color:var(--muted);margin-top:2px}
+  .sem .v{font-family:var(--display);font-size:23px;font-weight:700;margin-top:8px;letter-spacing:-.01em}
+  .sem .c{font-size:12.5px;color:var(--ink-2);margin-top:4px}
+  .sem .tag-parcial{display:inline-block;font-size:9.5px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.04em;background:var(--surface-2);color:var(--muted);padding:2px 6px;border-radius:4px;margin-top:6px}
+
+  /* alertas */
+  .alerta-lista{display:flex;flex-direction:column;gap:9px;margin-top:16px}
+  .al{display:flex;align-items:baseline;gap:12px;background:var(--surface);border:1px solid var(--hair);
+    border-left:3px solid var(--bad);border-radius:10px;padding:11px 15px;box-shadow:var(--shadow)}
+  .al .d{font-family:var(--display);font-weight:700;font-size:14px;min-width:62px}
+  .al .casa{font-weight:700;color:var(--ocean);min-width:44px}
+  .al .txt{font-size:13px;color:var(--ink-2);flex:1}
+  .al .n{font-variant-numeric:tabular-nums;font-weight:700;font-size:13.5px;white-space:nowrap}
+  .al.leve{border-left-color:var(--warn)}
+
+  /* placar */
+  .placar{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:18px}
+  .pl{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);position:relative}
+  .pl .pos{position:absolute;top:14px;right:16px;font-family:var(--display);font-size:26px;font-weight:700;color:var(--hair)}
+  .pl .casa{font-family:var(--display);font-size:17px;font-weight:700}
+  .pl .nota{font-family:var(--display);font-size:34px;font-weight:700;letter-spacing:-.02em;margin:8px 0 2px;line-height:1}
+  .pl .de{font-size:11.5px;color:var(--muted)}
+  .pl .criterios{margin-top:12px;display:flex;flex-direction:column;gap:5px}
+  .pl .cr{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--ink-2)}
+  .pl .cr b{font-variant-numeric:tabular-nums;font-weight:700}
+  .pl .barra{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:10px}
+  .pl .barra i{display:block;height:100%;border-radius:3px}
+
+  @media (max-width:720px){.kpis{grid-template-columns:repeat(2,1fr)}.chart-grid,.house-charts,.reco{grid-template-columns:1fr}.mini-kpis{grid-template-columns:repeat(2,1fr)}}
+  /* No papel não existe rolagem: o que passa da margem some. A folha A4 com
+     12mm de margem dá ~186mm úteis, e a tabela consolidada tem 12 colunas —
+     por isso ela encolhe aqui, e o overflow vira 'visible' para o navegador
+     não cortar o que sobrar. Mesma razão no mapa do mês. */
+  @media print{
+    @page{size:A4;margin:12mm}
+    /* Papel é sempre claro. Sem isto, gerar o PDF numa máquina com o sistema
+       em modo escuro mantinha as variáveis escuras enquanto o fundo virava
+       branco — texto claro em papel branco. Vale também para os gráficos, que
+       leem estas mesmas variáveis por getComputedStyle na hora de desenhar. */
+    :root{
+      --paper:#FBFAF8; --surface:#FFFFFF; --surface-2:#F4F1EC;
+      --ink:#211C18; --ink-2:#4A423B; --muted:#8A8078; --hair:#E6E0D8;
+      --salmon:#E0603F; --salmon-soft:#F4C7B7; --ocean:#2F5C68; --ocean-soft:#Bcd3d6;
+      --good:#2E876B; --bad:#C24A34; --warn:#C98A2B;
+    --m-b3:#9ED4BE; --m-b2:#C4E4D6; --m-b1:#E3F1EA; --m-md:#F0EEE9;
+    --m-a1:#FBE7E1; --m-a2:#F4C3B6; --m-a3:#E9A08D; --m-tinta:#211C18;
+    }
+    html,body{background:#fff;color:#211C18}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .wrap{max-width:none;padding:0}
+    header.hero{padding:8px 0 20px}
+    section{margin-top:26px}
+    .card,.house,.reco .r,.kpi,.tbl-wrap,.formula,.note,.sem,.pl,.al{break-inside:avoid}
+    .sec-head,h1,h2,h3{break-after:avoid}
+    .house{page-break-inside:avoid}
+    footer{break-before:avoid}
+    .tbl-wrap,.mapa,.chart-wrap{overflow:visible}
+    table{font-size:9px}
+    thead th{font-size:8px;padding:5px 4px}
+    tbody td{padding:4px 4px}
+    thead th:first-child,tbody td:first-child{min-width:0}
+    table.mapa-t{min-width:0;border-spacing:1.5px}
+    .cel{height:19px;line-height:19px;font-size:7.5px}
+    table.mapa-t th{font-size:7px}
+    table.mapa-t th.cs{font-size:9px}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">Relatório Operacional de Suprimentos · Insumo {{INSUMO_NOME}}</div>
+    <h1>{{TITLE}}</h1>
+    <p class="sub">{{SUBTITLE}}</p>
+    <div class="meta-row">
+      <span><b>Período:</b> {{CUR_RANGE}}</span>
+      <span><b>Comparativo:</b> {{PREV_RANGE}}</span>
+      <span><b>Casas:</b> SL · DC · DLU · DLCN</span>
+      <span><b>Fonte:</b> {{FONTE}}</span>
+    </div>
+    <div class="formula">
+      <code>Coeficiente = Consumo total ÷ Faturamento bruto × 1.000</code>
+      <span class="exp">{{FORMULA_NOTE}}</span>
+    </div>
+  </header>
+
+  <section id="resumo" style="margin-top:40px">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Panorama da rede</h2></div>
+    <p class="lead" id="lead01"></p>
+    <div class="kpis" id="kpiBand"></div>
+    <div class="note" id="netRead"></div>
+  </section>
+
+  <section id="custo">
+    <div class="sec-head"><span class="sec-num">02</span><h2>O consumo em reais</h2></div>
+    <p class="lead" id="lead02rs"></p>
+    <div class="tbl-wrap"><table id="tblCusto"></table></div>
+    <div class="note" id="notaCusto"></div>
+  </section>
+
+  <section id="consolidado">
+    <div class="sec-head"><span class="sec-num">03</span><h2 id="h2cons"></h2></div>
+    <p class="lead">À esquerda o <b>volume consumido</b>, à direita o <b>coeficiente de eficiência</b><span id="metaHint"></span>. O que muda entre as casas é quanto o volume pesou sobre a eficiência.</p>
+    <div class="card">
+      <div class="chart-grid">
+        <div><h3 id="h3consumo"></h3><div class="csub" id="csubConsumo"></div><div class="chart-wrap" id="chConsumo"></div></div>
+        <div><h3>Coeficiente de consumo por casa</h3><div class="csub" id="csubCoef">un / R$ 1.000 · tracejado = média da rede</div><div class="chart-wrap" id="chCoef"></div></div>
+      </div>
+      <div class="legend" id="legCons"></div>
+    </div>
+    <div class="tbl-wrap"><table id="tblCons"></table></div>
+    <p style="font-size:13px;color:var(--muted);margin-top:10px" id="notaTbl"></p>
+  </section>
+
+  <section id="ranking">
+    <div class="sec-head"><span class="sec-num">04</span><h2 id="h2rank"></h2></div>
+    <p class="lead" id="lead03"></p>
+    <div class="card"><div class="chart-wrap" id="chRank"></div><div class="legend" id="legRank"></div></div>
+  </section>
+
+  <section id="semanas">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Semana a semana</h2></div>
+    <p class="lead" id="lead05sem"></p>
+    <div class="sem-grid" id="semGrid"></div>
+    <div class="card" style="margin-top:20px"><h3>Coeficiente por bloco de dias — rede e casas</h3>
+      <div class="csub">Menor é melhor. A linha grossa é a rede; as finas, cada casa.</div>
+      <div class="chart-wrap" id="chSem"></div><div class="legend" id="legSem"></div></div>
+    <div class="note" id="notaSem"></div>
+  </section>
+
+  <section id="mapa">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Mapa do mês</h2></div>
+    <p class="lead" id="lead06map"></p>
+    <div class="mapa" id="mapaMes"></div>
+    <div class="mapa-esc" id="mapaEsc"></div>
+    <div class="note" id="notaMapa"></div>
+  </section>
+
+  <section id="alertas">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Dias em alerta</h2></div>
+    <p class="lead" id="lead07al"></p>
+    <div class="alerta-lista" id="listaAlertas"></div>
+    <div class="note" id="notaAlertas"></div>
+  </section>
+
+  <section id="placar">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Placar das casas</h2></div>
+    <p class="lead" id="lead08pl"></p>
+    <div class="placar" id="placarCasas"></div>
+    <div class="note" id="notaPlacar"></div>
+  </section>
+
+  <section id="casas">
+    <div class="sec-head"><span class="sec-num">09</span><h2>Leitura por casa</h2></div>
+    <p class="lead" id="lead04"></p>
+    <div id="houses"></div>
+  </section>
+
+  <section id="padrao">
+    <div class="sec-head"><span class="sec-num">10</span><h2>Padrão por dia da semana — leitura da rede</h2></div>
+    <p class="lead" id="lead05"></p>
+    <ul class="clean" id="wkInsights"></ul>
+  </section>
+
+  <section id="metas">
+    <div class="sec-head"><span class="sec-num">11</span><h2 id="h2metas"></h2></div>
+    <p class="lead" id="lead11mt"></p>
+    <div class="tbl-wrap"><table id="tblMetas"></table></div>
+    <div class="note" id="notaMetas"></div>
+  </section>
+
+  <section id="acoes">
+    <div class="sec-head"><span class="sec-num">12</span><h2>Indicativos e ações para a equipe</h2></div>
+    <p class="lead">O que fazer com esta leitura na operação de suprimentos das próximas semanas.</p>
+    <div class="reco" id="reco"></div>
+    <div class="note" id="metaNote"></div>
+  </section>
+
+  <section id="modelo">
+    <div class="sec-head"><span class="sec-num">13</span><h2>Como este relatório é gerado</h2></div>
+    <p class="lead">Documento gerado automaticamente pelo script <code>gerar_relatorio_coef.py</code> a partir dos lançamentos diários do CDE Web. Para qualquer mês/insumo, basta rodar o script — a narrativa se reconstrói dos dados.</p>
+    <ul class="clean" id="modeloList"></ul>
+    <div class="note" id="notaDescartes"></div>
+  </section>
+
+  <footer id="rodape"></footer>
+</div>
+
+<script>
+const DATA = {{DATA}};
+const CFG = {{CONFIG}};
+
+const nf=(v,d=1)=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}));
+const nf0=v=>(v==null?'—':v.toLocaleString('pt-BR',{maximumFractionDigits:0}));
+const money=v=>'R$ '+v.toLocaleString('pt-BR',{maximumFractionDigits:0});
+const money2=v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=(v,d=1)=>(v>=0?'+':'')+nf(v*100,d)+'%';
+const apct=(v,d=1)=>nf(Math.abs(v*100),d)+'%';
+const coefFmt=v=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}));
+const parte=v=>nf(v*100,0)+'%';
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SHORT={'segunda-feira':'Seg','terça-feira':'Ter','quarta-feira':'Qua','quinta-feira':'Qui','sexta-feira':'Sex','sábado':'Sáb','domingo':'Dom'};
+const U=CFG.unidade||'un';
+const KG=CFG.kgPorUn||null;
+const kgTot=un=>KG?un*KG:null;
+const casas=DATA.casas, tot=DATA.total;
+const hasMeta=c=>c.meta!=null;
+const anyMeta=casas.some(hasMeta);
+/* No primeiro mes da base nao existe mes anterior. Sem esta bandeira as contas
+   de variacao dividem por zero e o relatorio imprime "piorou infinito%" e
+   "R$ NaN" — numero inventado em relatorio de diretoria e pior que numero
+   ausente, entao aqui a comparacao simplesmente nao aparece. */
+const COMP=CFG.temComparativo!==false;
+const T=(id,html)=>{const e=document.getElementById(id);if(e)e.innerHTML=html;};
+
+/* static-ish text from CFG */
+document.title=CFG.title;
+T('notaTbl',COMP?'Variação em vermelho indica <b>aumento</b> (piora do coeficiente / mais consumo); em verde, <b>redução</b> (ganho de eficiência). No coeficiente, menor é melhor.':'No coeficiente, menor é melhor: são as unidades consumidas para cada R$ 1.000 de faturamento bruto.');
+T('h2cons',COMP?`Consolidado por casa — ${CFG.prevLabel} × ${CFG.curLabel}`:`Consolidado por casa — ${CFG.curLabel}`);
+T('h3consumo',`Consumo total por casa (${U})`);
+T('csubConsumo',CFG.consumoSub||(CFG.insumoNome+' no mês'));
+T('csubCoef',`un / R$ 1.000 · tracejado = média da rede${anyMeta?' · ◆ meta da casa':''}`);
+T('h2rank',anyMeta?'Ranking de eficiência × meta':'Ranking de eficiência');
+T('legCons',(COMP?`<span><i style="background:var(--ocean)"></i>${CFG.prevLabel}</span>`:'')+`<span><i style="background:var(--salmon)"></i>${CFG.curLabel}</span>`+(anyMeta?`<span><i style="background:var(--ink-2);border-radius:50%"></i>Meta da casa</span>`:''));
+T('lead04',`Para cada casa: indicadores-chave, série diária de consumo de ${CFG.curLabel}, padrão por dia da semana${COMP?` (${CFG.prevLabel} × ${CFG.curLabel})`:''} e os destaques do mês.`);
+T('rodape',CFG.footer);
+T('modeloList',[
+ '<b>Entrada.</b> Consumo e faturamento <b>bruto</b> por casa e por dia, de <code>dados/lancamentos.json</code>'
+   +(anyMeta?'; metas de <code>dados/metas.json</code>':'')
+   +(DATA.temCusto?'; custo unitário por casa de <code>dados/custos.json</code>':'')+'.',
+ '<b>Limpeza.</b> Fica de fora o dia cujo faturamento bruto não chega a '+nf((CFG.pisoFator||0.10)*100,0)
+   +'% da mediana histórica da casa — mesma regra do <code>recalcular_metas.py</code>. '
+   +'Dia de consumo negativo continua no total do mês, mas sai das leituras do nível do dia. '
+   +'Os dois casos saem listados no fim desta seção, nunca em silêncio.',
+ '<b>Panorama e custo</b> — consumo, faturamento, coeficiente, receita por unidade e '
+   +'quanto do faturamento virou insumo, em reais e em percentual.',
+ '<b>Comparação entre casas</b> — barras do mês contra o anterior, tabela com as variações e '
+   +'ranking de eficiência'+(anyMeta?' contra a meta de cada casa':'')+'.',
+ '<b>Leituras de tempo</b> — blocos de sete dias e o mapa dia a dia, para achar quando o '
+   +'consumo saiu do lugar.',
+ '<b>Leituras de exceção</b> — os dias que passaram do alvo, com a causa provável de cada um, '
+   +'e o placar que ordena as casas por critério declarado.',
+ '<b>Detalhe e padrão</b> — cada casa com série diária e destaques, e o comportamento da rede '
+   +'por dia da semana.',
+ '<b>Decisão</b> — o alvo proposto para o mês seguinte, lido do <code>recalcular_metas.py</code>, '
+   +'e as ações de suprimentos ligadas aos números acima.'
+].map(x=>`<li>${x}</li>`).join(''));
+
+/* ---- section 01 lead + KPIs + netRead (data-driven) ---- */
+(function(){
+  const t=tot;
+  const coD=t.coefJul/t.coefJun-1;
+  const consDir=t.dpct>=0?'subiu':'caiu', fatDir=t.dfpct>=0?'subiu':'caiu';
+  const effDir=coD>0?'piorou':(coD<0?'melhorou':'ficou estável');
+  const reason=coD>0?'o consumo pesou mais sobre a receita':(coD<0?'a receita cresceu mais que o consumo':'consumo e receita variaram no mesmo passo');
+  const dentro=casas.filter(c=>hasMeta(c)&&c.coefJul<=c.meta), N=casas.filter(hasMeta).length;
+  const metaPhr=anyMeta?` ${dentro.length} de ${N} casas dentro da meta.`:'';
+  T('lead01', COMP
+    ? `Em ${CFG.curLabel}, o consumo de ${CFG.insumoNome} <b>${consDir} ${apct(t.dpct)}</b> e o faturamento <b>${fatDir} ${apct(t.dfpct)}</b> frente a ${CFG.prevLabel}. Como ${reason}, o <b>coeficiente da rede ${effDir}</b> ${apct(coD)}.${metaPhr}`
+    : `Em ${CFG.curLabel} a rede consumiu <b>${nf0(t.cJul)} ${U}</b> de ${CFG.insumoNome} para um faturamento bruto de <b>${money(t.fJul)}</b>, o que dá um <b>coeficiente de ${coefFmt(t.coefJul)}</b>. É o primeiro mês da base: não há mês anterior para comparar, então este relatório é o retrato do mês e serve de ponto de partida.${metaPhr}`);
+
+  const items=[
+    {lab:'Consumo total',val:nf0(t.cJul),unit:U,d:t.dpct,foot:`${CFG.prevShort}: ${nf0(t.cJun)} ${U}`+(KG?` · ≈ ${nf0(kgTot(t.cJul))} kg`:''),
+      foot0:(KG?`≈ ${nf0(kgTot(t.cJul))} kg no mês`:`no mês inteiro`)},
+    {lab:'Faturamento (bruto)',val:money(t.fJul),unit:'',d:t.dfpct,foot:`${CFG.prevShort}: ${money(t.fJun)}`,
+      foot0:`soma das ${casas.length} casas`},
+    {lab:'Coeficiente da rede',val:coefFmt(t.coefJul),unit:'un/R$1k',d:coD,foot:`${CFG.prevShort}: ${coefFmt(t.coefJun)}`,
+      foot0:`${U} por R$ 1.000 faturados`},
+    {lab:`Receita por ${U}`,val:money(t.fJul/t.cJul),unit:`/${U}`,d:((t.fJul/t.cJul)/(t.fJun/t.cJun)-1),foot:`${CFG.prevShort}: ${money(t.fJun/t.cJun)}`,
+      foot0:`faturamento ÷ consumo`,good:true}
+  ];
+  T('kpiBand',items.map(k=>{const up=k.d>=0;const cls=k.good?(up?'down':'up'):(up?'up':'down');
+    return `<div class="kpi"><div class="lab">${k.lab}</div><div class="val num">${k.val} <small>${k.unit}</small></div>
+      ${COMP?`<div class="delta ${cls}"><span class="arw">${up?'subiu':'caiu'}</span>${pct(k.d)}</div>`:''}
+      <div class="foot">${COMP?k.foot:k.foot0||''}</div></div>`;}).join(''));
+
+  const kgPhr=KG?` — equivalente a ~${nf0(kgTot(t.cJul))} kg (${CFG.kgNota}).`:'';
+  const metaRead=anyMeta?` Frente à meta: dentro — ${dentro.map(c=>c.sigla).join(', ')||'nenhuma'}; acima — ${casas.filter(c=>hasMeta(c)&&c.coefJul>c.meta).map(c=>c.sigla).join(', ')||'nenhuma'}.`:'';
+  T('netRead', COMP
+    ? `<b>Leitura:</b> a rede consumiu <b>${nf0(t.cJul)} ${U}</b> (${pct(t.dpct)} vs ${CFG.prevLabel}) para um faturamento bruto de <b>${money(t.fJul)}</b> (${pct(t.dfpct)}). O coeficiente foi de <b>${coefFmt(t.coefJun)}</b> para <b>${coefFmt(t.coefJul)}</b> (${pct(coD)}). Cada ${U} gerou <b>${money(t.fJul/t.cJul)}</b> em ${CFG.curLabel}, contra ${money(t.fJun/t.cJun)} em ${CFG.prevLabel}.${kgPhr}${metaRead}`
+    : `<b>Leitura:</b> a rede consumiu <b>${nf0(t.cJul)} ${U}</b> para um faturamento bruto de <b>${money(t.fJul)}</b>, o que põe o coeficiente em <b>${coefFmt(t.coefJul)}</b>. Cada ${U} gerou <b>${money(t.fJul/t.cJul)}</b>.${kgPhr}${metaRead}`);
+})();
+
+/* ---- grouped bar ---- */
+function groupedBar(el,rows,o){
+  const W=460,H=300,mL=44,mR=14,mT=16,mB=52, iw=W-mL-mR, ih=H-mT-mB;
+  const duas=!!o.keyA;   // sem mes anterior o grafico vira barra unica por casa
+  const max=Math.max(...rows.flatMap(r=>[(duas?r[o.keyA]:0),r[o.keyB],(o.metaKey?(r[o.metaKey]||0):0)]),o.avg||0)*1.14;
+  const bw=iw/rows.length, gap=bw*0.16, bar=duas?(bw-gap*2)/2:(bw-gap*2), y=v=>mT+ih-(v/max)*ih;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=4;i++){const gv=max*i/4,gy=y(gv);s+=`<line x1="${mL}" x2="${W-mR}" y1="${gy}" y2="${gy}" style="stroke:var(--hair)"/><text x="${mL-7}" y="${gy+3.5}" text-anchor="end" font-size="10" style="fill:var(--muted)">${o.fmtAxis(gv)}</text>`;}
+  if(o.avg!=null){const ay=y(o.avg);s+=`<line x1="${mL}" x2="${W-mR}" y1="${ay}" y2="${ay}" style="stroke:var(--salmon)" stroke-width="1.4" stroke-dasharray="5 4"/><text class="halo" x="${W-mR}" y="${ay-6}" text-anchor="end" font-size="10" font-weight="700" style="fill:var(--salmon)">${o.avgLabel}</text>`;}
+  rows.forEach((r,i)=>{const x0=mL+i*bw+gap;
+    if(duas) s+=`<rect x="${x0}" y="${y(r[o.keyA])}" width="${bar}" height="${mT+ih-y(r[o.keyA])}" rx="3" style="fill:var(--ocean)"/>`;
+    const xb=duas?x0+bar:x0, largura=duas?2*bar:bar;
+    s+=`<rect x="${xb}" y="${y(r[o.keyB])}" width="${bar}" height="${mT+ih-y(r[o.keyB])}" rx="3" style="fill:var(--salmon)"/>`;
+    s+=`<text class="halo" x="${xb+bar/2}" y="${y(r[o.keyB])-5}" text-anchor="middle" font-size="9.5" font-weight="700" style="fill:var(--ink)">${o.fmt(r[o.keyB])}</text>`;
+    if(o.metaKey&&r[o.metaKey]!=null){const my=y(r[o.metaKey]);s+=`<line x1="${x0-1}" x2="${x0+largura+1}" y1="${my}" y2="${my}" style="stroke:var(--ink-2)" stroke-width="1.4" stroke-dasharray="2 2"/><circle cx="${x0+largura+4}" cy="${my}" r="2.6" style="fill:var(--ink-2)"/>`;}
+    s+=`<text x="${mL+i*bw+bw/2}" y="${H-mB+18}" text-anchor="middle" font-size="11.5" font-weight="700" style="fill:var(--ink-2)">${r.sigla}</text>`;
+    s+=`<text x="${mL+i*bw+bw/2}" y="${H-mB+32}" text-anchor="middle" font-size="9.5" style="fill:var(--muted)">${r.nome}</text>`;});
+  el.innerHTML=s+`</svg>`;
+}
+/* sem mes anterior a barra "antes" seria uma barra de altura zero ao lado de
+   cada casa; melhor desenhar so a serie do mes */
+groupedBar(document.getElementById('chConsumo'),casas,{keyA:COMP?'cJun':null,keyB:'cJul',fmt:v=>nf0(v),fmtAxis:v=>nf0(v)});
+groupedBar(document.getElementById('chCoef'),casas,{keyA:COMP?'coefJun':null,keyB:'coefJul',metaKey:anyMeta?'meta':null,fmt:v=>coefFmt(v).replace('0,',','),fmtAxis:v=>v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),avg:tot.coefJul,avgLabel:'média rede '+coefFmt(tot.coefJul)});
+
+/* ---- consolidated table ---- */
+(function(){
+  const head=['Casa',`Consumo ${CFG.curShort}`]
+    .concat(COMP?[`Consumo ${CFG.prevShort}`,'Variação (un)','Variação (%)']:[])
+    .concat(KG?[`Peso ${CFG.curShort} (kg)`]:[])
+    .concat([`Coef ${CFG.curShort}`],anyMeta?['Meta']:[],
+            COMP?[`Coef ${CFG.prevShort}`,'Variação do coef.']:[],[`Fat. bruto ${CFG.curShort}`]);
+  let h='<thead><tr>'+head.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  const dc=(v,fmt,invGood)=>{const c=v>=0?(invGood?'neg':'pos'):(invGood?'pos':'neg');return `<td class="num-cell ${c}">${(v>=0?'+':'')}${fmt(v)}</td>`;};
+  casas.forEach(r=>{
+    const metaOk=hasMeta(r)&&r.coefJul<=r.meta;
+    h+=`<tr><td><b>${r.sigla}</b> · ${r.nome}</td><td class="num-cell">${nf0(r.cJul)}</td>`
+      +(COMP?`<td class="num-cell">${nf0(r.cJun)}</td>${dc(r.dun,v=>nf(v))}${dc(r.dpct,v=>nf(v*100)+'%')}`:'')
+      +(KG?`<td class="num-cell">${nf0(kgTot(r.cJul))}</td>`:'')
+      +`<td class="num-cell" style="${hasMeta(r)?('color:'+(metaOk?'var(--good)':'var(--bad)')+';font-weight:700'):''}">${coefFmt(r.coefJul)}</td>`
+      +(anyMeta?`<td class="num-cell">${coefFmt(r.meta)}</td>`:'')
+      +(COMP?`<td class="num-cell">${coefFmt(r.coefJun)}</td>${dc(r.dcoef,v=>coefFmt(v))}`:'')
+      +`<td class="num-cell">${money(r.fJul)}</td></tr>`;});
+  h+=`<tr class="total-row"><td>REDE · ${casas.length} casas</td><td class="num-cell">${nf0(tot.cJul)}</td>`
+    +(COMP?`<td class="num-cell">${nf0(tot.cJun)}</td>${dc(tot.dun,v=>nf(v))}${dc(tot.dpct,v=>nf(v*100)+'%')}`:'')
+    +(KG?`<td class="num-cell">${nf0(kgTot(tot.cJul))}</td>`:'')
+    +`<td class="num-cell">${coefFmt(tot.coefJul)}</td>`+(anyMeta?'<td class="num-cell">—</td>':'')
+    +(COMP?`<td class="num-cell">${coefFmt(tot.coefJun)}</td>${dc(tot.dcoef,v=>coefFmt(v))}`:'')
+    +`<td class="num-cell">${money(tot.fJul)}</td></tr></tbody>`;
+  document.getElementById('tblCons').innerHTML=h;
+})();
+
+/* ---- ranking ---- */
+(function(){
+  const rows=[...casas].sort((a,b)=>a.coefJul-b.coefJul);
+  // mL abre a faixa do nome da casa; em 150 o nome mais longo encostava na barra
+  const W=920,rowH=54,mT=12,mB=8,mL=178,mR=96, H=mT+mB+rows.length*rowH;
+  const max=Math.max(...rows.map(r=>Math.max(r.coefJul,r.meta||0)))*1.16;
+  const x=v=>mL+(v/max)*(W-mL-mR);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  const avgX=x(tot.coefJul);
+  s+=`<line x1="${avgX}" x2="${avgX}" y1="${mT-2}" y2="${H-mB}" style="stroke:var(--ink-2)" stroke-width="1.1" stroke-dasharray="2 3"/><text class="halo" x="${avgX}" y="${mT+6}" text-anchor="middle" font-size="10" font-weight="700" style="fill:var(--ink-2)">média ${coefFmt(tot.coefJul)}</text>`;
+  rows.forEach((r,i)=>{const yc=mT+i*rowH+rowH/2, bh=22;
+    const ok=hasMeta(r)?r.coefJul<=r.meta:(r.coefJul<=tot.coefJul);
+    const col=ok?css('--good'):css('--salmon');
+    s+=`<text x="8" y="${yc-3}" font-size="15" font-weight="700" style="fill:var(--ink)">${r.sigla} · ${r.nome}</text>`;
+    s+=`<text x="8" y="${yc+14}" font-size="12" style="fill:var(--muted)">${nf0(r.cJul)} ${U} · ${money(r.fJul)}</text>`;
+    s+=`<rect x="${mL}" y="${yc-bh/2}" width="${x(r.coefJul)-mL}" height="${bh}" rx="5" fill="${col}"/>`;
+    if(hasMeta(r)){const mx=x(r.meta);s+=`<line x1="${mx}" x2="${mx}" y1="${yc-bh/2-4}" y2="${yc+bh/2+4}" style="stroke:var(--ink)" stroke-width="1.6"/>`;}
+    s+=`<text x="${x(r.coefJul)+8}" y="${yc+1}" font-size="13" font-weight="700" style="fill:var(--ink)">${coefFmt(r.coefJul)}</text>`;
+    s+=`<text x="${x(r.coefJul)+8}" y="${yc+15}" font-size="9.5" font-weight="600" fill="${ok?css('--good'):css('--bad')}">${hasMeta(r)?(ok?'dentro':'acima')+' · meta '+coefFmt(r.meta):(ok?'abaixo da média':'acima da média')}</text>`;});
+  document.getElementById('chRank').innerHTML=s+`</svg>`;
+  T('lead03',anyMeta?`Ordenando pelo coeficiente de ${CFG.curLabel} (menor = mais eficiente). A barra fica <b>verde quando a casa está dentro da meta</b> e <b>salmão quando a estoura</b>; o traço vertical marca a meta.`:`Ordenando pelo coeficiente de ${CFG.curLabel} (menor = mais eficiente). Verde = abaixo da média da rede; salmão = acima.`);
+  T('legRank',anyMeta?`<span><i style="background:var(--good)"></i>Dentro da meta</span><span><i style="background:var(--salmon)"></i>Acima da meta</span><span>traço vertical = meta da casa · linha pontilhada = média da rede</span>`:`<span><i style="background:var(--good)"></i>Abaixo da média</span><span><i style="background:var(--salmon)"></i>Acima da média</span>`);
+})();
+
+/* ---- line & weekday charts ---- */
+function lineChart(el,series,o){
+  const W=560,H=250,mL=34,mR=12,mT=16,mB=26, iw=W-mL-mR, ih=H-mT-mB, n=series.length;
+  const max=Math.max(...series.map(d=>d.cons))*1.12||1, x=i=>mL+(i/(n-1))*iw, y=v=>mT+ih-(v/max)*ih;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=3;i++){const gv=max*i/3,gy=y(gv);s+=`<line x1="${mL}" x2="${W-mR}" y1="${gy}" y2="${gy}" style="stroke:var(--hair)"/><text x="${mL-6}" y="${gy+3}" text-anchor="end" font-size="9" style="fill:var(--muted)">${nf0(gv)}</text>`;}
+  if(o.avg!=null){const ay=y(o.avg);s+=`<line x1="${mL}" x2="${W-mR}" y1="${ay}" y2="${ay}" style="stroke:var(--ocean)" stroke-width="1.2" stroke-dasharray="4 3"/><text x="${W-mR}" y="${ay-4}" text-anchor="end" font-size="9" font-weight="700" style="fill:var(--ocean)">média ${nf(o.avg)}</text>`;}
+  const pts=series.map((d,i)=>[x(i),y(d.cons)]);
+  s+=`<path d="M ${pts[0][0]} ${y(0)} ${pts.map(p=>'L '+p[0]+' '+p[1]).join(' ')} L ${pts[n-1][0]} ${y(0)} Z" fill="${o.color}" opacity="0.10"/><polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${o.color}" stroke-width="2" stroke-linejoin="round"/>`;
+  let mx=series.reduce((a,d,i)=>d.cons>series[a].cons?i:a,0), mn=series.reduce((a,d,i)=>d.cons<series[a].cons?i:a,0);
+  [[mx,css('--bad')],[mn,css('--ocean')]].forEach(([i,c])=>{s+=`<circle cx="${x(i)}" cy="${y(series[i].cons)}" r="3.4" fill="${c}"/>`;});
+  series.forEach((d,i)=>{if(i%3===0||i===n-1)s+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="8.5" style="fill:var(--muted)">${d.dia}</text>`;});
+  el.innerHTML=s+`</svg>`;
+}
+function weekdayBar(el,rows){
+  const order=['segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado','domingo'];
+  const R=order.map(o=>rows.find(r=>r.dow===o));
+  const W=420,H=250,mL=30,mR=8,mT=14,mB=40, iw=W-mL-mR, ih=H-mT-mB;
+  const duas=COMP;   // sem mes anterior, uma barra por dia em vez de duas
+  const max=Math.max(...R.flatMap(r=>duas?[r.medJul,r.medJun]:[r.medJul]))*1.16||1;
+  const bw=iw/R.length, gap=bw*0.14, bar=duas?(bw-gap*2)/2:(bw-gap*2), y=v=>mT+ih-(v/max)*ih;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=3;i++){const gy=y(max*i/3);s+=`<line x1="${mL}" x2="${W-mR}" y1="${gy}" y2="${gy}" style="stroke:var(--hair)"/><text x="${mL-5}" y="${gy+3}" text-anchor="end" font-size="8.5" style="fill:var(--muted)">${nf0(max*i/3)}</text>`;}
+  R.forEach((r,i)=>{const x0=mL+i*bw+gap;
+    if(duas) s+=`<rect x="${x0}" y="${y(r.medJun)}" width="${bar}" height="${mT+ih-y(r.medJun)}" rx="2.5" style="fill:var(--ocean)"/>`;
+    const xb=duas?x0+bar:x0;
+    s+=`<rect x="${xb}" y="${y(r.medJul)}" width="${bar}" height="${mT+ih-y(r.medJul)}" rx="2.5" style="fill:var(--salmon)"/>`;
+    s+=`<text x="${mL+i*bw+bw/2}" y="${H-mB+15}" text-anchor="middle" font-size="10" font-weight="600" style="fill:var(--ink-2)">${SHORT[r.dow]}</text>`;
+    if(duas&&Math.abs(r.dpct)>=0.001)s+=`<text x="${mL+i*bw+bw/2}" y="${H-mB+29}" text-anchor="middle" font-size="8.5" font-weight="700" style="fill:${r.dpct>=0?'var(--bad)':'var(--good)'}">${r.dpct>=0?'+':''}${nf0(r.dpct*100)}%</text>`;});
+  el.innerHTML=s+`</svg>`;
+}
+
+/* ---- house narrative (dynamic) ---- */
+const minCoefSigla=[...casas].sort((a,b)=>a.coefJul-b.coefJul)[0].sigla;
+const maxConsSigla=[...casas].sort((a,b)=>b.cJul-a.cJul)[0].sigla;
+const maxDcoef=Math.max(...casas.map(c=>c.dcoef));
+function houseNarrative(c){
+  const wk=DATA.weekday[c.sigla];
+  const up=[...wk].sort((a,b)=>b.dpct-a.dpct)[0], dn=[...wk].sort((a,b)=>a.dpct-b.dpct)[0];
+  const daily=DATA.daily[c.sigla], peak=daily.reduce((a,d)=>d.cons>a.cons?d:a,daily[0]);
+  const coefDir=c.dcoef>0?'piorou':'melhorou', consDir=c.dpct>=0?'subiu':'caiu', fatDir=c.dfpct>=0?'subiu':'caiu';
+  const metaOk=hasMeta(c)&&c.coefJul<=c.meta;
+  let flag='';
+  if(c.dpct>0.02 && c.dfpct<0 && (!hasMeta(c)||c.coefJul>c.meta)) flag=' <b>Sinal de alerta:</b> consumiu mais mesmo com o faturamento em queda.';
+  else if(c.dcoef>0.05 && c.dcoef===maxDcoef) flag=' Foi a maior perda de eficiência do mês.';
+  const rank=c.sigla===minCoefSigla?' — a <b>mais eficiente da rede</b>':(c.sigla===maxConsSigla?' — a <b>maior consumidora da rede</b>':'');
+  const metaPhr=hasMeta(c)?(COMP?` e a casa fechou <b>${metaOk?'dentro da meta':'acima da meta'}</b> (${coefFmt(c.coefJul)} vs meta ${coefFmt(c.meta)})`
+                                 :`, <b>${metaOk?'dentro da meta':'acima da meta'}</b> de ${coefFmt(c.meta)}`):'';
+  const kgPhr=KG?` No mês foram ~${nf0(kgTot(c.cJul))} kg.`:'';
+  const semana = COMP
+    ? ` No padrão semanal, o maior avanço foi em <b>${up.dow}</b> (${pct(up.dpct,0)}) e a maior retração em <b>${dn.dow}</b> (${pct(dn.dpct,0)}).`
+    : '';
+  if(!COMP)
+    return `${c.nome}${rank}. Consumiu <b>${nf0(c.cJul)} ${U}</b> para um faturamento bruto de <b>${money(c.fJul)}</b>, `
+      +`o que dá um coeficiente de <b>${coefFmt(c.coefJul)}</b>${metaPhr}. Pico de consumo em `
+      +`<b>${peak.dia}${CFG.mesSuffix}</b> (${nf(peak.cons)} ${U}).${kgPhr}`;
+  return `${c.nome}${rank}. O consumo <b>${consDir} ${apct(c.dpct)}</b> e o faturamento <b>${fatDir} ${apct(c.dfpct)}</b>; com isso o coeficiente <b>${coefDir}</b> ${coefFmt(Math.abs(c.dcoef))}${metaPhr}.${flag}${semana} Pico de consumo em <b>${peak.dia}${CFG.mesSuffix}</b> (${nf(peak.cons)} ${U}).${kgPhr}`;
+}
+
+/* ---- build houses ---- */
+const hc=document.getElementById('houses');
+casas.forEach(c=>{
+  const daily=DATA.daily[c.sigla], wk=DATA.weekday[c.sigla], dz=DATA.destaques[c.sigla];
+  const avgDay=daily.reduce((s,d)=>s+d.cons,0)/daily.length;
+  const metaOk=hasMeta(c)&&c.coefJul<=c.meta;
+  const vClass=hasMeta(c)?(metaOk?'v-good':'v-bad'):'v-flat';
+  const vText=hasMeta(c)?(metaOk?'Dentro da meta':'Acima da meta')
+              :(COMP?(c.dcoef<=0?'Ganhou eficiência':'Perdeu eficiência'):'Sem meta cadastrada');
+  const mini=[
+    {l:`Consumo ${CFG.curShort}`,v:nf0(c.cJul)+' '+U,d:COMP?c.dpct:null},
+    {l:'Faturamento (bruto)',v:money(c.fJul),d:COMP?c.dfpct:null,good:true},
+    {l:'Coeficiente',v:coefFmt(c.coefJul),d:COMP?(c.coefJul/c.coefJun-1):null},
+    {l:'Média diária',v:nf(avgDay)+' '+U,d:null}
+  ];
+  const miniH=mini.map(m=>{let dd='';if(m.d!=null){const u=m.d>=0;const cls=m.good?(u?'down':'up'):(u?'up':'down');dd=`<div class="d ${cls}">${u?'subiu':'caiu'} ${pct(m.d)}</div>`;}return `<div class="mini"><div class="l">${m.l}</div><div class="v num">${m.v}</div>${dd}</div>`;}).join('');
+  const destH=dz.map(d=>`<div class="d"><div class="dl">${d.ind.replace(' (un)','')}</div><div class="dv num">${nf(d.val)} <span style="font-size:11px;color:var(--muted)">${d.data?'· '+d.data:''}</span></div></div>`).join('');
+  const div=document.createElement('div'); div.className='house';
+  div.innerHTML=`<div class="house-head"><span class="badge">${c.sigla}</span><h3>${c.nome}</h3><span class="verdict ${vClass}">${vText}</span></div>
+    <div class="mini-kpis">${miniH}</div>
+    <div class="house-charts">
+      <div><div class="csub" style="font-size:12.5px;color:var(--muted);margin-bottom:4px">Consumo diário — ${CFG.curLabel} (${U}) · ponto em <span style="color:var(--bad);font-weight:700">vermelho</span> marca o dia de maior consumo, em <span style="color:var(--ocean);font-weight:700">azul</span> o de menor</div><div id="ln_${c.sigla}"></div></div>
+      <div><div class="csub" style="font-size:12.5px;color:var(--muted);margin-bottom:4px">Média por dia da semana ${COMP?`<i style="background:var(--ocean);width:9px;height:9px;display:inline-block;border-radius:2px"></i> ${CFG.prevShort} `:''}<i style="background:var(--salmon);width:9px;height:9px;display:inline-block;border-radius:2px"></i> ${CFG.curShort}</div><div id="wk_${c.sigla}"></div></div>
+    </div>
+    <p class="narr">${houseNarrative(c)}</p><div class="dest">${destH}</div>`;
+  hc.appendChild(div);
+  lineChart(document.getElementById('ln_'+c.sigla),daily,{avg:avgDay,color:css('--salmon')});
+  weekdayBar(document.getElementById('wk_'+c.sigla),wk);
+});
+
+/* ---- weekday network analysis (dynamic) ---- */
+const ORDER=['segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado','domingo'];
+const wkNet=ORDER.map(dow=>{
+  const arr=casas.map(c=>DATA.weekday[c.sigla].find(w=>w.dow===dow).dpct);
+  const mean=arr.reduce((s,v)=>s+v,0)/arr.length;
+  return {dow,mean,up:arr.filter(v=>v>0).length,list:casas.map((c,i)=>`${c.sigla} ${pct(arr[i],0)}`).join(' · ')};
+});
+(function(){
+  const riser=[...wkNet].sort((a,b)=>b.mean-a.mean)[0], faller=[...wkNet].sort((a,b)=>a.mean-b.mean)[0];
+  const vol=casas.map(c=>{const ds=DATA.weekday[c.sigla].map(w=>w.dpct);return {c,range:Math.max(...ds)-Math.min(...ds),hi:[...DATA.weekday[c.sigla]].sort((a,b)=>b.dpct-a.dpct)[0],lo:[...DATA.weekday[c.sigla]].sort((a,b)=>a.dpct-b.dpct)[0]};}).sort((a,b)=>b.range-a.range)[0];
+  const isWknd=d=>d==='sábado'||d==='domingo';
+  const impl=isWknd(riser.dow)?'reforçar recebimento e pré-porcionamento para o fim de semana':(['quarta-feira','terça-feira','quinta-feira'].includes(riser.dow)?'reforçar o meio de semana e enxugar as pontas':'ajustar a curva de compra ao novo pico');
+  if(!COMP){
+    /* Sem mes anterior nao existe "avancou" nem "recuou". A leitura util vira o
+       NIVEL: em que dia a rede consome mais e em que dia consome menos. */
+    const nivel=ORDER.map(dow=>{
+      const soma=casas.reduce((a,c)=>a+(DATA.weekday[c.sigla].find(w=>w.dow===dow)||{medJul:0}).medJul,0);
+      return {dow:dow,med:soma};
+    }).sort((a,b)=>b.med-a.med);
+    const alto=nivel[0], baixo=nivel[nivel.length-1];
+    const totalSem=nivel.reduce((a,x)=>a+x.med,0);
+    T('lead05',`Cruzando as quatro casas em ${CFG.curLabel}, o dia de maior consumo da rede é <b>${alto.dow}</b> `
+      +`(${nf(alto.med,1)} ${U} por dia, somando as casas) e o de menor é <b>${baixo.dow}</b> (${nf(baixo.med,1)} ${U}). `
+      +`É onde concentrar compra e pré-porcionamento.`);
+    T('wkInsights',[
+      `<b>${alto.dow[0].toUpperCase()+alto.dow.slice(1)} é o pico da semana</b> — ${nf(alto.med,1)} ${U} por dia na rede, `
+        +`${parte(alto.med/totalSem)} de tudo que a semana consome.`,
+      `<b>${baixo.dow[0].toUpperCase()+baixo.dow.slice(1)} é o vale</b> — ${nf(baixo.med,1)} ${U} por dia, `
+        +`${nf((alto.med/baixo.med-1)*100,0)}% abaixo do pico.`,
+      `<b>Fim de semana contra dias úteis</b> — sábado e domingo somam ${nf(nivel.filter(x=>x.dow==='sábado'||x.dow==='domingo').reduce((a,x)=>a+x.med,0),1)} ${U} por dia, `
+        +`contra ${nf(nivel.filter(x=>x.dow!=='sábado'&&x.dow!=='domingo').reduce((a,x)=>a+x.med,0)/5,1)} ${U} na média dos dias úteis.`,
+      `<b>Implicação de compra</b> — dimensionar o recebimento para chegar antes de ${alto.dow}, `
+        +`e não em volume igual todos os dias.`
+    ].map(i=>`<li>${i}</li>`).join(''));
+    return;
+  }
+  T('lead05',`Cruzando as quatro casas, o dia que mais avançou na rede em ${CFG.curLabel} foi <b>${riser.dow}</b> (média ${pct(riser.mean)}) e o que mais recuou foi <b>${faller.dow}</b> (média ${pct(faller.mean)}). Isso redefine onde concentrar compra e pré-porcionamento.`);
+  const ins=[
+    `<b>${riser.dow[0].toUpperCase()+riser.dow.slice(1)} foi o maior avanço da rede</b> (média ${pct(riser.mean)}), subindo em ${riser.up}/${casas.length} casas — ${riser.list}.`,
+    `<b>${faller.dow[0].toUpperCase()+faller.dow.slice(1)} foi a maior retração</b> (média ${pct(faller.mean)}) — ${faller.list}.`,
+    `<b>${vol.c.sigla} · ${vol.c.nome} teve a semana mais volátil</b> — de ${pct(vol.hi.dpct,0)} em ${vol.hi.dow} a ${pct(vol.lo.dpct,0)} em ${vol.lo.dow}.`,
+    `<b>Implicação de compra</b> — ${impl}, acompanhando o padrão observado.`
+  ];
+  T('wkInsights',ins.map(i=>`<li>${i}</li>`).join(''));
+})();
+
+/* ---- recommendations (dynamic) ---- */
+(function(){
+  const worst=[...casas].sort((a,b)=>b.dcoef-a.dcoef)[0];
+  const ref=[...casas].sort((a,b)=>a.coefJul-b.coefJul)[0];
+  const big=[...casas].sort((a,b)=>b.cJul-a.cJul)[0];
+  const share=nf0(big.cJul/tot.cJul*100);
+  const coD=tot.coefJul/tot.coefJun-1;
+  const riser=[...wkNet].sort((a,b)=>b.mean-a.mean)[0];
+  const isWknd=riser.dow==='sábado'||riser.dow==='domingo';
+  const acima=casas.filter(c=>hasMeta(c)&&c.coefJul>c.meta);
+  const R=[];
+  if(COMP&&worst.dcoef>0.02) R.push(['watch','ATENÇÃO',`Prioridade: ${worst.nome}`,`${worst.sigla} teve a maior perda de eficiência (coef ${coefFmt(worst.coefJun)} → ${coefFmt(worst.coefJul)}, +${coefFmt(worst.dcoef)}): consumo ${pct(worst.dpct)} contra faturamento ${pct(worst.dfpct)}. Investigar porção, aproveitamento de aparas e possíveis perdas.`]);
+  if(COMP) R.push(coD>0?['watch','ATENÇÃO','Rede perdeu eficiência',`O coeficiente da rede subiu ${pct(coD)} (consumo ${pct(tot.dpct)} vs faturamento ${pct(tot.dfpct)}). Segurar o consumo é a meta do mês.`]:['win','GANHO','Rede ganhou eficiência',`O coeficiente da rede recuou ${pct(coD)} (consumo ${pct(tot.dpct)} vs faturamento ${pct(tot.dfpct)}). Mapear o que sustentou o ganho e padronizar.`]);
+  else R.push(['act','BASE','Primeiro mês da série',`Este é o mês mais antigo da base, então não há com o que comparar. Ele serve de <b>ponto de partida</b>: o coeficiente da rede em ${coefFmt(tot.coefJul)} é a referência contra a qual os meses seguintes vão ser lidos.`]);
+  R.push(['win','REFERÊNCIA',`${ref.nome} no melhor patamar`,`${ref.sigla} é a mais eficiente (coef ${coefFmt(ref.coefJul)}${hasMeta(ref)?', '+(ref.coefJul<=ref.meta?'dentro da meta':'acima da meta')+' ('+coefFmt(ref.meta)+')':''}). Mapear a prática e replicar nas demais.`]);
+  R.push(['act','COMPRA',`Dimensionar por ${big.nome}`,`${big.sigla} responde por ~${share}% do consumo da rede${KG?' (~'+nf0(kgTot(big.cJul))+' kg)':''}${COMP?' e variou '+pct(big.dpct):''}. Planejar o pedido com peso proporcional a cada casa — um erro em ${big.sigla} pesa mais que nas outras.`]);
+  if(COMP) R.push(['act','COMPRA',`Curva ${isWknd?'de fim de semana':'semanal'}`,`Com ${riser.dow} puxando o consumo (média ${pct(riser.mean)}), ajustar recebimento e pré-preparo para acompanhar o novo pico e reduzir ruptura sem inflar sobra.`]);
+  else {
+    const nivel=ORDER.map(dow=>({dow:dow,med:casas.reduce((a,c)=>a+(DATA.weekday[c.sigla].find(w=>w.dow===dow)||{medJul:0}).medJul,0)})).sort((a,b)=>b.med-a.med)[0];
+    R.push(['act','COMPRA','Curva semanal',`O pico da rede é <b>${nivel.dow}</b> (${nf(nivel.med,1)} ${U} por dia somando as casas). Dimensionar o recebimento para chegar antes dele, e não em volume igual todos os dias.`]);
+  }
+  if(anyMeta) R.push(['watch','META',acima.length?`Trazer ${acima.map(c=>c.sigla).join(' e ')} para a meta`:'Sustentar as metas',acima.length?`${acima.map(c=>c.sigla+' está '+coefFmt(c.coefJul-c.meta)+' acima').join('; ')}. Definir plano semanal com média móvel para reconduzir ao patamar da meta.`:`Todas as casas com meta estão no alvo. Manter o acompanhamento semanal para não regredir.`]);
+  T('reco',R.map(([k,tag,h,p])=>{const cls=k==='win'?'win':k==='watch'?'watch':'';const tg=k;return `<div class="r ${cls}"><h4><span class="tag ${tg}">${tag}</span> ${h}</h4><p>${p}</p></div>`;}).join(''));
+  if(anyMeta){const dentro=casas.filter(c=>hasMeta(c)&&c.coefJul<=c.meta).map(c=>c.sigla+' ('+coefFmt(c.coefJul)+' ≤ '+coefFmt(c.meta)+')');const fora=acima.map(c=>c.sigla+' ('+coefFmt(c.coefJul)+' > '+coefFmt(c.meta)+')');
+    T('metaNote',`<b>Acompanhamento de meta (${CFG.curLabel}):</b> dentro — ${dentro.join(', ')||'nenhuma'}; acima — ${fora.join(', ')||'nenhuma'}. Metas de <code>metas.json</code>.`);}
+})();
+
+/* ==========================================================================
+   SEÇÕES DE DECISÃO
+   As leituras abaixo existem para responder o que a média do mês não responde:
+   quanto isso custou, quando saiu do lugar, em que dia, quem está conduzindo
+   melhor e qual alvo vale para o mês que vem.
+   ========================================================================== */
+
+/* ---- 02 · o consumo em reais -------------------------------------------
+   O coeficiente é a medida de eficiência, mas ninguém aprova orçamento em
+   "unidades por R$ 1.000". Aqui a mesma conta aparece em dinheiro e como
+   percentual do faturamento — a linguagem do CMV, que permite comparar este
+   insumo com qualquer outro da ficha. */
+const TEM_CUSTO = !!DATA.temCusto;
+(function(){
+  const sec=document.getElementById('custo');
+  if(!TEM_CUSTO){ if(sec) sec.remove(); return; }
+  const t=tot;
+  const dCmv=(COMP&&t.cmvJul!=null&&t.cmvJun)?t.cmvJul-t.cmvJun:null;
+  const dRs=(COMP&&t.rsJul!=null&&t.rsJun)?t.rsJul-t.rsJun:null;
+  const pp=Math.abs(dCmv||0);
+  T('lead02rs','Quanto do faturamento bruto virou '+CFG.insumoNome.toLowerCase()+' em '+CFG.curLabel+': '
+    +'<b>'+money(t.rsJul)+'</b>, ou <b>'+nf(t.cmvJul,2)+'%</b> de tudo que a rede faturou'
+    +(dCmv!=null
+      ? ' — contra '+nf(t.cmvJun,2)+'% em '+CFG.prevLabel+', '+(dCmv>=0?'uma piora':'uma melhora')
+        +' de '+nf(pp,2)+' ponto'+(pp>=2?'s':'')+' percentua'+(pp>=2?'is':'l')+'.'
+      : '.')
+    +(dRs!=null?' Em dinheiro são '+money(Math.abs(dRs))+' '+(dRs>=0?'a mais':'a menos')+' que no mês anterior.':''));
+
+  const head=['Casa','Consumo '+CFG.curShort,'Custo por '+U,'Gasto '+CFG.curShort,
+              '% do faturamento bruto'].concat(COMP?['% em '+CFG.prevShort,'Variação']:[]);
+  let h='<thead><tr>'+head.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  const ppCel=function(d){
+    if(d==null) return '<td class="num-cell">—</td>';
+    return '<td class="num-cell '+(d>=0?'pos':'neg')+'">'+(d>=0?'+':'−')+nf(Math.abs(d),2)+' p.p.</td>';
+  };
+  casas.forEach(function(r){
+    const d=(r.cmvJul!=null&&r.cmvJun!=null)?r.cmvJul-r.cmvJun:null;
+    h+='<tr><td><b>'+r.sigla+'</b> · '+r.nome+'</td>'
+      +'<td class="num-cell">'+nf0(r.cJul)+' '+U+'</td>'
+      +'<td class="num-cell">'+(r.custoUn!=null?money(r.custoUn):'—')+'</td>'
+      +'<td class="num-cell">'+(r.rsJul!=null?money(r.rsJul):'—')+'</td>'
+      +'<td class="num-cell"><b>'+(r.cmvJul!=null?nf(r.cmvJul,2)+'%':'—')+'</b></td>'
+      +(COMP?('<td class="num-cell">'+(r.cmvJun!=null?nf(r.cmvJun,2)+'%':'—')+'</td>'+ppCel(d)):'')
+      +'</tr>';
+  });
+  h+='<tr class="total-row"><td>REDE · '+casas.length+' casas</td>'
+    +'<td class="num-cell">'+nf0(t.cJul)+' '+U+'</td><td class="num-cell">—</td>'
+    +'<td class="num-cell">'+money(t.rsJul)+'</td>'
+    +'<td class="num-cell">'+nf(t.cmvJul,2)+'%</td>'
+    +(COMP?('<td class="num-cell">'+nf(t.cmvJun,2)+'%</td>'+ppCel(dCmv)):'')
+    +'</tr></tbody>';
+  document.getElementById('tblCusto').innerHTML=h;
+  const herd=casas.filter(function(r){return r.custoFonte&&r.custoFonte!=='do mês'&&r.custoFonte!=='fixo';});
+  T('notaCusto',(herd.length
+    ? '<b>Preço de outro mês em '+herd.map(function(r){return r.sigla+' ('+r.custoFonte+')';}).join(', ')
+      +'.</b> Não há preço deste mês para essas casas em <code>custos_mensais.json</code>, então entrou o do mês '
+      +'mais próximo. Pode ser o certo — mês sem compra não tem preço a registrar, e o consumo saiu de estoque '
+      +'comprado antes — ou pode ser preço ainda não carregado. O relatório não distingue os dois casos.<br><br>'
+    : '')
+    +'<b>Como ler:</b> "% do faturamento bruto" é o gasto com o insumo dividido pelo faturamento '
+    +'<b>bruto</b> da casa — sem desconto de impostos, taxas de entrega ou comissão de aplicativo. '
+    +'Quanto menor, melhor. "p.p." é ponto percentual: sair de 13% para 14% é subir 1 ponto percentual, não 1%. '
+    +'O custo por '+U+' vem de <code>custos.json</code> e é fixo por casa no mês, então o valor aqui é '
+    +'<b>o consumo medido a preço de tabela</b> — não é o valor pago aos fornecedores, que oscila nota a nota.');
+})();
+
+/* ---- 05 · semana a semana ----------------------------------------------
+   Blocos de sete dias contados do dia 1. Cada bloco carrega um de cada dia da
+   semana, então dois blocos são comparáveis entre si — o que não aconteceria
+   com semana de calendário, que entra e sai do mês pela metade. */
+(function(){
+  const S=DATA.semanasRede||[];
+  if(!S.length){ const e=document.getElementById('semanas'); if(e) e.remove(); return; }
+  const cheios=S.filter(function(w){return !w.parcial;});
+  const ord=cheios.slice().sort(function(a,b){return a.coef-b.coef;});
+  const melhor=ord[0], pior=ord[ord.length-1];
+  T('lead05sem','O mês dividido em blocos de sete dias, para ver se o consumo andou parelho ou se concentrou. '
+    +((melhor&&pior&&melhor!==pior)
+      ? 'O bloco mais eficiente foi o <b>'+melhor.rotulo+'</b> (dias '+melhor.de+' a '+melhor.ate+', coeficiente '
+        +coefFmt(melhor.coef)+') e o mais pesado foi o <b>'+pior.rotulo+'</b> (dias '+pior.de+' a '+pior.ate+', '
+        +coefFmt(pior.coef)+') — uma distância de '+nf((pior.coef/melhor.coef-1)*100,1)+'% entre um e outro.'
+      : ''));
+
+  T('semGrid',S.map(function(w,i){
+    const ant=i>0?S[i-1]:null;
+    const d=(ant&&ant.coef)?w.coef/ant.coef-1:null;
+    return '<div class="sem"><div class="r">'+w.rotulo+'</div>'
+      +'<div class="dias">dias '+w.de+' a '+w.ate+'</div>'
+      +'<div class="v num">'+coefFmt(w.coef)+'</div>'
+      +'<div class="c">'+nf0(w.cons)+' '+U+' · '+money(w.fat)+'</div>'
+      +(d==null
+        ? '<div class="c">primeiro bloco do mês</div>'
+        : '<div class="c '+(d>0?'pos':'neg')+'" style="font-weight:600">'+(d>0?'subiu':'caiu')+' '+apct(d)+' sobre o '+ant.rotulo+'</div>')
+      +(w.parcial?'<span class="tag-parcial">bloco curto · '+(w.ate-w.de+1)+' dias</span>':'')
+      +((!w.parcial&&w.faltam)?'<span class="tag-parcial">'+w.faltam+' dia sem dado</span>':'')
+      +'</div>';
+  }).join(''));
+
+  /* linha do coeficiente por bloco: rede em traço grosso, casas em traço fino */
+  const W=920,H=290,mL=52,mR=116,mT=18,mB=42,iw=W-mL-mR,ih=H-mT-mB;
+  /* uma cor por casa; a 4a entrada usava --info, que nao existe neste
+     modelo, e a casa saia sem cor na linha e na legenda */
+  const paleta=[css('--ocean'),css('--good'),css('--warn'),'#8A5CA8'];
+  const todas=[{sigla:'REDE',serie:S,cor:css('--salmon'),w:3}].concat(
+    casas.map(function(c,i){
+      return {sigla:c.sigla,serie:(DATA.semanas[c.sigla]||[]),cor:paleta[i%paleta.length],w:1.4};
+    }));
+  const vals=todas.reduce(function(a,t){
+    return a.concat(t.serie.map(function(w){return w.coef;}));},[]).filter(function(v){return v>0;});
+  if(!vals.length){ T('chSem',''); return; }
+  const lo=Math.min.apply(null,vals)*0.92, hi=Math.max.apply(null,vals)*1.06;
+  const n=S.length;
+  const x=function(i){return mL+(n>1?(i/(n-1))*iw:iw/2);};
+  const y=function(v){return mT+ih-((v-lo)/(hi-lo||1))*ih;};
+  let g='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img">';
+  for(let i=0;i<=4;i++){
+    const gv=lo+(hi-lo)*i/4, gy=y(gv);
+    g+='<line x1="'+mL+'" x2="'+(W-mR)+'" y1="'+gy+'" y2="'+gy+'" style="stroke:var(--hair)"/>'
+      +'<text x="'+(mL-7)+'" y="'+(gy+3.5)+'" text-anchor="end" font-size="10" style="fill:var(--muted)">'+coefFmt(gv)+'</text>';
+  }
+  S.forEach(function(w,i){
+    g+='<text x="'+x(i)+'" y="'+(H-mB+19)+'" text-anchor="middle" font-size="11.5" font-weight="700" style="fill:var(--ink-2)">'+w.rotulo+'</text>'
+      +'<text x="'+x(i)+'" y="'+(H-mB+32)+'" text-anchor="middle" font-size="9" style="fill:var(--muted)">'+w.de+'–'+w.ate+'</text>';
+  });
+  todas.forEach(function(t){
+    const pts=t.serie.filter(function(w){return w.coef>0;}).map(function(w){return [x(w.i-1),y(w.coef)];});
+    if(!pts.length) return;
+    g+='<polyline points="'+pts.map(function(p){return p.join(',');}).join(' ')+'" fill="none" stroke="'+t.cor
+      +'" stroke-width="'+t.w+'" stroke-linejoin="round" stroke-linecap="round"/>';
+    pts.forEach(function(p){ g+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+(t.w>2?3.4:2.4)+'" fill="'+t.cor+'"/>'; });
+    const last=pts[pts.length-1];
+    g+='<text x="'+(last[0]+8)+'" y="'+(last[1]+3.5)+'" font-size="11" font-weight="700" fill="'+t.cor+'">'+t.sigla+'</text>';
+  });
+  document.getElementById('chSem').innerHTML=g+'</svg>';
+  T('legSem',todas.map(function(t){return '<span><i style="background:'+t.cor+'"></i>'+t.sigla+'</span>';}).join(''));
+
+  const parc=S.filter(function(w){return w.parcial;}).map(function(w){return w.rotulo;});
+  T('notaSem','<b>Por que blocos de sete dias e não semanas do calendário:</b> sete dias corridos contêm '
+    +'exatamente um domingo, uma segunda e assim por diante, então dois blocos têm a mesma composição e podem '
+    +'ser comparados. A semana de calendário entra e sai do mês pela metade, e a primeira e a última pareceriam '
+    +'sempre as menores só por terem menos dias.'
+    +(parc.length?' O bloco '+parc.join(' e ')+' fecha o mês com menos de sete dias e está marcado: o coeficiente '
+      +'dele continua válido, porque é uma razão e não um total, mas o volume não se compara com o dos blocos cheios.':''));
+})();
+
+/* ---- 06 · mapa do mês ---------------------------------------------------
+   Uma linha por casa, uma coluna por dia. A cor compara cada dia com a MEDIANA
+   DA PRÓPRIA CASA, e não com a rede: a pergunta aqui é "que dia fugiu do padrão
+   desta casa", e casa grande contra casa pequena responderia outra coisa. */
+const DIAS_MES=(function(){
+  let m=1;
+  casas.forEach(function(c){ (DATA.daily[c.sigla]||[]).forEach(function(d){ if(d.dia>m) m=d.dia; }); });
+  return m;
+})();
+const medianaDe=function(v){
+  const s=v.slice().sort(function(a,b){return a-b;});
+  if(!s.length) return 0;
+  const n=s.length;
+  return n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2;
+};
+(function(){
+  const alvo=document.getElementById('mapaMes');
+  if(!alvo) return;
+  const FDS={'sábado':1,'domingo':1};
+  /* Sete faixas em torno da mediana da casa. Faixas fixas, e não um degradê
+     contínuo: o olho não lê diferença de 3% de tinta, e o degradê só servia
+     para o mapa parecer sofisticado. Com faixa nomeada, duas células da mesma
+     cor querem dizer a mesma coisa, e a legenda pode ser lida. */
+  const FAIXAS=[[0.80,'b3'],[0.90,'b2'],[0.96,'b1'],[1.04,'md'],[1.12,'a1'],[1.25,'a2'],[Infinity,'a3']];
+  const faixa=function(r){
+    for(const [lim,cls] of FAIXAS) if(r<lim) return cls;
+    return 'a3';
+  };
+  let h='<table class="mapa-t"><thead><tr><th class="cs">Casa</th>';
+  for(let d=1;d<=DIAS_MES;d++) h+='<th>'+d+'</th>';
+  h+='</tr></thead><tbody>';
+  casas.forEach(function(c){
+    const serie=DATA.daily[c.sigla]||[];
+    const porDia={};
+    serie.forEach(function(x){ porDia[x.dia]=x; });
+    /* a mediana da casa ignora dia inconsistente: um consumo negativo puxaria
+       a referência e faria todos os outros dias parecerem piores do que são */
+    const med=medianaDe(serie.filter(function(x){return !x.neg&&x.coef>0;})
+                             .map(function(x){return x.coef;}));
+    h+='<tr><th class="cs">'+c.sigla+'</th>';
+    for(let d=1;d<=DIAS_MES;d++){
+      const x=porDia[d];
+      if(!x){ h+='<td><span class="cel vazio" title="dia '+d+': sem dado">·</span></td>'; continue; }
+      if(x.neg){
+        h+='<td><span class="cel incons" title="'+c.sigla+' · dia '+d+': consumo negativo ('
+          +nf(x.cons,3)+' '+U+'). Consumo negativo não existe — é divergência de contagem em dia de '
+          +'recebimento. Continua no total do mês, mas não vale como leitura do dia.">!</span></td>';
+        continue;
+      }
+      const r=med?x.coef/med:1;
+      const fds=FDS[x.dow]?' fds':'';
+      const cls=faixa(r);
+      const rot=c.sigla+' · dia '+d+' ('+x.dow+'): coeficiente '+coefFmt(x.coef)
+        +', consumo '+nf(x.cons,1)+' '+U+', faturamento '+money(x.fat)
+        +' — '+(r>=1?'acima':'abaixo')+' da mediana da casa em '+nf(Math.abs(r-1)*100,0)+'%';
+      h+='<td><span class="cel '+cls+fds+'" title="'+rot+'">'
+        +coefFmt(x.coef).replace(/^0,/,',')+'</span></td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  alvo.innerHTML=h;
+
+  const temVazio=!!alvo.querySelector('.cel.vazio');
+  const temIncons=!!alvo.querySelector('.cel.incons');
+  T('mapaEsc','<span>Comparação com a mediana da própria casa:</span>'
+    +'<span class="q" style="background:var(--m-b3)"></span>'
+    +'<span class="q" style="background:var(--m-b2)"></span>'
+    +'<span class="q" style="background:var(--m-b1)"></span>'
+    +'<span>consumiu menos</span>'
+    +'<span class="q" style="background:var(--m-md)"></span><span>no padrão</span>'
+    +'<span>consumiu mais</span>'
+    +'<span class="q" style="background:var(--m-a1)"></span>'
+    +'<span class="q" style="background:var(--m-a2)"></span>'
+    +'<span class="q" style="background:var(--m-a3)"></span>'
+    +'<span style="margin-left:10px">· traço embaixo da célula marca sábado e domingo'
+    +(temVazio?' · célula hachurada é dia sem dado':'')
+    +(temIncons?' · célula com <b>!</b> é dia de consumo negativo, que não vale como leitura':'')
+    +'</span>');
+
+  const piores=[];
+  casas.forEach(function(c){
+    const serie=DATA.daily[c.sigla]||[];
+    const med=medianaDe(serie.filter(function(x){return !x.neg&&x.coef>0;})
+                             .map(function(x){return x.coef;}));
+    serie.forEach(function(x){ if(med&&!x.neg) piores.push({sigla:c.sigla,dia:x.dia,r:x.coef/med,coef:x.coef}); });
+  });
+  piores.sort(function(a,b){return b.r-a.r;});
+  const top=piores.slice(0,3).map(function(p){
+    return '<b>'+p.sigla+' no dia '+p.dia+'</b> ('+nf((p.r-1)*100,0)+'% acima da mediana da casa)';
+  });
+  T('lead06map','Cada quadradinho é um dia de uma casa, pintado pela distância entre aquele dia e o dia '
+    +'típico da mesma casa. Serve para achar o dia solto que a média do mês esconde — o número dentro da '
+    +'célula é o coeficiente daquele dia.');
+  T('notaMapa','<b>A cor compara cada casa com ela mesma, não com as outras.</b> Uma célula vermelha na DC e '
+    +'outra na DLU não significam o mesmo consumo: significam que aquele dia fugiu do padrão daquela casa. '
+    +'Para comparar casas entre si, a leitura é o ranking e o placar.'
+    +(top.length?' Os dias mais fora do padrão no mês foram '+top.join(', ')+'.':''));
+})();
+
+/* ---- 07 · dias em alerta ------------------------------------------------
+   Um dia entra em alerta quando o coeficiente dele passa de 30% acima da meta
+   da casa (ou, sem meta, 30% acima do coeficiente da própria casa no mês).
+   A margem de 30% não é estatística: é operacional. Abaixo dela o ruído normal
+   de contagem e de mix do dia já explica a diferença, e uma lista que acusa
+   todo dia deixa de ser lida. */
+const LIMITE_ALERTA=1.30;
+const alertasPorCasa={};
+(function(){
+  const linhas=[];
+  casas.forEach(function(c){
+    const base=hasMeta(c)?c.meta:c.coefJul;
+    const serie=DATA.daily[c.sigla]||[];
+    /* O coeficiente sobe por dois caminhos opostos: consumir demais OU vender
+       de menos. Os dois viram o mesmo número e vão para setores diferentes —
+       um é conversa com a cozinha, o outro com o salão. Por isso cada dia em
+       alerta é comparado com o dia típico da própria casa nas DUAS pontas. */
+    const medCons=medianaDe(serie.filter(function(x){return !x.neg&&x.cons>0;}).map(function(x){return x.cons;}));
+    const medFat=medianaDe(serie.filter(function(x){return !x.neg&&x.fat>0;}).map(function(x){return x.fat;}));
+    const lista=[];
+    serie.forEach(function(x){
+      if(!base||x.coef<=base*LIMITE_ALERTA) return;
+      /* excesso = o que se consumiu além do que a meta permitiria naquele
+         faturamento. É a tradução do alerta em unidade e em dinheiro. */
+      const permitido=base*x.fat/1000;
+      const excesso=x.cons-permitido;
+      const consAlto=medCons?x.cons>medCons*1.10:false;
+      const fatBaixo=medFat?x.fat<medFat*0.85:false;
+      const causa = (consAlto&&fatBaixo) ? 'consumo alto e venda fraca'
+                  : consAlto             ? 'consumo acima do normal da casa'
+                  : fatBaixo             ? 'venda abaixo do normal — consumo seguiu igual'
+                  :                        'consumo e venda dentro do normal';
+      lista.push({dia:x.dia,dow:x.dow,coef:x.coef,cons:x.cons,fat:x.fat,
+                  excesso:excesso, rs:(c.custoUn?excesso*c.custoUn:null),
+                  razao:x.coef/base, causa:causa, consAlto:consAlto, fatBaixo:fatBaixo});
+    });
+    lista.sort(function(a,b){return b.razao-a.razao;});
+    alertasPorCasa[c.sigla]=lista;
+    lista.forEach(function(l){ linhas.push(Object.assign({sigla:c.sigla,nome:c.nome,comMeta:hasMeta(c)},l)); });
+  });
+  linhas.sort(function(a,b){return b.razao-a.razao;});
+
+  const totalExc=linhas.reduce(function(s,l){return s+l.excesso;},0);
+  const totalRs=linhas.reduce(function(s,l){return s+(l.rs||0);},0);
+  const temRs=linhas.some(function(l){return l.rs!=null;});
+
+  if(!linhas.length){
+    T('lead07al','Nenhum dia do mês passou de '+nf((LIMITE_ALERTA-1)*100,0)+'% acima do alvo da casa. '
+      +'O consumo andou dentro do padrão o mês inteiro.');
+    T('listaAlertas','');
+    T('notaAlertas','<b>Como o alerta é definido:</b> entra na lista o dia cujo coeficiente passa de '
+      +nf(LIMITE_ALERTA*100-100,0)+'% acima da meta da casa — ou, quando a casa não tem meta, do coeficiente '
+      +'dela no próprio mês. Nenhum dia atingiu esse ponto.');
+    return;
+  }
+
+  T('lead07al','São os dias em que o consumo passou de <b>'+nf((LIMITE_ALERTA-1)*100,0)+'% acima do alvo da casa</b>. '
+    +'Foram <b>'+linhas.length+' dia'+(linhas.length>1?'s':'')+'</b> no mês, somando <b>'+nf(totalExc,1)+' '+U+'</b> '
+    +'consumidos além do que o faturamento daqueles dias comportaria'
+    +(temRs?', o equivalente a <b>'+money(totalRs)+'</b>':'')+'. '
+    +'É a lista para levar à reunião de operação — cada linha é um dia com nome, data e tamanho.');
+
+  T('listaAlertas',linhas.slice(0,12).map(function(l){
+    const leve=l.razao<1.6?' leve':'';
+    return '<div class="al'+leve+'">'
+      +'<span class="d">dia '+l.dia+'</span>'
+      +'<span class="casa">'+l.sigla+'</span>'
+      +'<span class="txt">'+SHORT[l.dow]+' · coeficiente '+coefFmt(l.coef)+' contra alvo '
+        +coefFmt(l.comMeta?casas.find(function(c){return c.sigla===l.sigla;}).meta
+                          :casas.find(function(c){return c.sigla===l.sigla;}).coefJul)
+        +' · consumo '+nf(l.cons,1)+' '+U+' com '+money(l.fat)+' de venda'
+        +'<br><span style="font-size:11.5px;color:var(--muted)">'+l.causa+'</span></span>'
+      +'<span class="n">'+nf(l.excesso,1)+' '+U+' a mais'+(l.rs!=null?' · '+money(l.rs):'')+'</span>'
+      +'</div>';
+  }).join('')+(linhas.length>12?'<div class="al leve"><span class="txt">e mais '+(linhas.length-12)
+      +' dia(s) acima do alvo, de menor tamanho.</span></div>':''));
+
+  const porCasa=casas.map(function(c){
+    return c.sigla+': '+(alertasPorCasa[c.sigla]||[]).length+' dia(s)';
+  }).join(' · ');
+  const nCons=linhas.filter(function(l){return l.consAlto&&!l.fatBaixo;}).length;
+  const nVenda=linhas.filter(function(l){return l.fatBaixo&&!l.consAlto;}).length;
+  const nAmbos=linhas.filter(function(l){return l.consAlto&&l.fatBaixo;}).length;
+  T('notaAlertas','<b>Como o alerta é definido:</b> entra na lista o dia cujo coeficiente passa de '
+    +nf(LIMITE_ALERTA*100-100,0)+'% acima da meta da casa — ou, quando a casa não tem meta, do coeficiente dela '
+    +'no próprio mês. A margem é operacional, não estatística: abaixo dela a variação normal de contagem e de '
+    +'mix do dia já explica a diferença, e uma lista que acusa todo dia para de ser lida. '
+    +'O "a mais" é o consumo daquele dia menos o que o alvo permitiria para o faturamento do mesmo dia. '
+    +'Por casa no mês — '+porCasa+'.<br><br>'
+    +'<b>Alerta não quer dizer desperdício automaticamente.</b> O coeficiente sobe por dois caminhos opostos: '
+    +'consumir demais ou vender de menos, e os dois dão o mesmo número. Por isso cada dia traz a causa provável, '
+    +'comparando aquele dia com o dia típico da própria casa. No mês foram '+nCons+' dia(s) de consumo acima do '
+    +'normal, '+nVenda+' de venda fraca com consumo igual ao de sempre e '+nAmbos+' com as duas coisas juntas. '
+    +'Consumo alto é conversa com a cozinha — porção, aparas, perda. Venda fraca com consumo normal é '
+    +'pré-preparo dimensionado para um movimento que não veio, e a conversa é sobre previsão de demanda.');
+})();
+
+/* ---- 08 · placar das casas ---------------------------------------------
+   Nota de 0 a 100 somando quatro critérios. A escolha dos pesos é política de
+   gestão, não estatística, e por isso está escrita aqui e repetida no rodapé
+   da seção — placar cujo critério não aparece vira discussão sobre o placar
+   em vez de discussão sobre a operação.
+
+     40  fechar o mês dentro da meta
+     25  constância: quantos dias do mês ficaram dentro da meta
+     20  evolução contra o mês anterior
+     15  regularidade: o quanto o consumo diário oscila
+
+   Fechar o mês no alvo vale mais que qualquer outro critério, mas sozinho não
+   fecha nota: casa que bate a meta oscilando muito é casa que vai furar em
+   algum mês, e o placar precisa enxergar isso antes que aconteça. */
+const PESOS={meta:40,constancia:25,evolucao:20,regularidade:15};
+(function(){
+  const notas=casas.map(function(c){
+    const serie=DATA.daily[c.sigla]||[];
+    const base=hasMeta(c)?c.meta:c.coefJul;
+
+    /* 1) mês dentro da meta: nota cheia no alvo, zerando a 25% acima dele */
+    let nMeta=0;
+    if(base){
+      const r=c.coefJul/base;
+      nMeta=r<=1?PESOS.meta:Math.max(0,PESOS.meta*(1-(r-1)/0.25));
+    }
+    /* 2) constância: fração dos dias dentro do alvo */
+    const validos=serie.filter(function(x){return !x.neg&&x.coef>0;});
+    const dentro=base?validos.filter(function(x){return x.coef<=base;}).length:0;
+    const fracDentro=validos.length?dentro/validos.length:0;
+    const nConst=PESOS.constancia*fracDentro;
+    /* 3) evolução: melhorou contra o mês anterior */
+    let nEvo=0;
+    if(c.coefJun>0){
+      const v=c.coefJul/c.coefJun-1;      // negativo = melhorou
+      nEvo=v<=-0.05?PESOS.evolucao:(v>=0.05?0:PESOS.evolucao*(0.05-v)/0.10);
+    }
+    /* 4) regularidade: desvio do consumo diário sobre a média da casa.
+          10% de oscilação ou menos leva nota cheia; 45% ou mais, zero. */
+    const cons=validos.map(function(x){return x.cons;});
+    const med=cons.length?cons.reduce(function(a,b){return a+b;},0)/cons.length:0;
+    const dp=cons.length>1?Math.sqrt(cons.reduce(function(a,b){return a+(b-med)*(b-med);},0)/cons.length):0;
+    const osc=med?dp/med:0;
+    const nReg=osc<=0.10?PESOS.regularidade:(osc>=0.45?0:PESOS.regularidade*(0.45-osc)/0.35);
+
+    const total=nMeta+nConst+nEvo+nReg;
+    return {c:c,total:total,nMeta:nMeta,nConst:nConst,nEvo:nEvo,nReg:nReg,
+            fracDentro:fracDentro,dentro:dentro,dias:validos.length,osc:osc,base:base};
+  });
+  notas.sort(function(a,b){return b.total-a.total;});
+
+  const cor=function(n){return n>=75?'var(--good)':n>=50?'var(--warn)':'var(--bad)';};
+  /* Empate na nota arredondada mostra a MESMA posição. Duas casas com 63
+     pontos aparecendo como 1ª e 2ª só rende discussão sobre o placar. */
+  const posDe=function(x){
+    return 1+notas.filter(function(o){return Math.round(o.total)>Math.round(x.total);}).length;
+  };
+  T('placarCasas',notas.map(function(x,i){
+    const c=x.c;
+    const pos=posDe(x);
+    const empate=notas.filter(function(o){return Math.round(o.total)===Math.round(x.total);}).length>1;
+    const cr=[['Fechou no alvo',x.nMeta,PESOS.meta],
+              ['Dias dentro do alvo',x.nConst,PESOS.constancia],
+              ['Evoluiu no mês',x.nEvo,PESOS.evolucao],
+              ['Consumo regular',x.nReg,PESOS.regularidade]];
+    return '<div class="pl"><span class="pos">'+pos+'º'+(empate?'=':'')+'</span>'
+      +'<div class="casa">'+c.sigla+'</div>'
+      +'<div class="de">'+c.nome+'</div>'
+      +'<div class="nota" style="color:'+cor(x.total)+'">'+nf(x.total,0)+'</div>'
+      +'<div class="de">de 100 pontos</div>'
+      +'<div class="barra"><i style="width:'+Math.max(2,Math.min(100,x.total))+'%;background:'+cor(x.total)+'"></i></div>'
+      +'<div class="criterios">'+cr.map(function(k){
+          return '<div class="cr"><span>'+k[0]+'</span><b>'+nf(k[1],0)+'/'+k[2]+'</b></div>';
+        }).join('')+'</div>'
+      +'<div class="de" style="margin-top:9px">'+x.dentro+' de '+x.dias+' dias no alvo · consumo oscila '
+        +nf(x.osc*100,0)+'% em torno da média</div>'
+      +'</div>';
+  }).join(''));
+
+  const lider=notas[0], ultimo=notas[notas.length-1];
+  const empatados=notas.filter(function(o){return Math.round(o.total)===Math.round(lider.total);});
+  T('lead08pl','Nota de 0 a 100 para cada casa, somando quatro critérios: fechar o mês no alvo, quantos dias '
+    +'ficaram no alvo, se melhorou contra o mês anterior e o quanto o consumo oscila de um dia para o outro. '
+    +(empatados.length>1
+      ? '<b>'+empatados.map(function(o){return o.c.nome;}).join('</b> e <b>')+'</b> empatam na frente com '
+        +nf(lider.total,0)+' pontos'
+      : '<b>'+lider.c.nome+'</b> lidera com '+nf(lider.total,0)+' pontos')
+    +((ultimo!==lider&&Math.round(ultimo.total)!==Math.round(lider.total))
+      ? ' e <b>'+ultimo.c.nome+'</b> fecha o placar com '+nf(ultimo.total,0):'')+'.');
+
+  T('notaPlacar','<b>Como a nota é formada:</b> '+PESOS.meta+' pontos por fechar o mês dentro da meta '
+    +'(nota cheia no alvo, zerando a 25% acima dele), '+PESOS.constancia+' pontos pela fração de dias do mês '
+    +'dentro da meta, '+PESOS.evolucao+' pontos por melhorar contra o mês anterior (nota cheia a partir de 5% '
+    +'de ganho) e '+PESOS.regularidade+' pontos por consumo regular (nota cheia até 10% de oscilação em torno '
+    +'da média diária, zero a partir de 45%). '
+    +'<b>Os pesos são decisão de gestão, não resultado de conta</b> — estão escritos aqui justamente para poderem '
+    +'ser discutidos e mudados. Fechar no alvo pesa mais que tudo, mas não fecha nota sozinho: casa que bate a '
+    +'meta oscilando muito fura em algum mês, e o placar precisa enxergar isso antes que aconteça.');
+})();
+
+/* ---- 11 · metas propostas ----------------------------------------------
+   A proposta vem do recalcular_metas.py, importado pelo gerador. Aqui é só
+   leitura: quem grava metas.json continua sendo aquele script. Se esta seção
+   calculasse a meta por conta própria, existiriam duas metas diferentes na
+   primeira vez que alguém ajustasse um dos dois lados. */
+(function(){
+  const sec=document.getElementById('metas');
+  if(!sec) return;
+  const P=DATA.propostas;
+  T('h2metas','Metas propostas para '+CFG.proxLabel);
+  if(!P||!P.metas){
+    T('lead11mt','Não foi possível montar a proposta de metas para '+CFG.proxLabel+'.');
+    T('tblMetas','');
+    T('notaMetas','<b>Motivo:</b> '+(DATA.propostasErro||'origem das metas indisponível')+'. '
+      +'A meta continua sendo a de <code>metas.json</code>; rode <code>python recalcular_metas.py</code> na raiz '
+      +'do projeto para recalcular.');
+    return;
+  }
+  const head=['Casa','Meta em vigor','Mês anterior','Média 3 meses','Mediana 6 meses',
+              'Meta proposta','O que muda'];
+  let h='<thead><tr>'+head.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>';
+  let mudam=0, apertam=0;
+  casas.forEach(function(c){
+    const p=P.metas[c.sigla];
+    if(!p){
+      h+='<tr><td><b>'+c.sigla+'</b> · '+c.nome+'</td>'
+        +'<td class="num-cell">'+coefFmt(c.meta)+'</td><td class="num-cell" colspan="4">—</td>'
+        +'<td>sem consumo no último mês fechado — fica sem meta</td></tr>';
+      return;
+    }
+    const atual=c.meta, nova=p.meta;
+    let txt='primeira meta da casa', cls='';
+    if(atual!=null){
+      const d=nova-atual;
+      if(Math.abs(d)<0.00005){ txt='mantém o alvo atual'; }
+      else if(d<0){ txt='aperta '+nf(Math.abs(d/atual)*100,1)+'%'; cls='neg'; apertam++; mudam++; }
+      else { txt='afrouxa '+nf(d/atual*100,1)+'%'; cls='pos'; mudam++; }
+    }
+    h+='<tr><td><b>'+c.sigla+'</b> · '+c.nome+'</td>'
+      +'<td class="num-cell">'+coefFmt(atual)+'</td>'
+      +'<td class="num-cell">'+coefFmt(p.m1)+'</td>'
+      +'<td class="num-cell">'+coefFmt(p.m3)+'</td>'
+      +'<td class="num-cell">'+coefFmt(p.m6)+'</td>'
+      +'<td class="num-cell"><b>'+coefFmt(nova)+'</b></td>'
+      +'<td class="'+cls+'" style="text-align:left">'+txt+'</td></tr>';
+  });
+  h+='</tbody>';
+  document.getElementById('tblMetas').innerHTML=h;
+
+  T('lead11mt','O alvo que cada casa levaria para '+CFG.proxLabel+', calculado sobre o histórico fechado de '
+    +P.base_de+' a '+P.base_ate+' — e não sobre '+CFG.curLabel+' sozinho. '
+    +(mudam===0
+      ? 'Nenhuma meta muda: o histórico confirma os alvos que já estão valendo.'
+      : mudam+' de '+casas.length+' metas mudam'+(apertam?', sendo '+apertam+' para baixo':'')+'.'));
+
+  T('notaMetas','<b>De onde sai a meta proposta:</b> três leituras do mesmo histórico — o mês anterior fechado, '
+    +'a média dos 3 meses recentes e a mediana dos 6 meses recentes — e a meta é o <b>menor valor entre o mês '
+    +'anterior e a mediana dessas três</b>, nunca abaixo do melhor mês que a casa já fez. '
+    +'A regra tem um lado deliberado: se o mês passado foi melhor que o histórico, o ganho vira o novo alvo em '
+    +'vez de ser devolvido como folga; se foi pior, a mediana segura a meta no lugar e o mês ruim não vira '
+    +'desculpa. Mês de consumo zero fica fora da conta, porque zero quase nunca é desempenho — é item que faltou '
+    +'ou não foi lançado. '
+    +'<b>Esta seção não grava nada:</b> a proposta é lida de <code>recalcular_metas.py</code> para a diretoria ver '
+    +'o alvo antes de ele valer. Quem grava <code>metas.json</code> é aquele script, rodado na raiz do projeto.');
+})();
+
+/* ---- dias descartados pelo piso de faturamento --------------------------
+   Vai no fim da metodologia, e não em nota de rodapé: dia descartado é dado
+   que precisa de conserto na origem, e some da vista se ficar escondido. */
+(function(){
+  const D=DATA.descartados||[];
+  const I=DATA.inconsistentes||[];
+  const pisoPct=nf((CFG.pisoFator||0.10)*100,0);
+  const blocoIncons = I.length
+    ? '<br><br><b>Dia'+(I.length>1?'s':'')+' de consumo negativo — divergência de contagem:</b><br><br>'
+      +I.map(function(d){
+          return '· <b>'+d.data+'</b>, '+d.casa+': consumo lançado de '+nf(d.cons,3)+' '+U+'. Consumo '
+            +'negativo não existe; é o fechamento de um dia de recebimento que sobrou para baixo. '
+            +'O dia <b>continua no total do mês</b>, porque o saldo físico depende dele e tirá-lo faria o '
+            +'consumo do mês não bater com a contagem — mas sai das leituras do nível do dia (mapa, alertas '
+            +'e placar), onde seria lido como eficiência.';
+        }).join('<br>')
+    : '';
+  if(!D.length){
+    T('notaDescartes','<b>Conferência dos dados:</b> nenhum dia do período foi descartado. Todos os dias com '
+      +'lançamento tinham faturamento acima do piso de '+pisoPct+'% da mediana da casa.'+blocoIncons);
+    return;
+  }
+  T('notaDescartes','<b>Dia'+(D.length>1?'s':'')+' descartado'+(D.length>1?'s':'')+' do cálculo — precisa'
+    +(D.length>1?'m':'')+' de correção na origem:</b><br><br>'
+    +D.map(function(d){
+      return '· <b>'+d.data+'</b>, '+d.casa+': faturamento lançado de '+money2(d.fat)+' com consumo de '
+        +nf(d.cons,2)+' '+U+'. O piso da casa é '+money(d.piso)+'. Mantido na conta, aquele dia sozinho daria '
+        +'um coeficiente de '+nf(d.coef,1)+' contra o normal da casa, e puxaria o mês inteiro.';
+    }).join('<br>')
+    +'<br><br>O corte usa a mesma regra do <code>recalcular_metas.py</code>: fica de fora o dia cujo faturamento '
+    +'não chega a '+pisoPct+'% da mediana histórica daquela casa. O piso é relativo, e não um valor fixo, porque '
+    +'as casas têm escalas diferentes. Corrigido o lançamento na origem, basta gerar o relatório de novo.'
+    +blocoIncons);
+})();
+
+
+
+/* ---- renumeração das seções -------------------------------------------
+   Os números vêm fixos no HTML, mas uma seção pode ser removida em tempo de
+   execução (a de reais some quando o insumo não tem custo cadastrado). Sem
+   isto o relatório sairia numerado 01, 03, 04 — e o leitor procuraria a
+   página que faltou. */
+(function(){
+  document.querySelectorAll('section .sec-num').forEach(function(e,i){
+    e.textContent=String(i+1).padStart(2,'0');
+  });
+})();
+</script>
+</body>
+</html>

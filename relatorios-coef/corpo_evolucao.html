@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITULO}}</title>
+<style>{{CSS}}
+  /* próprias da evolução: a tabela tem um mês por coluna */
+  .mes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:18px}
+  .mz{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:13px 14px;box-shadow:var(--shadow)}
+  .mz .r{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+  .mz .v{font-family:var(--display);font-size:22px;font-weight:700;margin-top:7px;letter-spacing:-.01em}
+  .mz .c{font-size:12px;color:var(--ink-2);margin-top:4px}
+  .mz.melhor{border-color:var(--good);border-width:2px}
+  .mz.pior{border-color:var(--bad);border-width:2px}
+  .selo-mz{display:inline-block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    padding:2px 6px;border-radius:4px;margin-top:6px}
+  .selo-mz.b{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+  .selo-mz.r{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+  .selo-mz.n{background:var(--surface-2);color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">Relatório Operacional de Suprimentos · Evolução do grupo</div>
+    <h1 id="titulo"></h1>
+    <p class="sub" id="sub"></p>
+    <div class="meta-row" id="metarow"></div>
+    <div class="formula">
+      <code>Coeficiente = Consumo total ÷ Faturamento bruto × 1.000</code>
+      <span class="exp" id="formulaNota"></span>
+    </div>
+  </header>
+
+  <section id="panorama" style="margin-top:40px">
+    <div class="sec-head"><span class="sec-num">01</span><h2>O período inteiro</h2></div>
+    <p class="lead" id="lead01"></p>
+    <div class="kpis" id="kpis"></div>
+    <div class="note" id="leitura"></div>
+  </section>
+
+  <section id="linha">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Mês a mês</h2></div>
+    <p class="lead" id="lead02"></p>
+    <div class="card">
+      <h3>Coeficiente da rede ao longo do período</h3>
+      <div class="csub">Menor é melhor. A faixa cinza é o consumo do mês; a linha, o coeficiente.</div>
+      <div class="chart-wrap" id="chLinha"></div>
+      <div class="legend" id="legLinha"></div>
+    </div>
+    <div class="mes-grid" id="mesGrid"></div>
+  </section>
+
+  <section id="tabela">
+    <div class="sec-head"><span class="sec-num">03</span><h2>A série, número a número</h2></div>
+    <p class="lead" id="lead03"></p>
+    <div class="tbl-wrap"><table id="tblMeses"></table></div>
+    <div class="note" id="notaTbl"></div>
+  </section>
+
+  <section id="casas">
+    <div class="sec-head"><span class="sec-num">04</span><h2>As casas ao longo do período</h2></div>
+    <p class="lead" id="lead04"></p>
+    <div class="card">
+      <div class="chart-wrap" id="chCasas"></div>
+      <div class="legend" id="legCasas"></div>
+    </div>
+    <div class="tbl-wrap"><table id="tblCasas"></table></div>
+  </section>
+
+  <section id="metas">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Contra a meta, mês a mês</h2></div>
+    <p class="lead" id="lead05"></p>
+    <div class="tbl-wrap"><table id="tblMetas"></table></div>
+    <div class="note" id="notaMetas"></div>
+  </section>
+
+  <section id="metodo">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Como este relatório é gerado</h2></div>
+    <p class="lead">Mesma metodologia do relatório mensal, com o eixo trocado: no lugar das casas, os meses.</p>
+    <ul class="clean" id="metodoList"></ul>
+    <div class="note" id="notaCusto"></div>
+  </section>
+
+  <footer id="rodape"></footer>
+</div>
+
+<script>
+const D = {{DADOS}};
+const C = {{CFG}};
+const M = D.meses, CASAS = C.casas;
+
+const nf=(v,d=1)=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}));
+const nf0=v=>(v==null?'—':v.toLocaleString('pt-BR',{maximumFractionDigits:0}));
+const money=v=>(v==null?'—':'R$ '+v.toLocaleString('pt-BR',{maximumFractionDigits:0}));
+const pct=(v,d=1)=>(v==null?'—':(v>=0?'+':'')+nf(v*100,d)+'%');
+const cf=v=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3}));
+const T=(id,h)=>{const e=document.getElementById(id);if(e)e.innerHTML=h;};
+const U=C.unidade;
+
+const prim=M[0], ult=M[M.length-1];
+const varPer=ult.coef/prim.coef-1;
+const ordenados=[...M].sort((a,b)=>a.coef-b.coef);
+const melhor=ordenados[0], pior=ordenados[ordenados.length-1];
+
+/* ------------------------------------------------------------------ cabeçalho */
+T('titulo',`Evolução do grupo — ${C.insumoNome}`);
+const SEM=(C.semConsumo||[]);
+T('sub',`Como a rede andou de ${C.de} a ${C.ate} de ${C.ano}. Cada mês é um ponto da série; `
+  +`a leitura é de tendência, não de fechamento — para o detalhe de um mês, o relatório mensal dele.`
+  +(SEM.length?` <b>${SEM.length} mês(es) ficaram de fora</b> por não ter consumo do insumo: ${SEM.join(', ')}.`:''));
+T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span>`
+  +`<span><b>Meses:</b> ${M.length}</span>`
+  +`<span><b>Casas:</b> ${CASAS.join(' · ')}</span>`
+  +`<span><b>Insumo:</b> ${C.insumoNome}</span>`);
+T('formulaNota',`Lê-se como <b>${U} consumidos para cada R$ 1.000 de faturamento bruto</b>. `
+  +`Menor é melhor. O faturamento é o <b>bruto</b>, sem desconto de impostos, taxas de entrega `
+  +`ou comissão de aplicativo.`);
+
+/* ------------------------------------------------------------------ 01 */
+(function(){
+  const cons=M.reduce((a,m)=>a+m.cons,0), fat=M.reduce((a,m)=>a+m.fat,0);
+  const comCusto=M.filter(m=>m.temCusto);
+  const rs=comCusto.reduce((a,m)=>a+m.rs,0), fatC=comCusto.reduce((a,m)=>a+m.fat,0);
+  const dir=varPer<0?'caiu':'subiu';
+  T('lead01',`Em ${M.length} meses a rede consumiu <b>${nf0(cons)} ${U}</b> de ${C.insumoNome.toLowerCase()} `
+    +`para um faturamento bruto de <b>${money(fat)}</b>. O coeficiente <b>${dir} ${nf(Math.abs(varPer)*100,1)}%</b> `
+    +`no período, de ${cf(prim.coef)} em ${prim.nome} para ${cf(ult.coef)} em ${ult.nome}. `
+    +`O melhor mês foi <b>${melhor.nome}</b> (${cf(melhor.coef)}) e o mais pesado, <b>${pior.nome}</b> (${cf(pior.coef)}).`);
+  const itens=[
+    {l:'Consumo do período',v:nf0(cons),u:U,f:`${M.length} meses`},
+    {l:'Faturamento (bruto)',v:money(fat),u:'',f:'soma das casas'},
+    {l:'Coeficiente do período',v:cf(cons/fat*1000),u:`${U}/R$1k`,f:`de ${cf(prim.coef)} a ${cf(ult.coef)}`},
+    comCusto.length
+      ? {l:'% do faturamento bruto',v:nf(rs/fatC*100,2)+'%',u:'',f:comCusto.length===M.length?'período inteiro':`${comCusto.length} de ${M.length} meses com custo`}
+      : {l:'Amplitude do período',v:nf((pior.coef/melhor.coef-1)*100,1)+'%',u:'',f:'entre o melhor e o pior mês'}
+  ];
+  T('kpis',itens.map(k=>`<div class="kpi"><div class="lab">${k.l}</div>
+    <div class="val num">${k.v} <small>${k.u}</small></div><div class="foot">${k.f}</div></div>`).join(''));
+
+  const subiram=M.slice(1).filter((m,i)=>m.coef>M[i].coef).length;
+  T('leitura',`<b>Leitura:</b> dos ${M.length-1} meses com mês anterior na série, <b>${subiram} subiram</b> `
+    +`e ${M.length-1-subiram} caíram. A distância entre o melhor e o pior mês é de `
+    +`<b>${nf((pior.coef/melhor.coef-1)*100,1)}%</b> — é essa a faixa em que a operação oscila hoje, `
+    +`e é ela que uma meta precisa enxergar.`
+    +(comCusto.length&&comCusto.length<M.length
+      ? ` <b>Atenção:</b> ${M.length-comCusto.length} mês(es) ainda sem custo cadastrado, então a leitura em reais cobre só parte do período.`
+      : '')
+    +(SEM.length
+      ? ` <b>${SEM.length} mês(es) saíram da série</b> (${SEM.join(', ')}): o insumo foi lançado com consumo zero, `
+        +`ou seja, deixou de ser usado. Coeficiente zero não é eficiência, é ausência — mantê-lo faria o `
+        +`relatório mostrar uma melhora que não houve.`
+      : ''));
+})();
+
+/* ------------------------------------------------------------------ 02 linha */
+(function(){
+  const W=920,H=330,mL=58,mR=58,mT=22,mB=46,iw=W-mL-mR,ih=H-mT-mB;
+  const cs=M.map(m=>m.coef), lo=Math.min(...cs)*0.94, hi=Math.max(...cs)*1.06;
+  const maxC=Math.max(...M.map(m=>m.cons))*1.15;
+  const x=i=>mL+(M.length>1?(i/(M.length-1))*iw:iw/2);
+  const y=v=>mT+ih-((v-lo)/(hi-lo||1))*ih;
+  const yc=v=>mT+ih-(v/maxC)*ih;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=4;i++){const gv=lo+(hi-lo)*i/4,gy=y(gv);
+    s+=`<line x1="${mL}" x2="${W-mR}" y1="${gy}" y2="${gy}" style="stroke:var(--hair)"/>`
+      +`<text x="${mL-8}" y="${gy+3.5}" text-anchor="end" font-size="10" style="fill:var(--muted)">${cf(gv)}</text>`;}
+  const bw=iw/M.length*0.5;
+  M.forEach((m,i)=>{const h=mT+ih-yc(m.cons);
+    s+=`<rect x="${x(i)-bw/2}" y="${yc(m.cons)}" width="${bw}" height="${h}" rx="3" style="fill:var(--hair)" opacity="0.8"/>`;});
+  const pts=M.map((m,i)=>[x(i),y(m.coef)]);
+  s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" style="stroke:var(--salmon)" stroke-width="2.6" stroke-linejoin="round"/>`;
+  M.forEach((m,i)=>{
+    const destaque = m===melhor||m===pior;
+    s+=`<circle cx="${x(i)}" cy="${y(m.coef)}" r="${destaque?4.6:3.2}" style="fill:${m===melhor?'var(--good)':m===pior?'var(--bad)':'var(--salmon)'}"/>`;
+    s+=`<text class="halo" x="${x(i)}" y="${y(m.coef)-11}" text-anchor="middle" font-size="10" font-weight="700" style="fill:var(--ink)">${cf(m.coef)}</text>`;
+    s+=`<text x="${x(i)}" y="${H-mB+19}" text-anchor="middle" font-size="11.5" font-weight="700" style="fill:var(--ink-2)">${m.rotulo}</text>`;
+    s+=`<text x="${x(i)}" y="${H-mB+32}" text-anchor="middle" font-size="9" style="fill:var(--muted)">${nf0(m.cons)}</text>`;});
+  document.getElementById('chLinha').innerHTML=s+'</svg>';
+  T('legLinha',`<span><i style="background:var(--salmon)"></i>Coeficiente</span>`
+    +`<span><i style="background:var(--hair)"></i>Consumo (${U}, no rótulo de baixo)</span>`
+    +`<span><i style="background:var(--good)"></i>Melhor mês</span><span><i style="background:var(--bad)"></i>Pior mês</span>`);
+
+  T('lead02',`Cada ponto é um mês fechado. A linha é o coeficiente e a barra cinza atrás é o volume — `
+    +`separadas de propósito: consumo alto com coeficiente baixo é mês de venda forte, não de desperdício.`);
+
+  T('mesGrid',M.map((m,i)=>{
+    const ant=i>0?M[i-1]:null, d=ant?m.coef/ant.coef-1:null;
+    const cls=m===melhor?' melhor':m===pior?' pior':'';
+    return `<div class="mz${cls}"><div class="r">${m.nome}</div>
+      <div class="v num">${cf(m.coef)}</div>
+      <div class="c">${nf0(m.cons)} ${U} · ${money(m.fat)}</div>
+      ${d==null?'<div class="c">primeiro mês da série</div>'
+        :`<div class="c ${d>0?'pos':'neg'}" style="font-weight:600">${d>0?'subiu':'caiu'} ${nf(Math.abs(d)*100,1)}% sobre ${ant.rotulo}</div>`}
+      ${m===melhor?'<span class="selo-mz b">melhor do período</span>':''}
+      ${m===pior?'<span class="selo-mz r">mais pesado</span>':''}
+      ${!m.temCusto?'<span class="selo-mz n">sem custo cadastrado</span>':''}
+      ${m.custoHerdado?'<span class="selo-mz n">preço de '+m.custoHerdado.join('/')+'</span>':''}
+    </div>`;}).join(''));
+})();
+
+/* ------------------------------------------------------------------ 03 tabela */
+(function(){
+  const temCusto=M.some(m=>m.temCusto);
+  const head=['Mês','Dias',`Consumo (${U})`,'Faturamento bruto','Coeficiente','Variação']
+    .concat(temCusto?['Gasto','% do faturamento']:[]);
+  let h='<thead><tr>'+head.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  M.forEach((m,i)=>{
+    const ant=i>0?M[i-1]:null, d=ant?m.coef/ant.coef-1:null;
+    h+=`<tr><td><b>${m.nome}</b></td><td class="num-cell">${m.dias}</td>`
+      +`<td class="num-cell">${nf0(m.cons)}</td><td class="num-cell">${money(m.fat)}</td>`
+      +`<td class="num-cell"><b>${cf(m.coef)}</b></td>`
+      +(d==null?'<td class="num-cell">—</td>'
+        :`<td class="num-cell ${d>0?'pos':'neg'}">${d>0?'+':'−'}${nf(Math.abs(d)*100,1)}%</td>`)
+      +(temCusto?`<td class="num-cell">${money(m.rs)}${m.custoHerdado?' <span title="preço de outro mês" style="color:var(--warn);font-weight:700">*</span>':''}</td>`
+        +`<td class="num-cell">${m.cmv==null?'—':nf(m.cmv,2)+'%'}${m.custoHerdado?' <span style="color:var(--warn);font-weight:700">*</span>':''}</td>`:'')
+      +'</tr>';});
+  const cons=M.reduce((a,m)=>a+m.cons,0), fat=M.reduce((a,m)=>a+m.fat,0);
+  const cc=M.filter(m=>m.temCusto), rs=cc.reduce((a,m)=>a+m.rs,0), fatC=cc.reduce((a,m)=>a+m.fat,0);
+  h+=`<tr class="total-row"><td>PERÍODO</td><td class="num-cell">${M.reduce((a,m)=>a+m.dias,0)}</td>`
+    +`<td class="num-cell">${nf0(cons)}</td><td class="num-cell">${money(fat)}</td>`
+    +`<td class="num-cell">${cf(cons/fat*1000)}</td>`
+    +`<td class="num-cell ${varPer>0?'pos':'neg'}">${varPer>0?'+':'−'}${nf(Math.abs(varPer)*100,1)}%</td>`
+    +(temCusto?`<td class="num-cell">${money(rs)}</td><td class="num-cell">${nf(rs/fatC*100,2)}%</td>`:'')
+    +'</tr></tbody>';
+  document.getElementById('tblMeses').innerHTML=h;
+  T('lead03',`A série inteira. A coluna "Variação" compara cada mês com o anterior; a linha do período `
+    +`compara o último com o primeiro.`);
+  T('notaTbl',`<b>O coeficiente do período não é a média dos meses:</b> é o consumo total dividido pelo `
+    +`faturamento total. Assim um mês de volume grande pesa mais que um mês fraco, que é como o dinheiro `
+    +`de fato se comporta.`
+    +(temCusto&&cc.length<M.length?` A coluna de gasto cobre ${cc.length} dos ${M.length} meses — os demais ainda não têm custo cadastrado.`:'')
+    +((C.custoHerdado&&C.custoHerdado.length)
+      ? ` <b>O asterisco marca mês cujo preço veio de outro mês</b> (${C.custoHerdado.join(', ')}). `
+        +`Isso acontece por dois motivos, e eles pedem leituras diferentes: ou <b>não houve compra no mês</b> `
+        +`— e aí herdar o preço mais próximo é o tratamento correto, porque o consumo saiu de estoque comprado antes —, `
+        +`ou <b>o preço ainda não foi carregado</b>, e o valor é provisório. O relatório não tem como distinguir os dois: `
+        +`mês sem compra e mês sem carga chegam iguais aqui.`
+      : ''));
+})();
+
+/* ------------------------------------------------------------------ 04 casas */
+(function(){
+  const paleta=['var(--ocean)','var(--good)','var(--warn)','#8A5CA8'];
+  const W=920,H=320,mL=58,mR=70,mT=20,mB=44,iw=W-mL-mR,ih=H-mT-mB;
+  const todos=CASAS.flatMap(c=>D.casas[c].filter(Boolean).map(r=>r.coef));
+  const lo=Math.min(...todos)*0.94, hi=Math.max(...todos)*1.06;
+  const x=i=>mL+(M.length>1?(i/(M.length-1))*iw:iw/2);
+  const y=v=>mT+ih-((v-lo)/(hi-lo||1))*ih;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=4;i++){const gv=lo+(hi-lo)*i/4,gy=y(gv);
+    s+=`<line x1="${mL}" x2="${W-mR}" y1="${gy}" y2="${gy}" style="stroke:var(--hair)"/>`
+      +`<text x="${mL-8}" y="${gy+3.5}" text-anchor="end" font-size="10" style="fill:var(--muted)">${cf(gv)}</text>`;}
+  M.forEach((m,i)=>{s+=`<text x="${x(i)}" y="${H-mB+19}" text-anchor="middle" font-size="11" font-weight="700" style="fill:var(--ink-2)">${m.rotulo}</text>`;});
+  const usados=[];
+  CASAS.forEach((c,ci)=>{
+    const pts=D.casas[c].map((r,i)=>r?[x(i),y(r.coef)]:null).filter(Boolean);
+    if(!pts.length)return;
+    s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" style="stroke:${paleta[ci%4]}" stroke-width="2" stroke-linejoin="round"/>`;
+    pts.forEach(p=>{s+=`<circle cx="${p[0]}" cy="${p[1]}" r="2.6" style="fill:${paleta[ci%4]}"/>`;});
+    const last=pts[pts.length-1];
+    // desloca o rotulo quando duas casas terminam quase no mesmo ponto
+    const col=usados.filter(v=>Math.abs(v-last[1])<11).length; usados.push(last[1]);
+    s+=`<text x="${last[0]+8}" y="${last[1]+3.5+col*11}" font-size="11" font-weight="700" style="fill:${paleta[ci%4]}">${c}</text>`;});
+  document.getElementById('chCasas').innerHTML=s+'</svg>';
+  T('legCasas',CASAS.map((c,i)=>`<span><i style="background:${paleta[i%4]}"></i>${c} · ${C.nomesCasa[c]}</span>`).join(''));
+
+  const resumo=CASAS.map(c=>{
+    const v=D.casas[c].filter(Boolean);
+    if(!v.length)return null;
+    const p=v[0], u=v[v.length-1];
+    return {c,p,u,d:u.coef/p.coef-1,min:Math.min(...v.map(r=>r.coef)),max:Math.max(...v.map(r=>r.coef)),n:v.length};
+  }).filter(Boolean).sort((a,b)=>a.d-b.d);
+  const melhorC=resumo[0], piorC=resumo[resumo.length-1];
+  T('lead04',`Uma linha por casa, no mesmo eixo — é aqui que se vê se o movimento da rede foi de todas `
+    +`ou de uma só. No período, <b>${C.nomesCasa[melhorC.c]}</b> foi a que mais ${melhorC.d<0?'melhorou':'menos piorou'} `
+    +`(${pct(melhorC.d)}) e <b>${C.nomesCasa[piorC.c]}</b> a que mais ${piorC.d>0?'piorou':'menos melhorou'} (${pct(piorC.d)}).`);
+
+  let h='<thead><tr>'+['Casa','Primeiro mês','Último mês','Variação no período','Melhor mês','Pior mês','Oscilação']
+    .map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  resumo.forEach(r=>{
+    h+=`<tr><td><b>${r.c}</b> · ${C.nomesCasa[r.c]}</td>`
+      +`<td class="num-cell">${cf(r.p.coef)}</td><td class="num-cell">${cf(r.u.coef)}</td>`
+      +`<td class="num-cell ${r.d>0?'pos':'neg'}">${r.d>0?'+':'−'}${nf(Math.abs(r.d)*100,1)}%</td>`
+      +`<td class="num-cell">${cf(r.min)}</td><td class="num-cell">${cf(r.max)}</td>`
+      +`<td class="num-cell">${nf((r.max/r.min-1)*100,1)}%</td></tr>`;});
+  document.getElementById('tblCasas').innerHTML=h+'</tbody>';
+})();
+
+/* ------------------------------------------------------------------ 05 metas */
+(function(){
+  const temMeta=CASAS.some(c=>D.casas[c].some(r=>r&&r.meta!=null));
+  if(!temMeta){document.getElementById('metas').remove();return;}
+  let h='<thead><tr><th>Casa</th><th>Meta</th>'+M.map(m=>`<th>${m.rotulo}</th>`).join('')
+    +'<th>Meses no alvo</th></tr></thead><tbody>';
+  const placar={};
+  CASAS.forEach(c=>{
+    const v=D.casas[c];
+    const meta=(v.find(r=>r&&r.meta!=null)||{}).meta;
+    let dentro=0,vale=0;
+    let linha=`<tr><td><b>${c}</b> · ${C.nomesCasa[c]}</td><td class="num-cell">${cf(meta)}</td>`;
+    v.forEach(r=>{
+      if(!r||r.meta==null){linha+='<td class="num-cell">—</td>';return;}
+      vale++; const ok=r.coef<=r.meta; if(ok)dentro++;
+      linha+=`<td class="num-cell" style="color:${ok?'var(--good)':'var(--bad)'};font-weight:700">${cf(r.coef)}</td>`;});
+    placar[c]=[dentro,vale];
+    linha+=`<td class="num-cell"><b>${dentro} de ${vale}</b></td></tr>`;
+    h+=linha;});
+  document.getElementById('tblMetas').innerHTML=h+'</tbody>';
+  const best=Object.entries(placar).sort((a,b)=>(b[1][0]/b[1][1])-(a[1][0]/a[1][1]))[0];
+  T('lead05',`Cada mês contra a meta da casa: <b>verde</b> quando ficou no alvo, <b>vermelho</b> quando estourou. `
+    +`No período, <b>${C.nomesCasa[best[0]]}</b> foi a mais constante — ${best[1][0]} dos ${best[1][1]} meses dentro da meta.`);
+  T('notaMetas',`<b>A meta é a de hoje, aplicada para trás.</b> Ela foi calculada sobre o histórico recente pelo `
+    +`<code>recalcular_metas.py</code>, então os meses mais antigos são julgados por um alvo que não existia na época. `
+    +`Serve para ver <b>de onde a rede veio</b>, não para cobrar o que passou.`);
+})();
+
+/* ------------------------------------------------------------------ 06 método */
+(function(){
+  T('metodoList',[
+    `<b>Entrada.</b> Consumo e faturamento bruto por casa e por dia, de <code>dados/lancamentos.json</code>, agregados por mês.`,
+    `<b>Limpeza.</b> Mesmas guardas do relatório mensal: dia com faturamento abaixo de 10% da mediana da casa fica fora, e consumo negativo sai das leituras do dia.`,
+    `<b>Coeficiente do período.</b> Consumo total ÷ faturamento total — não a média dos meses, para o mês de volume grande pesar mais.`,
+    `<b>Custo.</b> O preço de cada mês vem de <code>custos_mensais.json</code>; mês sem preço cadastrado entra sem a leitura em reais, e fica marcado.`,
+    `<b>Meta.</b> A de <code>metas.json</code>, convertida para a unidade deste relatório quando necessário.`,
+  ].map(x=>`<li>${x}</li>`).join(''));
+  const sem=C.semCusto||[];
+  const herd=C.custoHerdado||[];
+  T('notaCusto',(herd.length
+    ? `<b>Preço herdado de outro mês em:</b> ${herd.join(', ')}. Não há preço próprio desses meses em `
+      +`<code>custos_mensais.json</code>, então o relatório usou o do mês mais próximo e marcou o gasto com asterisco. `
+      +`<b>Nem sempre é pendência:</b> mês em que o insumo não foi comprado não tem preço para registrar, e o consumo `
+      +`daquele mês saiu mesmo de estoque comprado antes — herdar é o certo. Confira qual é o caso antes de tratar como falta.<br><br>`
+    : '')+(sem.length
+    ? `<b>Meses sem custo cadastrado:</b> ${sem.join(', ')}. Nesses, o relatório mostra consumo e coeficiente, `
+      +`mas não o gasto em reais — preço chutado seria pior que número ausente. Cadastre em `
+      +`<code>custos_mensais.json</code> e gere de novo.`
+    : (herd.length?'':`<b>Custo cadastrado em todos os meses do período.</b>`)));
+  T('rodape',`Fonte: <b>CDE Web</b> · <code>dados/lancamentos.json</code>, <code>dados/metas.json</code> e `
+    +`<code>relatorios-coef/custos_mensais.json</code>. Coeficiente = Consumo ÷ Faturamento bruto × 1.000. `
+    +`Gerado por <code>gerar_evolucao.py</code> — uso interno da equipe de Suprimentos.`);
+})();
+
+/* renumeração, caso alguma seção saia */
+document.querySelectorAll('section .sec-num').forEach((e,i)=>{e.textContent=String(i+1).padStart(2,'0');});
+</script>
+</body>
+</html>
