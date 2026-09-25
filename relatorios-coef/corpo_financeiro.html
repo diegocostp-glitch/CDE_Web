@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITULO}}</title>
+<style>{{CSS}}
+  .fin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+  .fz{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:13px 15px;box-shadow:var(--shadow)}
+  .fz .r{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+  .fz .v{font-family:var(--display);font-size:20px;font-weight:700;margin-top:7px;letter-spacing:-.01em}
+  .fz .c{font-size:11.5px;color:var(--ink-2);margin-top:4px}
+  .barra-pv{display:flex;height:22px;border-radius:5px;overflow:hidden;margin-top:6px;background:var(--surface-2)}
+  .barra-pv i{display:block;height:100%}
+  .lin{display:flex;align-items:baseline;gap:12px;background:var(--surface);border:1px solid var(--hair);
+    border-radius:10px;padding:11px 15px;box-shadow:var(--shadow);margin-bottom:8px}
+  .lin.g{border-left:3px solid var(--good)}
+  .lin.p{border-left:3px solid var(--bad)}
+  .lin .n{font-weight:700;min-width:190px}
+  .lin .t{font-size:13px;color:var(--ink-2);flex:1}
+  .lin .v{font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">Relatório Operacional de Suprimentos · Consolidado financeiro</div>
+    <h1 id="titulo"></h1>
+    <p class="sub" id="sub"></p>
+    <div class="meta-row" id="metarow"></div>
+    <div class="formula">
+      <code>Efeito preço = consumo do mês × (preço do mês − preço da base)</code>
+      <span class="exp">Separa o que mudou por <b>preço</b> do que mudou por <b>volume</b>. Gasto que sobe
+      porque a casa vendeu mais é uma coisa; gasto que sobe porque o fornecedor cobrou mais é outra,
+      e só a segunda se resolve negociando.</span>
+    </div>
+  </header>
+
+  <section id="panorama" style="margin-top:40px">
+    <div class="sec-head"><span class="sec-num">01</span><h2>O período em dinheiro</h2></div>
+    <p class="lead" id="lead01"></p>
+    <div class="kpis" id="kpis"></div>
+    <div class="note" id="leitura"></div>
+  </section>
+
+  <section id="mesames">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Mês a mês: o que saiu, o que entrou, o que ficou</h2></div>
+    <p class="lead" id="lead02"></p>
+    <div class="card"><div class="chart-wrap" id="chFluxo"></div><div class="legend" id="legFluxo"></div></div>
+    <div class="tbl-wrap"><table id="tblMeses"></table></div>
+    <div class="note" id="notaMeses"></div>
+  </section>
+
+  <section id="ganhos">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Onde ganhamos e onde perdemos no preço</h2></div>
+    <p class="lead" id="lead03"></p>
+    <div class="card">
+      <h3>Preço × volume, do primeiro ao último mês</h3>
+      <div class="csub">À esquerda o que o preço fez; à direita o que o volume fez. Verde é a favor do caixa.</div>
+      <div class="chart-wrap" id="chPV"></div>
+    </div>
+    <div class="tbl-wrap"><table id="tblPV"></table></div>
+    <div class="note" id="notaPV"></div>
+  </section>
+
+  <section id="melhores">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Compramos melhor mesmo consumindo mais</h2></div>
+    <p class="lead" id="lead04"></p>
+    <div id="listaGanho"></div>
+    <div class="note" id="notaGanho"></div>
+  </section>
+
+  <section id="altas">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Altas de preço a negociar</h2></div>
+    <p class="lead" id="lead05"></p>
+    <div id="listaAltas"></div>
+    <div class="note" id="notaAltas"></div>
+  </section>
+
+  <section id="precos">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Preço médio mês a mês</h2></div>
+    <p class="lead" id="lead06"></p>
+    <div class="tbl-wrap"><table id="tblPrecos"></table></div>
+    <div class="note" id="notaPrecos"></div>
+  </section>
+
+  <section id="parado">
+    <div class="sec-head"><span class="sec-num">07</span><h2>O que está parado em estoque</h2></div>
+    <p class="lead" id="lead07"></p>
+    <div class="tbl-wrap"><table id="tblParado"></table></div>
+    <div class="note" id="notaParado"></div>
+  </section>
+
+  <section id="metodo">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Como este relatório é gerado</h2></div>
+    <p class="lead">Tudo sai dos lançamentos diários e do preço unitário por casa e mês.</p>
+    <ul class="clean" id="metodoList"></ul>
+    <div class="note" id="notaMetodo"></div>
+  </section>
+
+  <footer id="rodape"></footer>
+</div>
+
+<script>
+const D = {{DADOS}};
+const C = {{CFG}};
+const M = D.meses, INS = D.insumos, AN = D.analise, SALT = D.saltos;
+
+const nf=(v,d=1)=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}));
+const nf0=v=>(v==null?'—':v.toLocaleString('pt-BR',{maximumFractionDigits:0}));
+const money=v=>(v==null?'—':'R$ '+v.toLocaleString('pt-BR',{maximumFractionDigits:0}));
+const money2=v=>(v==null?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}));
+const pc=(v,d=1)=>(v==null?'—':(v>=0?'+':'−')+nf(Math.abs(v)*100,d)+'%');
+const T=(id,h)=>{const e=document.getElementById(id);if(e)e.innerHTML=h;};
+const som=(k,ym)=>INS.reduce((a,i)=>a+((i.meses[ym]||{})[k]||0),0);
+
+const tot={cons:0,ent:0,fat:0};
+M.forEach(m=>{tot.cons+=som('consRs',m.ym);tot.ent+=som('entRs',m.ym);tot.fat+=m.fat;});
+const estFim=som('estRs',M[M.length-1].ym), estIni=som('estRs',M[0].ym);
+
+T('titulo',`Consolidado financeiro — ${C.de} a ${C.ate}`);
+T('sub',`Os ${INS.length} insumos controlados, somados, em dinheiro. Quanto saiu do estoque, quanto foi `
+  +`comprado, quanto ficou parado, e — o que decide negociação — quanto do que mudou foi preço e quanto foi volume.`);
+T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b>Meses:</b> ${M.length}</span>`
+  +`<span><b>Insumos:</b> ${INS.length}</span><span><b>Casas:</b> ${C.casas.join(' · ')}</span>`);
+
+/* ---------------------------------------------------------------- 01 */
+(function(){
+  const ganho=AN.filter(a=>a.efPreco<0).reduce((s,a)=>s+a.efPreco,0);
+  const alta=AN.filter(a=>a.efPreco>0).reduce((s,a)=>s+a.efPreco,0);
+  T('lead01',`Em ${M.length} meses saíram do estoque <b>${money(tot.cons)}</b> em insumo, contra `
+    +`<b>${money(tot.ent)}</b> comprados. O estoque fechou agosto em <b>${money(estFim)}</b>, `
+    +`${estFim>estIni?'acima':'abaixo'} dos ${money(estIni)} em que abriu o período. `
+    +`O consumo representou <b>${nf(tot.cons/tot.fat*100,2)}%</b> do faturamento bruto.`);
+  T('kpis',[
+    {r:'Consumo do período',v:money(tot.cons),c:`${nf(tot.cons/tot.fat*100,2)}% do faturamento`},
+    {r:'Compras do período',v:money(tot.ent),c:tot.ent>tot.cons?`${money(tot.ent-tot.cons)} acima do consumo`:`${money(tot.cons-tot.ent)} abaixo do consumo`},
+    {r:'Estoque no fim',v:money(estFim),c:`${nf(estFim/(tot.cons/M.length),1)} meses de consumo`},
+    {r:'Efeito preço no período',v:money(ganho+alta),c:(ganho+alta)<0?'a favor do caixa':'contra o caixa'}
+  ].map(k=>`<div class="kpi"><div class="lab">${k.r}</div><div class="val num">${k.v}</div>
+    <div class="foot">${k.c}</div></div>`).join(''));
+  T('leitura',`<b>Leitura:</b> das ${AN.length} linhas comparáveis, <b>${AN.filter(a=>a.efPreco<0).length} `
+    +`melhoraram de preço</b> (economia de ${money(-ganho)}) e ${AN.filter(a=>a.efPreco>0).length} encareceram `
+    +`(${money(alta)} a mais). O saldo é de <b>${money(Math.abs(ganho+alta))} `
+    +`${(ganho+alta)<0?'a favor':'contra'}</b>. Isso isola o preço: o efeito do volume está separado na seção 3.`);
+})();
+
+/* ---------------------------------------------------------------- 02 */
+(function(){
+  const W=920,H=320,mL=72,mR=20,mT=20,mB=44,iw=W-mL-mR,ih=H-mT-mB;
+  const max=Math.max(...M.map(m=>Math.max(som('consRs',m.ym),som('entRs',m.ym),som('estRs',m.ym))))*1.15;
+  const bw=iw/M.length, g=bw*0.10, bar=(bw-g*2)/3;
+  const y=v=>mT+ih-(v/max)*ih;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let i=0;i<=4;i++){const gv=max*i/4,gy=y(gv);
+    s+=`<line x1="${mL}" x2="${W-mR}" y1="${gy}" y2="${gy}" style="stroke:var(--hair)"/>`
+      +`<text x="${mL-7}" y="${gy+3.5}" text-anchor="end" font-size="10" style="fill:var(--muted)">${money(gv)}</text>`;}
+  M.forEach((m,i)=>{
+    const x0=mL+i*bw+g;
+    [[som('entRs',m.ym),'var(--ocean)'],[som('consRs',m.ym),'var(--salmon)'],[som('estRs',m.ym),'var(--hair)']]
+      .forEach(([v,cor],j)=>{
+        s+=`<rect x="${x0+j*bar}" y="${y(v)}" width="${bar-1}" height="${mT+ih-y(v)}" rx="2.5" style="fill:${cor}"/>`;});
+    s+=`<text x="${mL+i*bw+bw/2}" y="${H-mB+19}" text-anchor="middle" font-size="11.5" font-weight="700" style="fill:var(--ink-2)">${m.rotulo}</text>`;});
+  document.getElementById('chFluxo').innerHTML=s+'</svg>';
+  T('legFluxo',`<span><i style="background:var(--ocean)"></i>Comprado</span>`
+    +`<span><i style="background:var(--salmon)"></i>Consumido</span>`
+    +`<span><i style="background:var(--hair)"></i>Estoque no fim do mês</span>`);
+
+  T('lead02',`Comprado, consumido e o que sobrou no fechamento. Quando a barra azul passa muito da salmão, `
+    +`o mês abasteceu além do que gastou — e a diferença aparece na barra cinza do mesmo mês.`);
+
+  let h='<thead><tr>'+['Mês','Comprado','Consumido','Compra − consumo','Estoque no fim','Meses de cobertura','% do faturamento']
+    .map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  M.forEach(m=>{
+    const cm=som('consRs',m.ym), em=som('entRs',m.ym), es=som('estRs',m.ym), d=em-cm;
+    h+=`<tr><td><b>${m.nome}</b></td><td class="num-cell">${money(em)}</td>`
+      +`<td class="num-cell">${money(cm)}</td>`
+      +`<td class="num-cell ${d>0?'pos':'neg'}">${d>0?'+':'−'}${money(Math.abs(d)).replace('R$ ','R$ ')}</td>`
+      +`<td class="num-cell">${money(es)}</td>`
+      +`<td class="num-cell">${nf(es/cm,2)}</td>`
+      +`<td class="num-cell">${nf(cm/m.fat*100,2)}%</td></tr>`;});
+  h+=`<tr class="total-row"><td>PERÍODO</td><td class="num-cell">${money(tot.ent)}</td>`
+    +`<td class="num-cell">${money(tot.cons)}</td>`
+    +`<td class="num-cell ${(tot.ent-tot.cons)>0?'pos':'neg'}">${(tot.ent-tot.cons)>0?'+':'−'}${money(Math.abs(tot.ent-tot.cons))}</td>`
+    +`<td class="num-cell">${money(estFim)}</td><td class="num-cell">${nf(estFim/(tot.cons/M.length),2)}</td>`
+    +`<td class="num-cell">${nf(tot.cons/tot.fat*100,2)}%</td></tr></tbody>`;
+  document.getElementById('tblMeses').innerHTML=h;
+  T('notaMeses',`<b>"Compra − consumo" é acerto de abastecimento</b>, não lucro nem perda: positivo significa `
+    +`que o mês comprou mais do que gastou e empurrou estoque para o mês seguinte; negativo, que consumiu o que `
+    +`já estava na geladeira. No período fechado os dois tendem a se igualar — a diferença acumulada de `
+    +`<b>${money(Math.abs(tot.ent-tot.cons))}</b> é a variação do estoque entre a abertura e o fechamento. `
+    +`"Meses de cobertura" é o estoque final dividido pelo consumo daquele mês.`);
+})();
+
+/* ---------------------------------------------------------------- 03 */
+(function(){
+  const dados=[...AN].sort((a,b)=>a.efPreco-b.efPreco);
+  const W=920,H=Math.max(200,40+dados.length*30),mL=180,mR=90,mT=20,mB=30,iw=W-mL-mR;
+  const lim=Math.max(...dados.map(a=>Math.max(Math.abs(a.efPreco),Math.abs(a.efVol))))*1.1||1;
+  const meio=mL+iw/2, esc=v=>(v/lim)*(iw/2);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
+  s+=`<line x1="${meio}" x2="${meio}" y1="${mT-6}" y2="${H-mB}" style="stroke:var(--ink-2)" stroke-width="1.2"/>`;
+  dados.forEach((a,i)=>{
+    const yc=mT+i*30+13;
+    const wp=esc(a.efPreco), wv=esc(a.efVol);
+    s+=`<text x="8" y="${yc+4}" font-size="11.5" font-weight="700" style="fill:var(--ink)">${a.nome.slice(0,26)}</text>`;
+    s+=`<rect x="${wp<0?meio+wp:meio}" y="${yc-9}" width="${Math.abs(wp)}" height="8" rx="2" style="fill:${a.efPreco<0?'var(--good)':'var(--bad)'}"/>`;
+    s+=`<rect x="${wv<0?meio+wv:meio}" y="${yc+2}" width="${Math.abs(wv)}" height="8" rx="2" style="fill:var(--ocean)" opacity="0.55"/>`;
+    s+=`<text class="halo" x="${W-mR+6}" y="${yc+4}" font-size="10.5" font-weight="700" style="fill:${a.efPreco<0?'var(--good)':'var(--bad)'}">${money(a.efPreco)}</text>`;});
+  s+=`<text x="${meio-8}" y="${H-10}" text-anchor="end" font-size="10" style="fill:var(--muted)">a favor do caixa</text>`;
+  s+=`<text x="${meio+8}" y="${H-10}" font-size="10" style="fill:var(--muted)">contra o caixa</text>`;
+  document.getElementById('chPV').innerHTML=s+'</svg>';
+
+  T('lead03',`Cada linha traz duas barras: em cima o <b>efeito preço</b> (verde quando o preço caiu, `
+    +`vermelho quando subiu) e embaixo, em azul, o <b>efeito volume</b>. O número à direita é o efeito preço `
+    +`em reais — é ele que uma negociação muda.`);
+
+  let h='<thead><tr>'+['Insumo','Preço '+M[0].rotulo,'Preço '+M[M.length-1].rotulo,'Variação do preço',
+    'Variação do consumo','Efeito preço','Efeito volume'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  dados.forEach(a=>{
+    h+=`<tr><td><b>${a.nome}</b></td>`
+      +`<td class="num-cell">${money2(a.precoDe)}</td><td class="num-cell">${money2(a.precoAte)}</td>`
+      +`<td class="num-cell ${a.varPreco>0?'pos':'neg'}">${pc(a.varPreco)}</td>`
+      +`<td class="num-cell ${a.varCons>0?'pos':'neg'}">${pc(a.varCons)}</td>`
+      +`<td class="num-cell ${a.efPreco>0?'pos':'neg'}"><b>${money(a.efPreco)}</b></td>`
+      +`<td class="num-cell">${money(a.efVol)}</td></tr>`;});
+  document.getElementById('tblPV').innerHTML=h+'</tbody>';
+  T('notaPV',`<b>Como ler as duas colunas de efeito:</b> o efeito preço é o consumo de ${M[M.length-1].nome} `
+    +`multiplicado pela diferença de preço; o efeito volume é o preço de ${M[0].nome} multiplicado pela diferença `
+    +`de consumo. Somados, explicam a variação do gasto. Separados, dizem o que fazer: <b>efeito preço se resolve `
+    +`negociando; efeito volume, na operação</b> — ou é venda que cresceu, e aí não há o que resolver.`);
+})();
+
+/* ---------------------------------------------------------------- 04 */
+(function(){
+  const bons=AN.filter(a=>a.ganhoApesarDoVolume).sort((a,b)=>a.efPreco-b.efPreco);
+  const soPreco=AN.filter(a=>a.ganhouNoPreco&&!a.ganhoApesarDoVolume).sort((a,b)=>a.efPreco-b.efPreco);
+  if(!bons.length&&!soPreco.length){document.getElementById('melhores').remove();return;}
+  const eco=bons.reduce((s,a)=>s+a.efPreco,0);
+  T('lead04',bons.length
+    ? `<b>${bons.length} insumo(s) ficaram mais baratos enquanto o consumo subia</b> — é o ganho mais limpo que `
+      +`existe, porque o volume maior costuma vir com preço maior, e aqui veio o contrário. Juntos economizaram `
+      +`<b>${money(-eco)}</b> só pelo preço.`
+    : `Nenhum insumo baixou de preço com o consumo subindo no período. Os ganhos de preço vieram acompanhados `
+      +`de queda de volume, o que é bem mais comum e menos conclusivo.`);
+  T('listaGanho',bons.map(a=>
+    `<div class="lin g"><span class="n">${a.nome}</span>
+      <span class="t">preço de ${money2(a.precoDe)} para ${money2(a.precoAte)} por ${a.un} (${pc(a.varPreco)})
+        <b>com o consumo subindo ${pc(a.varCons)}</b> — de ${nf0(a.consDe)} para ${nf0(a.consAte)} ${a.un}</span>
+      <span class="v" style="color:var(--good)">${money(a.efPreco)}</span></div>`).join('')
+    +(soPreco.length?`<div class="lin"><span class="t">Outros ${soPreco.length} baixaram de preço, mas com o consumo
+      também caindo: ${soPreco.map(a=>a.nome+' ('+money(a.efPreco)+')').join(', ')}. O ganho é real no caixa,
+      mas parte dele é volume menor, não negociação melhor.</span></div>`:''));
+  T('notaGanho',`<b>Por que separar este caso:</b> preço que cai junto com o volume pode ser só mix — comprou menos `
+    +`do item caro. Preço que cai <b>com o volume subindo</b> é ganho de negociação ou de escala, e é o que vale `
+    +`replicar nos demais itens e cobrar do fornecedor na próxima renovação.`);
+})();
+
+/* ---------------------------------------------------------------- 05 */
+(function(){
+  if(!SALT.length){T('lead05','Nenhum insumo subiu mais de 10% de um mês para o outro no período.');
+    T('listaAltas','');T('notaAltas','');return;}
+  const top=SALT.slice(0,12);
+  const soma=SALT.reduce((s,a)=>s+a.impacto,0);
+  T('lead05',`Saltos de <b>mais de 10% em um único mês</b>, ordenados pelo que custaram em reais. Foram `
+    +`<b>${SALT.length} ocorrências</b>, somando <b>${money(soma)}</b> a mais no mês em que aconteceram. `
+    +`É a lista para levar à renegociação — cada linha diz o item, o mês e o tamanho.`);
+  T('listaAltas',top.map(a=>{
+    const i=INS.find(x=>x.chave===a.chave);
+    return `<div class="lin p"><span class="n">${a.nome}</span>
+      <span class="t">de ${money2(a.precoDe)} para ${money2(a.precoAte)} por ${a.un}
+        entre ${a.de} e ${a.ate} — <b>${pc(a.var)}</b></span>
+      <span class="v" style="color:var(--bad)">${money(a.impacto)}</span></div>`;}).join('')
+    +(SALT.length>12?`<div class="lin"><span class="t">e mais ${SALT.length-12} altas de menor impacto.</span></div>`:''));
+  T('notaAltas',`<b>O valor à direita é o impacto no mês do salto</b>, não no ano: é o consumo daquele mês `
+    +`multiplicado pela diferença de preço. Um item de preço alto e pouco volume pode aparecer com salto grande `
+    +`e impacto pequeno — e é o impacto que decide onde vale gastar tempo negociando.`);
+})();
+
+/* ---------------------------------------------------------------- 06 */
+(function(){
+  const comPreco=INS.filter(i=>M.some(m=>(i.meses[m.ym]||{}).preco));
+  let h='<thead><tr><th>Insumo</th><th>Un</th>'+M.map(m=>`<th>${m.rotulo}</th>`).join('')
+    +'<th>Variação no período</th></tr></thead><tbody>';
+  comPreco.forEach(i=>{
+    const vs=M.map(m=>(i.meses[m.ym]||{}).preco);
+    const a=vs.find(v=>v), b=[...vs].reverse().find(v=>v);
+    const d=(a&&b)?b/a-1:null;
+    h+=`<tr><td><b>${i.nome}</b></td><td>${i.un}</td>`
+      +vs.map(v=>`<td class="num-cell">${v?money2(v):'—'}</td>`).join('')
+      +`<td class="num-cell ${d>0?'pos':'neg'}"><b>${d==null?'—':pc(d)}</b></td></tr>`;});
+  document.getElementById('tblPrecos').innerHTML=h+'</tbody>';
+  T('lead06',`O preço médio pago por unidade, mês a mês. É a média ponderada pelo consumo de cada casa — `
+    +`uma casa que consome o dobro pesa o dobro.`);
+  T('notaPrecos',`<b>Por que ponderado e não média simples:</b> as quatro casas pagam preços diferentes pelo mesmo `
+    +`item, e consomem volumes diferentes. A média simples daria o mesmo peso à casa que comprou 10 kg e à que `
+    +`comprou 200 kg, e o número não bateria com o dinheiro que saiu.`);
+})();
+
+/* ---------------------------------------------------------------- 07 */
+(function(){
+  const ult=M[M.length-1].ym;
+  const linhas=INS.map(i=>{
+    const r=i.meses[ult]||{};
+    if(!r.estRs) return null;
+    const cob=r.cons>0?r.est/r.cons:null;   // meses de consumo que o estoque cobre
+    return {nome:i.nome,un:i.un,est:r.est,estRs:r.estRs,cons:r.cons,cob:cob};
+  }).filter(Boolean).sort((a,b)=>(b.cob==null?99:b.cob)-(a.cob==null?99:a.cob));
+  const parado=linhas.filter(l=>l.cob==null||l.cob>1);
+  const totEst=linhas.reduce((s,l)=>s+l.estRs,0);
+  let h='<thead><tr>'+['Insumo','Estoque em '+M[M.length-1].nome,'Valor','Consumo do mês','Cobertura','Situação']
+    .map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  linhas.forEach(l=>{
+    const sit=l.cob==null?'sem consumo no mês':(l.cob>2?'muito acima do giro':(l.cob>1?'acima de um mês':'dentro do giro'));
+    const cor=l.cob==null||l.cob>2?'var(--bad)':(l.cob>1?'var(--warn)':'var(--good)');
+    h+=`<tr><td><b>${l.nome}</b></td><td class="num-cell">${nf(l.est,1)} ${l.un}</td>`
+      +`<td class="num-cell">${money(l.estRs)}</td><td class="num-cell">${nf(l.cons,1)} ${l.un}</td>`
+      +`<td class="num-cell">${l.cob==null?'—':nf(l.cob,2)+' mês'}</td>`
+      +`<td style="color:${cor};font-weight:600">${sit}</td></tr>`;});
+  document.getElementById('tblParado').innerHTML=h+'</tbody>';
+  T('lead07',`O estoque no fechamento de ${M[M.length-1].nome}, valorizado ao preço do mês, ordenado pelo que `
+    +`tem mais cobertura. São <b>${money(totEst)}</b> parados, dos quais <b>${money(parado.reduce((s,l)=>s+l.estRs,0))}</b> `
+    +`em itens que cobrem mais de um mês de consumo.`);
+  T('notaParado',`<b>Cobertura</b> é o estoque final dividido pelo consumo do próprio mês: 0,5 significa meio mês `
+    +`de giro, 3 significa três meses parados. Não existe número certo — item de entrega semanal pede cobertura `
+    +`baixa, item importado pede mais. O que o relatório aponta é <b>onde há capital parado acima do padrão do `
+    +`próprio item</b>, para a conversa acontecer com número na mão.`);
+})();
+
+/* ---------------------------------------------------------------- 08 */
+(function(){
+  T('metodoList',[
+    `<b>Consumo e compras</b> saem do uso e da entrada lançados por dia e casa, multiplicados pelo preço daquele mês.`,
+    `<b>Estoque</b> é o saldo do último dia de cada mês, valorizado ao preço do mesmo mês.`,
+    `<b>Preço médio</b> é ponderado pelo consumo de cada casa, não média simples entre elas.`,
+    `<b>Salmão</b> entra em quilos (peixes × 4,089 kg), porque é assim que é cotado.`,
+    `<b>Lula, polvo e atum</b> entram na forma in natura, que é a comprada: o processado é dividido pelo rendimento real do mês, e o estoque soma as duas formas físicas — a matéria-prima na geladeira e o processado no balcão.`,
+    `<b>Dias descartados</b> pelo piso de faturamento ficam fora, como nos demais relatórios.`,
+  ].map(x=>`<li>${x}</li>`).join(''));
+  T('notaMetodo',`<b>O que este relatório NÃO é:</b> não é fechamento de caixa. O consumo aqui é o que saiu do `
+    +`estoque valorizado a preço médio, não a soma das notas fiscais do mês — e as duas coisas só coincidem quando `
+    +`a compra e o consumo do mês são iguais, o que quase nunca acontece. Para conferir com o financeiro, a coluna `
+    +`que se aproxima é a de compras, e ainda assim sem impostos e sem frete.`);
+  T('rodape',`Fonte: <b>CDE Web</b> · <code>dados/lancamentos.json</code> e `
+    +`<code>relatorios-coef/custos_mensais.json</code>. Gerado por <code>gerar_financeiro.py</code> — `
+    +`uso interno da equipe de Suprimentos.`);
+})();
+
+document.querySelectorAll('section .sec-num').forEach((e,i)=>{e.textContent=String(i+1).padStart(2,'0');});
+</script>
+</body>
+</html>
