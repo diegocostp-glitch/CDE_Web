@@ -876,7 +876,9 @@ def analisar(inicio, fim):
                 situacao = "Sem dados"
             elif ultimo == 0 and m > 0:
                 situacao = "Consumo zerado"
-            elif abs(z30) >= 2 or (meta and abs(vs_meta or 0) >= 0.25):
+            # Critico so pela media contra a meta. O ultimo dia, por mais longe
+            # que fuja, fica em Atencao: e um dia so, e um dia so nao pede acao.
+            elif meta and abs(vs_meta or 0) >= 0.25:
                 situacao = "Crítico"
             elif abs(z30) >= 1 or abs(zdia) >= 2 or (meta and abs(vs_meta or 0) >= 0.10):
                 situacao = "Atenção"
