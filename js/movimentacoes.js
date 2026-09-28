@@ -243,7 +243,7 @@ function desenhar() {
         <td class="calc">${fmt(m.qtd, 3)} <span class="un">${esc(m.un)}</span></td>
         ${m.precificavel
           ? `<td><input class="preco" type="text" inputmode="decimal"
-               value="${m.preco === null ? "" : fmtPreco(m.preco)}"
+               value="${m.preco === null ? "" : fmtCentavos(m.preco)}"
                placeholder="—" title="Preço unitário pago. Em branco apaga o cadastro."></td>`
           : `<td class="calc nao-precifica"
                title="Desperdício não recebe preço: não se paga para jogar fora. O valor vem do último preço pago por este insumo até a data — da própria casa, ou da rede quando a casa ainda não o tinha comprado${
@@ -268,8 +268,10 @@ function desenhar() {
 }
 
 // O preço IMPORTADO sai de uma divisão (valor da nota ÷ quantidade) e costuma
-// ter mais de duas casas. Arredondar para centavo na tela faria o total exibido
-// discordar do total da nota, então mostra até quatro casas e só as que existem.
+// ter mais de duas casas. O cadastro guarda o valor inteiro — o total da linha
+// sai dele e bate com a nota —, mas a coluna mostra só o centavo: o campo só
+// grava quando é editado, então abrir a tela não arredonda o que foi importado.
+// O CSV leva até quatro casas, para quem confere contra a nota na planilha.
 const fmtPreco = (n) => (n === null || n === undefined || !isFinite(n)) ? ""
   : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
@@ -313,7 +315,7 @@ async function gravarPreco(campo) {
   } catch (e) {
     estado("Falha ao salvar", "erro");
     aviso("Não consegui salvar o preço: " + e.message, "mau");
-    campo.value = m.preco === null ? "" : fmtPreco(m.preco);
+    campo.value = m.preco === null ? "" : fmtCentavos(m.preco);
   } finally {
     campo.disabled = false;
   }
