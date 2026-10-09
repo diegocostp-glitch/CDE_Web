@@ -148,7 +148,9 @@ def coeficientes_por_mes():
                 continue
             meses.add(mes)
             for ik, campos in (lan.get("insumos") or {}).items():
-                if campos.get("uso") is None:
+                # uso negativo e divergencia de contagem (estoque subiu sem
+                # entrada): nao e eficiencia e nao pode baixar a meta
+                if campos.get("uso") is None or float(campos["uso"]) < 0:
                     continue
                 coefs[(ik, ck, mes)].append(float(campos["uso"]) / f_dia * 1000)
     # Nunca em silencio: dia descartado e dado que precisa de conserto na fonte.

@@ -106,11 +106,17 @@ def numero(v):
 
 
 def uso_do_titulo(titulo):
-    """O uso que a propria planilha calculou, escrito no titulo do bloco."""
-    m = re.search(r"USO\s*=\s*([\d.,]+)", str(titulo or ""))
+    """O uso que a propria planilha calculou, escrito no titulo do bloco.
+
+    O sinal entra: dia em que o estoque sobe sem entrada (recontagem, ajuste)
+    da uso negativo, e a Projecao de Compras o conta na media, como o
+    AVERAGEIFS da PCPOE. Sem o "-" na regra, "USO = -8,458" nao casava e o dia
+    ficava sem uso nenhum — e a media do CDE divergia da planilha.
+    """
+    m = re.search(r"USO\s*=\s*(-?\s*[\d.,]+)", str(titulo or ""))
     if not m:
         return None
-    return float(m.group(1).replace(".", "").replace(",", "."))
+    return float(m.group(1).replace(" ", "").replace(".", "").replace(",", "."))
 
 
 def data_da_aba(v):

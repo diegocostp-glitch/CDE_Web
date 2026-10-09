@@ -802,6 +802,11 @@ def series_do_periodo(inicio, fim):
                     uso = (numero(campos.get("final")) * -1 + numero(campos.get("entrada"))
                            - numero(campos.get("transferencia")))
                     continue                   # sem o uso pronto nao da para comparar
+                # Uso negativo (estoque subiu sem entrada: recontagem, ajuste) e
+                # divergencia de contagem, nao eficiencia: fica fora do painel,
+                # como nos relatorios. So a Projecao de Compras o conta na media.
+                if numero(uso) < 0:
+                    continue
                 serie.setdefault((ik, ck), []).append((iso, semana, numero(uso) / fat * 1000))
     return serie
 
@@ -935,6 +940,8 @@ def ocorrencias_do_dia(insumo, casa, n=7, semana=None):
         fat = numero(lan.get("faturamento"))
         campos = (lan.get("insumos") or {}).get(insumo)
         if fat <= 0 or not campos or campos.get("uso") is None:
+            continue
+        if numero(campos["uso"]) < 0:          # divergencia de contagem, nao consumo
             continue
         # nome proprio: usar "semana" aqui sobrescreveria o parametro da funcao
         dia_da_semana = DIAS_SEMANA[datetime.strptime(iso, "%Y-%m-%d").weekday()]
