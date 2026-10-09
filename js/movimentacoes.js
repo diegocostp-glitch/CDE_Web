@@ -244,7 +244,7 @@ function desenhar() {
         ${m.precificavel
           ? `<td><input class="preco" type="text" inputmode="decimal"
                value="${m.preco === null ? "" : fmtCentavos(m.preco)}"
-               placeholder="—" title="Preço unitário pago. Em branco apaga o cadastro."></td>`
+               placeholder="—" title="${tituloPreco(m.preco)}"></td>`
           : `<td class="calc nao-precifica"
                title="Desperdício não recebe preço: não se paga para jogar fora. O valor vem do último preço pago por este insumo até a data — da própria casa, ou da rede quando a casa ainda não o tinha comprado${
                  m.custo_un === null ? ". Aqui não há compra precificada dele em casa nenhuma antes desta data, então não há custo para aplicar." : "."}"
@@ -259,7 +259,14 @@ function desenhar() {
   // Grava ao sair do campo (e no Enter). Salvar a cada tecla mandaria um POST
   // por dígito; salvar só num botão "Salvar tudo" faria perder o cadastro de
   // quem troca de filtro no meio — o preço é digitado linha a linha.
-  $("#tabela").addEventListener("change", (e) => {
+  // Com o foco, o campo mostra o preço inteiro, para ajustar sem relançar;
+  // depois do Tab ou Enter, só o centavo. O arredondamento é só da tela.
+  $("#tabela").addEventListener("focusin", (e) => {
+    if (!e.target.classList.contains("preco")) return;
+    const m = linhaDo(e.target);
+    if (m) e.target.value = m.preco === null ? "" : fmtCheio(m.preco);
+  });
+  $("#tabela").addEventListener("focusout", (e) => {
     if (e.target.classList.contains("preco")) gravarPreco(e.target);
   });
   $("#tabela").addEventListener("keydown", (e) => {
@@ -267,32 +274,48 @@ function desenhar() {
   });
 }
 
-// O preço IMPORTADO sai de uma divisão (valor da nota ÷ quantidade) e costuma
-// ter mais de duas casas. O cadastro guarda o valor inteiro — o total da linha
-// sai dele e bate com a nota —, mas a coluna mostra só o centavo: o campo só
-// grava quando é editado, então abrir a tela não arredonda o que foi importado.
-// O CSV leva até quatro casas, para quem confere contra a nota na planilha.
+// O preço costuma ter mais de duas casas (o importado sai de valor da nota ÷
+// quantidade, e o digitado é copiado da nota). O cadastro guarda o valor
+// inteiro — o total da linha sai dele e bate com a nota —, e o arredondamento
+// nunca vai para o cadastro: depois do Tab ou Enter o campo mostra o centavo,
+// e com o foco volta a mostrar o valor inteiro, para ajustar sem relançar. Só
+// grava se o número mudou. O CSV leva até quatro casas.
 const fmtPreco = (n) => (n === null || n === undefined || !isFinite(n)) ? ""
   : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
-// O preço DIGITADO é dinheiro em real, e dinheiro em real acaba no centavo.
-// Digitar segue livre (\"102\", \"102,5\", \"R$ 102,567\" — nada atrapalha a
-// digitação); ao sair do campo com Enter ou Tab, o valor assenta em duas casas,
-// e é esse valor arredondado que vai para o cadastro, para o total da linha nao
-// ser calculado sobre um número diferente do que está à vista.
-const centavos = (n) => Math.round(n * 100) / 100;
+// Digitar segue livre ("102", "102,5", "R$ 102,5678"); o valor vai para o
+// cadastro com as casas digitadas (até dez, o mesmo limite do servidor).
+const dezCasas = (n) => Math.round(n * 1e10) / 1e10;
 const fmtCentavos = (n) => (n === null || n === undefined || !isFinite(n)) ? ""
   : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtCheio = (n) => (n === null || n === undefined || !isFinite(n)) ? ""
+  : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 10,
+                                useGrouping: false });
+const tituloPreco = (p) => "Preço unitário pago. Em branco apaga o cadastro."
+  + (p === null || p === undefined ? "" : " Valor gravado: R$ " + fmtCheio(p) + ".");
+const linhaDo = (campo) => DADOS.movimentos[Number(campo.closest("tr").dataset.i)];
 
 async function gravarPreco(campo) {
   const tr = campo.closest("tr");
-  const m = DADOS.movimentos[Number(tr.dataset.i)];
+  const m = linhaDo(campo);
   if (!m) return;
   const bruto = campo.value.trim();
-  const valor = bruto === "" ? null : centavos(num(bruto));
+  const valor = bruto === "" ? null : dezCasas(num(bruto));
+  // Sair do campo sem mudar o número não grava nada: regravar o mesmo preço só
+  // marcaria a linha como editada.
+  if (valor === m.preco || (valor !== null && m.preco !== null
+                            && Math.abs(valor - m.preco) < 1e-9)) {
+    campo.value = valor === null ? "" : fmtCentavos(m.preco);
+    return;
+  }
   // Assenta o campo na hora, sem esperar a resposta: quem digita em sequência
   // com o Tab já está duas linhas abaixo quando o POST volta.
   campo.value = valor === null ? "" : fmtCentavos(valor);
+  // O total também sai na hora: esperar o servidor regravar o lancamentos.json
+  // (3 MB, na pasta do OneDrive, que às vezes segura o arquivo e obriga a
+  // tentar de novo) deixava a coluna parada. A resposta confirma o valor.
+  tr.querySelector(".total").textContent =
+    valor === null ? "—" : "R$ " + fmt(Math.round(m.qtd * valor * 100) / 100);
   campo.disabled = true;
   estado("Salvando preço…");
   try {
@@ -307,6 +330,7 @@ async function gravarPreco(campo) {
     m.preco = d.preco;
     m.valor_total = d.valor_total;
     campo.value = d.preco === null ? "" : fmtCentavos(d.preco);
+    campo.title = tituloPreco(d.preco);
     tr.classList.toggle("sem-preco", d.preco === null);
     tr.querySelector(".total").textContent =
       d.valor_total === null ? "—" : "R$ " + fmt(d.valor_total);
@@ -316,6 +340,8 @@ async function gravarPreco(campo) {
     estado("Falha ao salvar", "erro");
     aviso("Não consegui salvar o preço: " + e.message, "mau");
     campo.value = m.preco === null ? "" : fmtCentavos(m.preco);
+    tr.querySelector(".total").textContent =
+      m.valor_total === null ? "—" : "R$ " + fmt(m.valor_total);
   } finally {
     campo.disabled = false;
   }

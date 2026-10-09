@@ -2772,16 +2772,11 @@ def _gravar_preco_sem_trava(corpo):
     preco = numero(bruto)
     if not apagar and preco < 0:
         raise ValueError("preco nao pode ser negativo")
-    # Preco DIGITADO e dinheiro em real, e dinheiro em real acaba no centavo.
-    # A tela deixa digitar livre e assenta o campo em duas casas quando ele
-    # perde o foco (Enter ou Tab), mandando o valor ja arredondado; a regra
-    # tambem mora aqui para o total da linha nunca sair de uma casa que ninguem
-    # ve na coluna do preco.
-    #
-    # O preco IMPORTADO nao passa por aqui: importar_precos_planilha.py escreve
-    # direto no arquivo e guarda seis casas, porque la o valor sai de nota
-    # dividida por quantidade e arredondar afastaria o total do total da nota.
-    preco = round(preco, 2)
+    # O preco DIGITADO guarda as casas que foram digitadas (ate dez; o
+    # importado pelo importar_precos_planilha.py guarda seis). O arredondamento para o
+    # centavo e so da coluna na tela: preco de nota costuma ter mais de duas
+    # casas, e cortar aqui afastaria o valor total da linha do total da nota.
+    preco = round(preco, 10)
 
     dados = carregar()
     campos = (((dados.get(data_iso) or {}).get(casa) or {}).get("insumos") or {}).get(insumo)
