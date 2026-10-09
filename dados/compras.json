@@ -66,7 +66,7 @@
     {
       "chave": "cream_cheese",
       "nome": "Cream Cheese",
-      "un": "Kg"
+      "un": "Bng"
     },
     {
       "chave": "arroz",
@@ -84,7 +84,10 @@
     "Ganesh",
     "Iglu",
     "Ecil",
-    "Yakumi"
+    "Yakumi",
+    "Amasa",
+    "Olinda",
+    "Krolow"
   ],
   "responsaveis": [
     "EDSON MAUÉS",
