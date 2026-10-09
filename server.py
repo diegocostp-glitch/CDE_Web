@@ -502,6 +502,15 @@ def montar_dia(data_iso):
     ontem = dados.get(anterior, {})
     hoje = dados.get(data_iso, {})
 
+    # Consumo dos dias anteriores, para a tela acender a contagem final que
+    # deixou um uso fora da realidade — o final zerado onde deviam sobrar 10 kg
+    # (veja ALERTA_VEZES no app.js). A media e a mesma da Projecao de Compras e
+    # da o final esperado; o MAIOR uso de 30 dias e a regua do alerta, porque
+    # muito insumo sai em lote (saco de kani, leva de lula para processar) e um
+    # lote normal passa longe de 3x a media sem ser erro nenhum.
+    _est, usos = estoque_e_media(data_iso, ler_compras().get("janela_media_dias", 14))
+    _est, usos30 = estoque_e_media(data_iso, 30)
+
     saida = {"data": data_iso, "casas": {}}
     for casa in CASAS:
         ck = casa["chave"]
@@ -593,6 +602,10 @@ def montar_dia(data_iso):
                 # -0,0005 e nao zero: soma de decimais em binario deixa
                 # residuo negativo onde a conta fecha (20,945 + 9,995 - 30,940).
                 "alerta": "negativo" if (tem_uso and uso < -0.0005) else None,
+                "media_diaria": (round(sum(usos[(ik, ck)]) / len(usos[(ik, ck)]), 3)
+                                 if usos.get((ik, ck)) else None),
+                "maior_uso": (round(max(usos30[(ik, ck)]), 3)
+                              if usos30.get((ik, ck)) else None),
             })
         saida["casas"][ck] = {
             "nome": casa["nome"],

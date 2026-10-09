@@ -59,6 +59,17 @@ const COLS_DERIVADAS = ["entrada", "transferencia", "desperdicio", "final"];
 const QUASE_ZERO = 0.0005;
 const zerado = (n) => Math.abs(n) < QUASE_ZERO;
 
+// Contagem final suspeita: o uso do dia passou de ALERTA_VEZES o MAIOR uso da
+// casa nos últimos 30 dias, e por pelo menos ALERTA_MINIMO unidades. É o erro de
+// preenchimento típico — final zerado ou com um dígito trocado onde deviam sobrar
+// 10 kg — que vira consumo e infla a média: foi assim que 57 pacotes de arroz
+// entraram num dia só na DLCN, onde o maior dia tinha sido 7.
+// A régua é o maior uso, e não a média, porque muito insumo sai em lote (saco de
+// kani, leva de lula para processar): contra 3× a média acendia em 7% das
+// contagens de jul–out; contra 1,5× o maior uso, em 0,3%.
+const ALERTA_VEZES = 1.5;
+const ALERTA_MINIMO = 1;
+
 // Quilos de filé limpo -> peixes inteiros equivalentes. Os fatores vêm do
 // servidor (que os lê de dados/compras.json) para não existir uma terceira
 // versão do mesmo rendimento entre tela, servidor e Conversor de Salmão.
@@ -406,10 +417,27 @@ function recalcular() {
     const tdCoef = tr.querySelector(".coef");
     if (!temFinal) { tdUso.textContent = "—"; tdCoef.textContent = "—"; tdUso.className = "calc uso"; return; }
     const negativo = uso < -QUASE_ZERO;
-    tdUso.className = "calc uso" + (negativo ? " neg" : "");
+    const media = ins.media_diaria || 0;
+    const maior = ins.maior_uso;
+    const suspeito = !negativo && maior > 0 && uso > ALERTA_VEZES * maior
+      && uso - maior >= ALERTA_MINIMO;
+    const esperado = Math.max(0, uso + num(val("final")) - media);
+    const elFinal = tr.querySelector('[data-campo="final"]');
+    elFinal.classList.toggle("suspeito", suspeito);
+    // a dica de origem (planilha/editado) volta quando o alerta apaga
+    if (elFinal.dataset.dica === undefined) elFinal.dataset.dica = elFinal.title;
+    elFinal.title = suspeito
+      ? `Possível erro de contagem: o uso do dia (${fmt(uso, 3)}) passa do maior dos últimos `
+        + `30 dias (${fmt(maior, 3)}). Com o consumo médio de ${fmt(media, 3)} ${ins.un}/dia, `
+        + `o final esperado seria perto de ${fmt(esperado, 3)}. Confira a contagem.`
+      : elFinal.dataset.dica;
+    tdUso.className = "calc uso" + (negativo || suspeito ? " neg" : "");
     // zerado() também na exibição: sem isso a coluna mostrava "-0,000".
     tdUso.innerHTML = fmt(zerado(uso) ? 0 : uso, 3) + (negativo
-      ? '<span class="msg-neg">contagem maior que o disponível</span>' : "");
+      ? '<span class="msg-neg">contagem maior que o disponível</span>'
+      : suspeito
+        ? `<span class="msg-neg">acima do maior dia (${fmt(maior, 3)}) — final esperado ≈ ${fmt(esperado, 3)}</span>`
+        : "");
     tdCoef.textContent = fat > 0 ? fmt((uso / fat) * 1000, 3) : "—";
   });
   recalcularProcessamento();

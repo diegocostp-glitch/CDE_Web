@@ -394,6 +394,10 @@ td input { width:94px; text-align:right; background:var(--campo); border:1px sol
   border-radius:8px; padding:7px 9px; color:var(--tinta) }
 td input:focus { outline:2px solid var(--laranja); outline-offset:-1px; background:var(--card) }
 .msg-neg { color:var(--ruim); font-size:10.5px; display:block }
+/* Contagem final suspeita (uso muito acima da média): a célula acende para ser
+   conferida antes de salvar — possível final zerado ou dígito trocado. */
+input.suspeito { border-color:var(--ruim) !important; background:var(--ruim-bg) !important;
+  color:var(--ruim); font-weight:600 }
 /* Valor de perda nao e valor de compra: fica em tom apagado para ninguem
    somar as duas colunas de olho. --tinta-2 tem valor nos tres temas. */
 .tabela-extrato td.total.perda { color:var(--tinta-2) }
