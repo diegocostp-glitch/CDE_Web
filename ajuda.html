@@ -6,12 +6,11 @@
 <title>CDE — Manual</title>
 <link rel="icon" type="image/png" href="centurion_aba.png">
 <link rel="stylesheet" href="css/style.css">
-<script src="js/navegacao.js"></script>
 </head>
 <body class="light">
-<div class="app-layout">
-
-<main class="main-content">
+<!-- O texto da Ajuda continua em HTML puro, aqui, para ser editado sem mexer em
+     JavaScript; js/app/telas/ajuda.js só põe o menu e o layout em volta. -->
+<template id="conteudo-ajuda">
   <div class="screen-header">
     <div>
       <h1>Manual do CDE Web</h1>
@@ -689,9 +688,12 @@ em quando para ter backup.</p>
 
   </div>
 </div>
-</main>
-</div>
-<script>montarSidebar("ajuda")</script>
+</template>
+<div id="raiz"></div>
+<script src="js/vendor/react.production.min.js"></script>
+<script src="js/vendor/react-dom.production.min.js"></script>
+<script src="js/vendor/htm.umd.js"></script>
+<script type="module" src="js/app/telas/ajuda.js"></script>
 <script src="js/acoes.js"></script>
 </body>
 </html>
