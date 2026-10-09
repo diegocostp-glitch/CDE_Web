@@ -545,9 +545,18 @@ async function sincronizar(periodo) {
     const nota = mantidos
       ? ` ${mantidos} dia(s) já corrigidos aqui na tela continuam como estão.`
       : "";
+    // Insumo sem estoque final na planilha não entra (o uso sairia com o
+    // estoque inteiro). Avisa quais, para quem sincronizou no meio do dia.
+    const pend = d.pendentes || [];
+    const notaPend = pend.length
+      ? ` ${pend.length} item(ns) ainda sem estoque final na planilha ficaram de fora`
+        + ` (${pend.slice(0, 4).join(", ")}${pend.length > 4 ? "…" : ""}) — entram`
+        + " quando o final for preenchido e você sincronizar de novo."
+      : "";
     aviso((n || a
       ? `${n} dia(s) novo(s) e ${a} atualizado(s)${onde} — de ${lidas}.`
-      : `Nada novo${onde} em ${lidas} — já estava tudo aqui.`) + nota, "bom");
+      : `Nada novo${onde} em ${lidas} — já estava tudo aqui.`) + nota + notaPend,
+      pend.length ? "mau" : "bom");
     estado("Sincronizado", "ok");
     await carregarDia($("#data").value);
   } catch (e) {

@@ -429,6 +429,7 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
         arquivos = sorted(ORIGEM.glob("*/*/*.xlsm"))
     meses = {mes_filtro} if isinstance(mes_filtro, str) else set(mes_filtro or ())
     dados, relato, divergencias, bloqueados, datas_erradas = {}, [], [], [], []
+    pendentes = []                            # (casa, dia, insumo) sem estoque final
 
     for arq in [Path(a) for a in arquivos]:
         casa = arq.parts[-3]
@@ -450,7 +451,21 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
             iso, fat, insumos, confs, procs = ler_aba_dia(wb[aba], iso)
             if not iso or not fat:            # dia sem faturamento nao vale leitura
                 continue
-            eq = equivalente(insumos)
+            # Bloco sem ESTOQUE FINAL e dia ainda sendo preenchido: a planilha
+            # calcula o uso com o final vazio valendo zero, e o estoque inteiro
+            # vira consumo. Foi o que pos 57 pacotes de arroz no 07/10 da DLCN
+            # e levou a media da Projecao de 3,7 para 7,5. O insumo fica de fora
+            # desse dia — o que ja esta gravado nao e tocado — e entra na
+            # proxima sincronizacao, com o final preenchido.
+            sem_final = [k for k, v in insumos.items() if v and v.get("final") is None]
+            for k in sem_final:
+                del insumos[k]
+                pendentes.append((casa, iso, k))
+            # O equivalente soma as faixas: com uma delas de fora, ele sairia
+            # parcial e pareceria uma queda de estoque. As faixas completas
+            # entram; o equivalente espera a que falta.
+            faixa_pendente = any(k in FATOR_LIBRA for k in sem_final)
+            eq = None if faixa_pendente else equivalente(insumos)
             if eq:
                 insumos["salmao_equivalente"] = eq
             insumos = {k: v for k, v in insumos.items() if v}
@@ -472,7 +487,7 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
         with open(DESTINO, encoding="utf-8") as f:
             gravados = json.load(f)
     somar_file(dados, gravados)
-    return dados, relato, divergencias, bloqueados, datas_erradas
+    return dados, relato, divergencias, bloqueados, datas_erradas, pendentes
 
 
 def comparar_com_atual(novos):
@@ -545,7 +560,8 @@ def main():
         casa = sys.argv[sys.argv.index("--casa") + 1]
     if "--mes" in sys.argv:
         mes = sys.argv[sys.argv.index("--mes") + 1]
-    novos, relato, divergencias, bloqueados, datas_erradas = importar(casa_filtro=casa, mes_filtro=mes)
+    novos, relato, divergencias, bloqueados, datas_erradas, pendentes = importar(
+        casa_filtro=casa, mes_filtro=mes)
 
     print("PLANILHAS LIDAS")
     for c, m, dias in relato:
@@ -553,6 +569,11 @@ def main():
     if bloqueados:
         print("  bloqueadas (abertas no Excel): " + ", ".join(bloqueados))
     print("\n%d dia(s) montado(s)" % len(novos))
+    if pendentes:
+        print("\nSEM ESTOQUE FINAL (dia ainda sendo preenchido, ficou de fora): %d item(ns)"
+              % len(pendentes))
+        for c, iso, ik in pendentes[:15]:
+            print("     %-5s %s %s" % (c, iso, ik))
     if datas_erradas:
         print("\nDATA ESCRITA NA ABA DIVERGE DA PASTA (a pasta prevaleceu): %d aba(s)"
               % len(datas_erradas))

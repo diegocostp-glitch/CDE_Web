@@ -986,8 +986,8 @@ def sincronizar(mes=None, inicio=None, fim=None):
     10/09 fora do sistema. A leitura ja sabe passar por cima do lock do Excel
     e do OneDrive, entao a restricao so atrapalhava.
 
-    Por padrao sincroniza o mes do ultimo lancamento; sao quatro arquivos, nao
-    os trinta e seis do historico inteiro.
+    Por padrao sincroniza do mes do ultimo lancamento ate o mes de hoje; sao
+    quatro ou oito arquivos, nao os trinta e seis do historico inteiro.
 
     Com inicio e fim, reimporta o PERIODO escolhido — os dias que ja estao aqui
     inclusive, e nao so os que faltam. Serve para o caso de a planilha ter sido
@@ -1010,10 +1010,17 @@ def sincronizar(mes=None, inicio=None, fim=None):
         if fim < inicio:
             inicio, fim = fim, inicio
         alvo, filtro = None, meses_do_periodo(inicio, fim)
+    elif mes:
+        alvo, filtro = mes, mes[5:7]
     else:
-        alvo = mes or (max(antes)[:7] if antes else datetime.now().strftime("%Y-%m"))
-        filtro = alvo[5:7]
-    novos, relato, _div, bloqueados, _datas = imp.importar(mes_filtro=filtro)
+        # Do mes do ultimo lancamento ate o mes de hoje. So o mes do ultimo
+        # lancamento travava a virada: com 30/09 gravado, o botao relia
+        # setembro para sempre e a pasta "10 - Outubro" nunca era aberta.
+        hoje = datetime.now().strftime("%Y-%m-%d")
+        ultimo = max(antes) if antes else hoje
+        alvo = hoje[:7]
+        filtro = meses_do_periodo(min(ultimo, hoje), max(ultimo, hoje))
+    novos, relato, _div, bloqueados, _datas, pendentes = imp.importar(mes_filtro=filtro)
     if inicio:
         # A leitura e por arquivo (o mes inteiro); o recorte por DIA e aqui, para
         # um pedido de tres dias nao reescrever o mes todo.
@@ -1055,6 +1062,11 @@ def sincronizar(mes=None, inicio=None, fim=None):
             "periodo": [inicio, fim] if inicio else None,
             "planilhas": ["%s / %s" % (casa, pasta) for casa, pasta, _d in relato],
             "bloqueadas": bloqueados,
+            # Insumos do dia ainda sem estoque final na planilha: ficaram de
+            # fora e entram na proxima sincronizacao.
+            "pendentes": ["%s %s %s" % (casa, "/".join(iso.split("-")[::-1][:2]), ik)
+                          for casa, iso, ik in pendentes
+                          if not inicio or inicio <= iso <= fim][:40],
             "total_dias": len(depois), "ultimo_dia": max(depois) if depois else None}
 
 
