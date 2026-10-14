@@ -265,13 +265,14 @@ body.dark .ficha.ativa { background:#F5860F14 }
   font-variant-numeric:tabular-nums }
 
 /* ---------- extrato de movimentações, com cadastro de preço na linha ---------- */
-.tabela-extrato input.preco { width:100%; max-width:104px; text-align:right;
+.tabela-extrato input.preco { width:100%; max-width:120px; text-align:right;
   font-variant-numeric:tabular-nums }
-.tabela-extrato td.total { font-variant-numeric:tabular-nums; white-space:nowrap }
+.tabela-extrato td.total,
+.tabela-extrato td.unitario { font-variant-numeric:tabular-nums; white-space:nowrap }
 /* Sem preço não é erro — é trabalho pendente. Fundo de aviso bem fraco: a lista
    inteira começa assim, e vermelho em tudo faria a tela parecer quebrada. */
 .tabela-extrato tr.sem-preco input.preco { border-style:dashed }
-.tabela-extrato tr.sem-preco td.total { color:var(--tinta-3) }
+.tabela-extrato tr.sem-preco td.unitario { color:var(--tinta-3) }
 /* desperdício: a coluna de preço existe na tabela, mas não para esta linha */
 .tabela-extrato td.nao-precifica { color:var(--tinta-3) }
 

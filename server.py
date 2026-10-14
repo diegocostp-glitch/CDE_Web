@@ -2805,15 +2805,16 @@ def _gravar_preco_sem_trava(corpo):
     if tipo not in TIPOS_COM_PRECO:
         raise ValueError("preco so existe para entrada e transferência — "
                          "%s nao e compra" % TIPOS_ESTOQUE.get(tipo, tipo))
+    # A tela de Movimentacoes manda o VALOR TOTAL da nota, que e o numero que
+    # a pessoa tem na mao; o preco unitario sai dele dividido pela quantidade
+    # gravada. O cadastro continua guardando o preco unitario, como antes.
+    por_total = "total" in corpo
+    if por_total:
+        bruto = corpo.get("total")
     apagar = bruto in (None, "")
     preco = numero(bruto)
     if not apagar and preco < 0:
-        raise ValueError("preco nao pode ser negativo")
-    # O preco DIGITADO guarda as casas que foram digitadas (ate dez; o
-    # importado pelo importar_precos_planilha.py guarda seis). O arredondamento para o
-    # centavo e so da coluna na tela: preco de nota costuma ter mais de duas
-    # casas, e cortar aqui afastaria o valor total da linha do total da nota.
-    preco = round(preco, 10)
+        raise ValueError("%s nao pode ser negativo" % ("valor total" if por_total else "preco"))
 
     dados = carregar()
     campos = (((dados.get(data_iso) or {}).get(casa) or {}).get("insumos") or {}).get(insumo)
@@ -2823,6 +2824,13 @@ def _gravar_preco_sem_trava(corpo):
     if abs(numero(campos.get(tipo))) <= 0.0005:
         raise ValueError("nao ha %s desse insumo em %s para precificar"
                          % (TIPOS_ESTOQUE[tipo], data_iso))
+    if por_total and not apagar:
+        preco = preco / numero(campos.get(tipo))
+    # O preco guarda ate dez casas (o importado pelo importar_precos_planilha.py
+    # guarda seis). O arredondamento para o centavo e so da coluna na tela:
+    # preco de nota costuma ter mais de duas casas, e cortar aqui afastaria o
+    # valor total da linha do total da nota.
+    preco = round(preco, 10)
 
     precos = campos.setdefault("precos", {})
     if apagar:
