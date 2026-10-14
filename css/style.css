@@ -1204,3 +1204,6 @@ table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
 .nf-ajuste.alerta { background:var(--aviso-bg); color:var(--aviso) }
 /* quantidade corrigível no extrato: mesmo campo do valor, mais estreito */
 .tabela-extrato input.qtd { width:84px; text-align:right; font-variant-numeric:tabular-nums }
+/* kg da nota do salmão, no extrato */
+.tabela-extrato input.kg { width:84px; text-align:right; font-variant-numeric:tabular-nums }
+.tabela-extrato td.preco-kg { font-variant-numeric:tabular-nums; white-space:nowrap }

@@ -547,6 +547,9 @@ def gravar(novos):
                 # as notas fiscais que detalham esse preco, idem
                 if isinstance(antigo, dict) and antigo.get("notas"):
                     marcado["notas"] = antigo["notas"]
+                # e os kg da nota do salmao, que a planilha tambem nao tem
+                if isinstance(antigo, dict) and antigo.get("kg"):
+                    marcado["kg"] = antigo["kg"]
                 insumos[ik] = marcado
                 tocados += 1
             if lan.get("processamento"):

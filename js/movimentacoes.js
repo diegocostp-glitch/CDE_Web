@@ -239,9 +239,13 @@ function desenharTabela() {
     $("#tabela").innerHTML = '<p class="vazio">Nenhum movimento com esses filtros.</p>';
     return;
   }
+  // As colunas de kg só aparecem quando a lista tem entrada de salmão por
+  // libragem: nos outros insumos elas seriam duas colunas sempre vazias.
+  const temKg = DADOS.movimentos.some((m) => m.pesavel);
   $("#tabela").innerHTML = `<table class="tabela-extrato">
     <thead><tr><th>Data</th><th>Casa</th><th>Insumo</th><th>Movimento</th>
       <th>Quantidade</th><th>Preço unit. (R$)</th><th>Valor total</th>
+      ${temKg ? "<th>Quantidade Kg NF</th><th>Preço Unit. Kg</th>" : ""}
       <th>Origem do dado</th></tr></thead>
     <tbody>${DADOS.movimentos.map((m, i) => `
       <tr data-i="${i}"${m.precificavel && m.preco === null ? ' class="sem-preco"' : ""}>
@@ -269,6 +273,14 @@ function desenharTabela() {
                  m.custo_un === null ? ". Aqui não há compra precificada dele em casa nenhuma antes desta data, então não há custo para aplicar." : "."}"
              >${m.custo_un === null ? "—" : "R$ " + fmt(m.custo_un)}</td>
              <td class="calc total perda">${m.valor_perdido === null ? "—" : "R$ " + fmt(m.valor_perdido)}</td>`}
+        ${!temKg ? "" : !m.pesavel ? "<td></td><td></td>"
+          : `<td class="calc">${m.notas.length
+               ? `<span title="Soma dos kg das notas fiscais — altere pelo botão de notas">${
+                   m.kg ? fmtQ(m.kg) : "—"}</span>`
+               : `<input class="kg" type="text" inputmode="decimal" placeholder="—"
+                    value="${m.kg ? fmtQ(m.kg) : ""}"
+                    title="Kg faturados na nota fiscal. Em branco apaga.">`} <span class="un">kg</span></td>
+             <td class="calc preco-kg" title="Calculado: valor total ÷ kg da nota">${precoKgTexto(m)}</td>`}
         <td class="fonte origem" title="${TITULO_ORIGEM[m.origem] || ""}">${esc(m.origem)}</td>
       </tr>`).join("")}</tbody></table>`;
 
@@ -294,10 +306,12 @@ function desenharTabela() {
   $("#tabela").addEventListener("focusout", (e) => {
     if (e.target.classList.contains("preco") && !e.target.readOnly) gravarTotal(e.target);
     if (e.target.classList.contains("qtd")) gravarQtd(e.target);
+    if (e.target.classList.contains("kg")) gravarKg(e.target);
   });
   $("#tabela").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && (e.target.classList.contains("preco")
-                              || e.target.classList.contains("qtd"))) e.target.blur();
+                              || e.target.classList.contains("qtd")
+                              || e.target.classList.contains("kg"))) e.target.blur();
   });
 }
 
@@ -363,6 +377,7 @@ async function gravarTotal(campo) {
     m.valor_total = d.valor_total;
     campo.value = d.valor_total === null ? "" : fmtCentavos(d.valor_total);
     mostrarUnitario(tr, d.preco);
+    mostrarPrecoKg(tr, m);
     tr.classList.toggle("sem-preco", d.preco === null);
     estado("Valor salvo", "ok");
     atualizarPlacar();
@@ -372,6 +387,54 @@ async function gravarTotal(campo) {
     campo.value = m.valor_total === null ? "" : fmtCentavos(m.valor_total);
     mostrarUnitario(tr, m.preco);
   } finally {
+    campo.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------- kg da nota
+// O salmão é contado em peças por faixa e faturado em kg. A entrada de cada
+// libragem guarda os kg da nota (para o relatório mensal), e o preço por kg é
+// calculado — valor total ÷ kg —, como o unitário: nunca desmente o total.
+const precoKgTexto = (m) => m.kg > 0 && m.valor_total !== null
+  ? "R$ " + fmtPreco(m.valor_total / m.kg) : "—";
+
+function mostrarPrecoKg(tr, m) {
+  const td = tr.querySelector(".preco-kg");
+  if (td) td.textContent = precoKgTexto(m);
+}
+
+async function gravarKg(campo) {
+  const tr = campo.closest("tr");
+  const m = linhaDo(campo);
+  if (!m) return;
+  const bruto = campo.value.trim();
+  const kg = bruto === "" ? null : Math.round(num(bruto) * 1000) / 1000;
+  if (kg === (m.kg || null) || (kg !== null && m.kg && Math.abs(kg - m.kg) < 0.0005)) {
+    campo.value = m.kg ? fmtQ(m.kg) : "";
+    return;
+  }
+  if (kg !== null && kg <= 0) {
+    aviso("Informe kg maior que zero — em branco apaga", "mau");
+    campo.value = m.kg ? fmtQ(m.kg) : "";
+    return;
+  }
+  campo.disabled = true;
+  estado("Salvando kg…");
+  try {
+    const r = await fetch("/api/kg", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: m.data, casa: m.casa, insumo: m.insumo_chave,
+                             tipo: m.tipo, kg }) });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.erro || "erro no servidor");
+    m.kg = d.kg;
+    estado("Kg salvo", "ok");
+  } catch (e) {
+    estado("Falha ao salvar", "erro");
+    aviso("Não consegui salvar os kg: " + e.message, "mau");
+  } finally {
+    campo.value = m.kg ? fmtQ(m.kg) : "";
+    mostrarPrecoKg(tr, m);
     campo.disabled = false;
   }
 }
@@ -426,6 +489,7 @@ async function gravarQtd(campo) {
       m.preco = d.preco;
       m.valor_total = d.valor_total;
       mostrarUnitario(tr, m.preco);
+      mostrarPrecoKg(tr, m);
     } else {
       m.valor_perdido = m.custo_un === null ? null : Math.round(m.qtd * m.custo_un * 100) / 100;
       tr.querySelector(".total").textContent =
@@ -542,7 +606,8 @@ async function carregarNota() {
     const d = await (await fetch("/api/nota?" + q.toString(), { cache: "no-store" })).json();
     if (d.erro) throw new Error(d.erro);
     NOTA = { lancado: d.qtd, origem: d.origem, preco: d.preco,
-             valor_total: d.valor_total, linhas: d.notas.map((n) => ({ ...n })) };
+             valor_total: d.valor_total, pesavel: !!d.pesavel, kg: d.kg || null,
+             linhas: d.notas.map((n) => ({ ...n })) };
   } catch (e) {
     $("#nota-situacao").textContent = "Não consegui ler o movimento: " + e.message;
     return;
@@ -552,7 +617,7 @@ async function carregarNota() {
   // nota só, basta escrever o fornecedor.
   if (!NOTA.linhas.length) {
     NOTA.linhas.push(NOTA.lancado > 0
-      ? { parceiro: "", nf: "", qtd: NOTA.lancado, total: NOTA.valor_total }
+      ? { parceiro: "", nf: "", qtd: NOTA.lancado, total: NOTA.valor_total, kg: NOTA.kg }
       : linhaVazia());
   }
   desenharNota();
@@ -577,7 +642,8 @@ function desenharNota(focarUltima) {
   $("#nf-linhas").innerHTML = `<table class="tabela-notas">
     <thead><tr><th>${tipo === "transferencia" ? "Casa de destino" : "Fornecedor"}</th>
       <th>Nº da nota</th><th>Quantidade (${un})</th><th>Valor total (R$)</th>
-      <th>Preço unit.</th><th></th></tr></thead>
+      <th>Preço unit.</th>${NOTA.pesavel ? "<th>Quantidade Kg NF</th><th>Preço Unit. Kg</th>" : ""}
+      <th></th></tr></thead>
     <tbody>${NOTA.linhas.map((l, i) => `
       <tr data-i="${i}">
         <td>${parceiro(l)}</td>
@@ -587,6 +653,8 @@ function desenharNota(focarUltima) {
         <td><input data-k="total" class="num" inputmode="decimal"
              value="${l.total === null ? "" : fmtCentavos(l.total)}"></td>
         <td class="calc nf-unit"></td>
+        ${NOTA.pesavel ? `<td><input data-k="kg" class="num" inputmode="decimal" placeholder="kg"
+             value="${l.kg ? fmtQ(l.kg) : ""}"></td><td class="calc nf-unit-kg"></td>` : ""}
         <td><button type="button" class="botao-mini nf-tirar" data-i="${i}"
              title="Tirar esta nota">×</button></td>
       </tr>`).join("")}</tbody></table>`;
@@ -601,24 +669,30 @@ function desenharNota(focarUltima) {
 function lerLinhasNF() {
   NOTA.linhas = Array.from($("#nf-linhas").querySelectorAll("tbody tr")).map((tr) => {
     const v = (k) => tr.querySelector(`[data-k="${k}"]`).value.trim();
+    const kg = tr.querySelector('[data-k="kg"]') ? v("kg") : "";
     return { parceiro: v("parceiro"), nf: v("nf"),
              qtd: v("qtd") === "" ? null : num(v("qtd")),
-             total: v("total") === "" ? null : Math.round(num(v("total")) * 100) / 100 };
+             total: v("total") === "" ? null : Math.round(num(v("total")) * 100) / 100,
+             kg: kg === "" ? null : Math.round(num(kg) * 1000) / 1000 };
   });
 }
 
 function atualizarSomaNF() {
   const un = insumoNF().un || "";
-  let sq = 0, st = 0;
+  let sq = 0, st = 0, sk = 0;
   $("#nf-linhas").querySelectorAll("tbody tr").forEach((tr, i) => {
     const l = NOTA.linhas[i] || {};
     sq += l.qtd || 0;
     st += l.total || 0;
+    sk += l.kg || 0;
     tr.querySelector(".nf-unit").textContent =
       l.qtd > 0 && l.total !== null ? "R$ " + fmtPreco(l.total / l.qtd) : "—";
+    const tdKg = tr.querySelector(".nf-unit-kg");
+    if (tdKg) tdKg.textContent = l.kg > 0 && l.total !== null ? "R$ " + fmtPreco(l.total / l.kg) : "—";
   });
   $("#nf-soma").textContent = `Soma: ${fmtQ(sq)} ${un} · R$ ${fmt(st)}` +
-    (sq > 0 ? ` · preço médio R$ ${fmtPreco(st / sq)}` : "");
+    (sq > 0 ? ` · preço médio R$ ${fmtPreco(st / sq)}` : "") +
+    (NOTA.pesavel && sk > 0 ? ` · ${fmtQ(sk)} kg a R$ ${fmtPreco(st / sk)}/kg` : "");
 
   // Diferença com o lançado: só troca a quantidade com o aval de quem digita.
   const difere = NOTA.lancado > 0 && sq > 0 && Math.abs(sq - NOTA.lancado) > 0.0005;
@@ -637,7 +711,8 @@ async function salvarNota() {
   const corpo = { data: $("#nf-data").value, casa: $("#nf-casa").value,
                   tipo: $("#nf-tipo").value, insumo: $("#nf-insumo").value,
                   ajustar_qtd: $("#nf-ajustar").checked,
-                  linhas: NOTA.linhas.map((l) => ({ ...l, qtd: l.qtd || 0, total: l.total || 0 })) };
+                  linhas: NOTA.linhas.map((l) => ({ ...l, qtd: l.qtd || 0, total: l.total || 0,
+                                                     kg: l.kg || 0 })) };
   $("#nf-salvar").disabled = true;
   estado("Salvando notas…");
   try {
@@ -666,11 +741,15 @@ async function salvarNota() {
 function exportarCSV() {
   if (!DADOS || !DADOS.movimentos.length) return;
   const linhas = [["Data", "Casa", "Insumo", "Movimento", "Quantidade", "Unidade",
-                   "Preço unitário", "Valor total", "Origem"]]
+                   "Preço unitário", "Valor total", "Quantidade Kg NF", "Preço Unit. Kg",
+                   "Origem"]]
     .concat(DADOS.movimentos.map((m) => [brDate(m.data), m.casa_nome, m.insumo,
       m.tipo_nome, fmt(m.qtd, 3), m.un,
       m.preco === null ? "" : fmtPreco(m.preco),
-      m.valor_total === null ? "" : fmt(m.valor_total), m.origem]));
+      m.valor_total === null ? "" : fmt(m.valor_total),
+      m.kg ? fmtQ(m.kg) : "",
+      m.kg > 0 && m.valor_total !== null ? fmtPreco(m.valor_total / m.kg) : "",
+      m.origem]));
   const csv = "﻿" + linhas.map((l) => l.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a");

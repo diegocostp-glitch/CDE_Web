@@ -725,6 +725,8 @@ def _gravar_dia_sem_trava(corpo):
                 vals["precos"] = velho["precos"]
             if isinstance(velho, dict) and velho.get("notas"):
                 vals["notas"] = velho["notas"]
+            if isinstance(velho, dict) and velho.get("kg"):
+                vals["kg"] = velho["kg"]
             if vals:
                 limpo["insumos"][ik] = vals
         # insumo travado que a tela nem enviou nao pode desaparecer na gravacao
@@ -2665,6 +2667,15 @@ def compras_precificadas():
 
     Uma lista por casa e insumo, do mais antigo para o mais novo, para achar
     por data qual era o preco vigente.
+
+    O salmao equivalente nao e comprado: compra-se por libragem, e o preco e
+    por peca de cada faixa. A compra dele e DERIVADA das libragens do dia, e
+    o preco e o MESMO informado em Movimentacoes — a conversao para 08/10
+    muda so a quantidade de peixes, nunca o preco (regra da area). Com faixas
+    a precos diferentes no mesmo dia, vale a media pelas pecas: total pago /
+    pecas. Sem isso o custo do salmao, o maior item do consumo, vinha de um
+    valor fixo do custos.json, que fica so para quando nao ha compra
+    precificada ate a data.
     """
     mt = ARQ.stat().st_mtime if ARQ.exists() else None
     if _cache_compras["mtime"] == mt and _cache_compras["linha"] is not None:
@@ -2679,6 +2690,7 @@ def compras_precificadas():
         for ck, lan in dia.items():
             if not isinstance(lan, dict):
                 continue
+            pago_eq = pecas = 0.0
             for ik, campos in (lan.get("insumos") or {}).items():
                 if not isinstance(campos, dict):
                     continue
@@ -2686,6 +2698,13 @@ def compras_precificadas():
                 if preco is None or numero(campos.get("entrada")) <= 0:
                     continue
                 fora.setdefault((ck, ik), []).append((iso, float(preco)))
+                if ik in FATOR_LIBRA:
+                    q = numero(campos.get("entrada"))
+                    pago_eq += q * float(preco)
+                    pecas += q                 # pecas, sem o fator: o preco nao converte
+            if pecas > 0:
+                fora.setdefault((ck, "salmao_equivalente"), []).append(
+                    (iso, pago_eq / pecas))
     _cache_compras.update(mtime=mt, linha=fora)
     return fora
 
@@ -2838,6 +2857,10 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                         "valor_perdido": perdido,
                         "precificavel": precificavel,
                         "notas": (campos.get("notas") or {}).get(t) or [],
+                        # salmao e faturado em kg: a entrada da libragem guarda
+                        # os kg da nota, para o relatorio mensal
+                        "pesavel": ik in FATOR_LIBRA and t == "entrada",
+                        "kg": (campos.get("kg") or {}).get(t),
                         "origem": "Planilha" if da_planilha(campos)
                                   else ("Editado" if campos.get("_editado") else "Digitado"),
                     })
@@ -3045,7 +3068,9 @@ def ler_notas(data_iso, casa, insumo, tipo):
             "qtd": round(qtd, 4), "preco": preco,
             "valor_total": round(qtd * numero(preco), 2) if preco is not None else None,
             "origem": "Planilha" if da_planilha(campos) else ("Digitado" if qtd else None),
-            "notas": (campos.get("notas") or {}).get(tipo) or []}
+            "notas": (campos.get("notas") or {}).get(tipo) or [],
+            "pesavel": insumo in FATOR_LIBRA and tipo == "entrada",
+            "kg": (campos.get("kg") or {}).get(tipo)}
 
 
 def _gravar_notas_sem_trava(corpo):
@@ -3082,8 +3107,14 @@ def _gravar_notas_sem_trava(corpo):
                 raise ValueError("a transferência nao pode ir para a propria casa")
         elif not parceiro:
             raise ValueError("informe o fornecedor de cada nota")
-        linhas.append({"parceiro": parceiro, "nf": nf,
-                       "qtd": round(qtd, 4), "total": round(total, 2)})
+        linha = {"parceiro": parceiro, "nf": nf,
+                 "qtd": round(qtd, 4), "total": round(total, 2)}
+        kg = numero(ln.get("kg"))
+        if kg < 0:
+            raise ValueError("kg da nota nao pode ser negativo")
+        if kg > 0 and insumo in FATOR_LIBRA and tipo == "entrada":
+            linha["kg"] = round(kg, 3)
+        linhas.append(linha)
 
     dados = carregar()
     dia = dados.setdefault(data_iso, {})
@@ -3113,6 +3144,18 @@ def _gravar_notas_sem_trava(corpo):
             trocar_quantidade(campos, tipo, soma_qtd)
         notas[tipo] = linhas
         precos[tipo] = round(soma_total / soma_qtd, 10)
+    # Kg da NF do salmao: com notas, e a soma dos kg delas (nota sem kg nao
+    # soma nada); sem notas, nao fica kg de nota que ja nao existe.
+    kgs = campos.get("kg") or {}
+    soma_kg = round(sum(l.get("kg", 0) for l in linhas), 3)
+    if soma_kg > 0:
+        kgs[tipo] = soma_kg
+    else:
+        kgs.pop(tipo, None)
+    if kgs:
+        campos["kg"] = kgs
+    else:
+        campos.pop("kg", None)
     if notas:
         campos["notas"] = notas
     else:
@@ -3132,7 +3175,8 @@ def _gravar_notas_sem_trava(corpo):
     return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
             "qtd": round(qtd, 4), "preco": preco,
             "valor_total": round(qtd * preco, 2) if preco is not None else None,
-            "notas": linhas, "ajustou": abs(lancado - qtd) > 0.0005}
+            "notas": linhas, "ajustou": abs(lancado - qtd) > 0.0005,
+            "kg": (campos.get("kg") or {}).get(tipo)}
 
 
 # --------------------------------------------------------------- servidor
@@ -3284,6 +3328,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, gravar_notas(self._corpo()))
             if self.path == "/api/movimento/editar":
                 return self._json(200, editar_movimento(self._corpo()))
+            if self.path == "/api/kg":
+                return self._json(200, gravar_kg(self._corpo()))
             if self.path == "/api/pedido":
                 return self._json(200, gravar_pedido(self._corpo()))
             if self.path == "/api/ordem":
@@ -3335,6 +3381,53 @@ def gravar_movimentacao(corpo):
 def gravar_preco(corpo):
     with _lock_lanc:
         return _gravar_preco_sem_trava(corpo)
+
+
+def _gravar_kg_sem_trava(corpo):
+    """Grava os kg da nota fiscal na entrada de uma libragem de salmao.
+
+    O salmao e contado em pecas por faixa, mas faturado em kg: o relatorio
+    mensal precisa dos dois. O preco por kg nao e gravado — sai do valor
+    total / kg, e assim nunca desmente o total da linha. Vazio apaga.
+    Entrada detalhada por notas recebe os kg nas notas.
+    """
+    data_iso = (corpo.get("data") or "").strip()
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    casa = (corpo.get("casa") or "").strip()
+    insumo = (corpo.get("insumo") or "").strip()
+    tipo = (corpo.get("tipo") or "entrada").strip()
+    if insumo not in FATOR_LIBRA or tipo != "entrada":
+        raise ValueError("kg da NF existe so na entrada das libragens de salmao")
+    bruto = corpo.get("kg")
+    apagar = bruto in (None, "")
+    kg = numero(bruto)
+    if not apagar and kg <= 0:
+        raise ValueError("informe kg maior que zero (vazio apaga)")
+    dados = carregar()
+    campos = ((((dados.get(data_iso) or {}).get(casa) or {})
+               .get("insumos") or {}).get(insumo))
+    if not isinstance(campos, dict) or numero(campos.get(tipo)) <= 0.0005:
+        raise ValueError("nao ha entrada de %s em %s" % (insumo, data_iso))
+    if (campos.get("notas") or {}).get(tipo):
+        raise ValueError("esta entrada esta detalhada por notas — informe os kg nas notas")
+    kgs = campos.get("kg") or {}
+    if apagar:
+        kgs.pop(tipo, None)
+    else:
+        kgs[tipo] = round(kg, 3)
+    if kgs:
+        campos["kg"] = kgs
+    else:
+        campos.pop("kg", None)
+    dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "kg": kgs.get(tipo)}
+
+
+def gravar_kg(corpo):
+    with _lock_lanc:
+        return _gravar_kg_sem_trava(corpo)
 
 
 def editar_movimento(corpo):
