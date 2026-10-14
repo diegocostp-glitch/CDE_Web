@@ -2392,8 +2392,13 @@ def overview(mes=None):
         for c in CASAS:
             a = mov.get((ik, c["chave"]), {}).get("consumo", 0.0)
             b = mov_ant.get((ik, c["chave"]), {}).get("consumo", 0.0)
+            # Impacto com o custo DAQUELA casa: os cartões de "subiu" e "caiu"
+            # da Visão Geral filtrada escolhem o insumo por ele, e sem o número
+            # a escolha caía no primeiro da lista.
+            custo_c, _f = custo_unitario(ik, c["chave"], custos, catalogo, ref_preco)
             por_casa[c["chave"]] = {"atual": round(a, 2), "anterior": round(b, 2),
-                                   "variacao": round((a - b) / b, 4) if b else None}
+                                   "variacao": round((a - b) / b, 4) if b else None,
+                                   "impacto_reais": round((a - b) * custo_c, 2) if custo_c else None}
         variacao.append({
             "insumo": ins["nome"], "chave": ik, "un": ins["un"],
             "atual": round(atual, 2), "anterior": round(antes, 2),
@@ -2432,11 +2437,12 @@ def overview(mes=None):
     # curva era agosto com 17 dias contra julho com 31 — e o desenho descia.
     serie = []
     consumo_mes, consumo_mes_p = {}, {}
+    consumo_mes_p_casa = {}                  # (insumo, casa) -> {mes: qtd no trecho}
     for m in meses[-12:]:
         f_m, mv_m = totais_do_mes(m)
         f_p, mv_p = totais_do_mes(m, dia_limite) if parcial else (f_m, mv_m)
         valor = valor_p = 0.0
-        consumo_casa_m = {}
+        consumo_casa_m, consumo_casa_p = {}, {}
         for (ik, ck), mm in mv_m.items():
             custo, _f = custo_unitario(ik, ck, custos, catalogo, ref_preco)
             if custo and not nomes.get(ik, {}).get("so_lancamento"):
@@ -2451,7 +2457,10 @@ def overview(mes=None):
             custo, _f = custo_unitario(ik, ck, custos, catalogo, ref_preco)
             if custo and not nomes.get(ik, {}).get("so_lancamento"):
                 valor_p += mm["consumo"] * custo
+                consumo_casa_p[ck] = consumo_casa_p.get(ck, 0.0) + mm["consumo"] * custo
             consumo_mes_p.setdefault(ik, {})[m] = consumo_mes_p.setdefault(ik, {}).get(m, 0.0) + mm["consumo"]
+            hist_c = consumo_mes_p_casa.setdefault((ik, ck), {})
+            hist_c[m] = hist_c.get(m, 0.0) + mm["consumo"]
         total_m, total_p = sum(f_m.values()), sum(f_p.values())
         serie.append({"mes": m, "faturamento": round(total_m, 2),
                       "consumo_valor": round(valor, 2),
@@ -2460,7 +2469,12 @@ def overview(mes=None):
                       "peso": round(valor / total_m, 4) if total_m else None,
                       "por_casa": {ck: round(v, 2) for ck, v in f_m.items()},
                       "consumo_por_casa": {ck: round(v, 2)
-                                           for ck, v in consumo_casa_m.items()}})
+                                           for ck, v in consumo_casa_m.items()},
+                      # o mesmo recorte do dia 1 ao dia_limite, por casa: é o
+                      # que a curva dos cartões de destaque usa com casa filtrada
+                      "por_casa_trecho": {ck: round(v, 2) for ck, v in f_p.items()},
+                      "consumo_por_casa_trecho": {ck: round(v, 2)
+                                                  for ck, v in consumo_casa_p.items()}})
 
     # a série curta de cada insumo alimenta o mini gráfico dos blocos de
     # destaque, e vai recortada no mesmo trecho para poder ser comparada
@@ -2468,6 +2482,9 @@ def overview(mes=None):
     for v in variacao:
         historico = consumo_mes_p.get(v["chave"], {})
         v["serie"] = [round(historico.get(m, 0.0), 2) for m in meses_serie]
+        for ck, pc in v["por_casa"].items():
+            hist_c = consumo_mes_p_casa.get((v["chave"], ck), {})
+            pc["serie"] = [round(hist_c.get(m, 0.0), 2) for m in meses_serie]
 
     # Consumo valorizado do mes e do mesmo trecho do mes anterior. Sem o
     # segundo numero o cartao mostraria um total sem referencia — e total sem
