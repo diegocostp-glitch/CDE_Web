@@ -1177,3 +1177,30 @@ table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
    é maior que a trilha de 190px e estouraria a grade. */
 .grade-oc .campo-largo { grid-column:span 2; min-width:0 }
 @media (max-width:640px) { .grade-oc .campo-largo { grid-column:span 1 } }
+
+/* ---------- notas fiscais e transferências (Movimentações) ---------- */
+/* o botão de notas na linha do extrato abre, não apaga: sem o vermelho do
+   .botao-mini, mesmo desenho do abrir-partes */
+.botao-mini.abrir-nota { font-size:10.5px; padding:2px 8px; border-radius:20px; margin-left:4px;
+  border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--campo) }
+.botao-mini.abrir-nota:hover { border-color:var(--laranja); color:var(--laranja) }
+.tabela-notas { width:100% }
+/* mesmo desenho dos campos da barra (.campo): a casa de destino e o
+   fornecedor ficavam com o controle cru do navegador ao lado dos selects de
+   Casa, Movimento e Insumo logo acima */
+.tabela-notas input, .tabela-notas select { width:100%; min-width:90px;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 12px; color:var(--tinta) }
+.tabela-notas input:focus, .tabela-notas select:focus { outline:2px solid var(--laranja);
+  outline-offset:-1px }
+.tabela-notas select { min-width:200px }
+.tabela-notas input.num { text-align:right; font-variant-numeric:tabular-nums; max-width:140px }
+.tabela-notas td.nf-unit { white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--tinta-2) }
+.tabela-notas .nf-tirar { font-size:16px }
+.nf-pe { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px }
+.nf-soma { font-variant-numeric:tabular-nums; color:var(--tinta-2) }
+.nf-ajuste { display:flex; align-items:center; gap:6px; font-size:13px;
+  padding:4px 10px; border-radius:8px }
+.nf-ajuste.alerta { background:var(--aviso-bg); color:var(--aviso) }
+/* quantidade corrigível no extrato: mesmo campo do valor, mais estreito */
+.tabela-extrato input.qtd { width:84px; text-align:right; font-variant-numeric:tabular-nums }

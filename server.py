@@ -246,6 +246,58 @@ def somar_file_no_equivalente(soma, sobra_ontem, sobra_hoje):
 _cache_lanc = {"mtime": None, "dados": None}
 
 
+
+def recalcular_equivalente(dados, iso, casa):
+    """Refaz o salmao equivalente 08/10 gravado de um dia e casa.
+
+    O equivalente gravado e o que o painel, a Visao Geral e o consumo leem, e
+    so a sincronizacao o calculava — a partir da PLANILHA. Corrigir uma
+    libragem no sistema (Movimentacoes, notas fiscais, botao de acao,
+    lancamento do dia) deixava o equivalente com o numero antigo, e a
+    sincronizacao seguinte o refazia com o numero da planilha, nao com o
+    corrigido.
+
+    A conta e a mesma do importar_diario (equivalente + somar_file): cada campo
+    e a soma das faixas pelo fator, e o file limpo que sobrou entra no final
+    do dia e no inicial do seguinte. Feita sobre as libragens GRAVADAS, com as
+    correcoes dentro.
+
+    Faixa sem contagem final deixa o equivalente como esta, pela mesma regra
+    da sincronizacao: somar so as faixas completas pareceria queda de estoque.
+    Devolve o equivalente novo, ou None quando nao mexeu.
+    """
+    lan = (dados.get(iso) or {}).get(casa)
+    if not isinstance(lan, dict):
+        return None
+    insumos = lan.get("insumos") or {}
+    faixas = [insumos.get(f) for f in FATOR_LIBRA if isinstance(insumos.get(f), dict)]
+    if not faixas or any(f.get("final") in (None, "") for f in faixas):
+        return None
+    soma = {}
+    for campo in ("inicial", "final", "entrada", "transferencia", "desperdicio", "uso"):
+        total, achou = 0.0, False
+        for faixa, fator in FATOR_LIBRA.items():
+            v = (insumos.get(faixa) or {}).get(campo)
+            if v not in (None, ""):
+                total += numero(v) * fator
+                achou = True
+        if achou:
+            soma[campo] = round(total, 4)
+    vespera = (datetime.strptime(iso, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    ontem = (dados.get(vespera) or {}).get(casa)
+    sobra_ontem = (((ontem.get("insumos") or {}).get("salmao_file") or {}).get("final")
+                   if isinstance(ontem, dict) else None)
+    sobra_hoje = (insumos.get("salmao_file") or {}).get("final")
+    soma = somar_file_no_equivalente(soma, sobra_ontem, sobra_hoje)
+    antigo = insumos.get("salmao_equivalente")
+    # A marca de origem fica a que estava: o equivalente continua sendo "da
+    # sincronizacao", so que agora feito com as libragens corrigidas.
+    if isinstance(antigo, dict) and antigo.get(MARCA_PLANILHA):
+        soma[MARCA_PLANILHA] = antigo[MARCA_PLANILHA]
+    insumos["salmao_equivalente"] = soma
+    lan["insumos"] = insumos
+    return soma
+
 def carregar():
     if not ARQ.exists():
         return {}
@@ -668,8 +720,11 @@ def _gravar_dia_sem_trava(corpo):
             # O preco e cadastrado na tela de Movimentacoes, nao aqui. Como esta
             # gravacao remonta o registro do insumo campo a campo, sem esta
             # linha salvar o dia apagaria todo o cadastro de precos daquele dia.
+            # As notas fiscais que detalham o preco vao junto, pelo mesmo motivo.
             if isinstance(velho, dict) and velho.get("precos"):
                 vals["precos"] = velho["precos"]
+            if isinstance(velho, dict) and velho.get("notas"):
+                vals["notas"] = velho["notas"]
             if vals:
                 limpo["insumos"][ik] = vals
         # insumo travado que a tela nem enviou nao pode desaparecer na gravacao
@@ -695,6 +750,13 @@ def _gravar_dia_sem_trava(corpo):
         if proc:
             limpo["processamento"] = proc
         dia[ck] = limpo
+        # O equivalente nao vem da tela (linha calculada); e refeito aqui com
+        # as libragens que acabaram de ser gravadas. O file que sobrou hoje
+        # abre o dia seguinte, que tambem e refeito.
+        recalcular_equivalente(dados, data_iso, ck)
+        amanha = (datetime.strptime(data_iso, "%Y-%m-%d")
+                  + timedelta(days=1)).strftime("%Y-%m-%d")
+        recalcular_equivalente(dados, amanha, ck)
     dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
     return {"ok": True, "data": data_iso}
@@ -744,21 +806,30 @@ def _gravar_movimentacao_sem_trava(corpo):
         lan = dia[casa] = {"faturamento": None, "insumos": {}}
     insumos = lan.setdefault("insumos", {})
     campos = insumos.setdefault(insumo, {})
-    if da_planilha(campos):
-        # Mesma regra da tela de lancamento: registrar por cima do que veio da
-        # planilha e permitido, e o registro passa a ser do sistema. Antes isto
-        # levantava erro e mandava "corrija na planilha e sincronize" — o que
-        # inviabilizava justamente o caso de uso do botao de acao, registrar a
-        # chegada do caminhao num dia que ja tinha sido sincronizado.
-        campos.pop(MARCA_PLANILHA, None)
-        campos.pop("uso", None)         # foi calculado sobre o numero antigo
-        campos["_editado"] = True
-
+    # Registrar por cima do que veio da planilha e permitido, e o registro
+    # passa a ser do sistema. Antes isto levantava erro e mandava "corrija na
+    # planilha e sincronize" — o que inviabilizava justamente o caso de uso do
+    # botao de acao, registrar a chegada do caminhao num dia ja sincronizado.
+    #
+    # O uso do dia anda com a diferenca (trocar_quantidade), em vez de ser
+    # apagado: sem ele o consumo daquele dia sumia do painel e da Visao Geral.
     antes = numero(campos.get(tipo))
     if tipo == "final":
-        campos["final"] = round(qtd, 4)
+        novo = round(qtd, 4)
+        if campos.get("uso") is not None and campos.get("final") is not None:
+            campos["uso"] = round(numero(campos["uso"]) - (novo - antes), 4)
+        if da_planilha(campos):
+            campos.pop(MARCA_PLANILHA, None)
+            campos["_editado"] = True
+        campos["final"] = novo
     else:
-        campos[tipo] = round(antes + qtd, 4)
+        trocar_quantidade(campos, tipo, antes + qtd)
+    if insumo in FATOR_LIBRA or insumo == "salmao_file":
+        recalcular_equivalente(dados, data_iso, casa)
+        if insumo == "salmao_file":    # a sobra de file abre o dia seguinte
+            amanha = (datetime.strptime(data_iso, "%Y-%m-%d")
+                      + timedelta(days=1)).strftime("%Y-%m-%d")
+            recalcular_equivalente(dados, amanha, casa)
     dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
 
@@ -2766,7 +2837,9 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                         "custo_un": round(custo_un, 4) if custo_un else None,
                         "valor_perdido": perdido,
                         "precificavel": precificavel,
-                        "origem": "Planilha" if da_planilha(campos) else "Digitado",
+                        "notas": (campos.get("notas") or {}).get(t) or [],
+                        "origem": "Planilha" if da_planilha(campos)
+                                  else ("Editado" if campos.get("_editado") else "Digitado"),
                     })
     fora.sort(key=lambda m: (m["data"], m["casa"], m["insumo"]), reverse=True)
     for t in resumo:
@@ -2839,6 +2912,13 @@ def _gravar_preco_sem_trava(corpo):
             campos.pop("precos", None)
     else:
         precos[tipo] = preco
+    # Preco digitado direto na linha substitui o detalhamento por nota: as
+    # notas antigas deixariam de somar o valor que a linha passa a mostrar.
+    notas = campos.get("notas") or {}
+    if tipo in notas:
+        notas.pop(tipo)
+        if not notas:
+            campos.pop("notas", None)
     dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
     qtd = numero(campos.get(tipo))
@@ -2846,6 +2926,213 @@ def _gravar_preco_sem_trava(corpo):
             "tipo": tipo, "preco": None if apagar else preco,
             "qtd": round(qtd, 3),
             "valor_total": None if apagar else round(qtd * preco, 2)}
+
+
+# ------------------------------------------------- edicao de quantidade
+def trocar_quantidade(campos, tipo, nova):
+    """Troca a quantidade de UM movimento (entrada, transferencia, desperdicio)
+    e deixa o resto do registro coerente com ela. Devolve a diferenca.
+
+    O uso do dia nao e apagado: em 24.006 de 24.008 registros ele e
+    inicial + entrada - transferencia - final, entao anda junto com a
+    diferenca (entrada soma, transferencia subtrai; o desperdicio nao entra no
+    uso). Apagar o uso — o que se fazia antes — tirava o consumo daquele dia
+    do painel e da Visao Geral.
+
+    O registro deixa de ser da planilha e passa a editado: a sincronizacao
+    preserva o que foi corrigido aqui em vez de voltar ao numero antigo.
+    """
+    antes = numero(campos.get(tipo))
+    nova = round(max(nova, 0.0), 4)
+    delta = nova - antes
+    if abs(delta) <= 0.0005:
+        return 0.0
+    if campos.get("uso") is not None and tipo in ("entrada", "transferencia"):
+        sinal = 1 if tipo == "entrada" else -1
+        campos["uso"] = round(numero(campos["uso"]) + sinal * delta, 4)
+    if da_planilha(campos):
+        campos.pop(MARCA_PLANILHA, None)
+        campos["_editado"] = True
+    if nova <= 0.0005:
+        campos.pop(tipo, None)
+    else:
+        campos[tipo] = nova
+    return delta
+
+
+def _editar_movimento_sem_trava(corpo):
+    """Corrige a quantidade de um movimento pela tela de Movimentacoes.
+
+    Diferente do botao de acao (que SOMA um evento novo), aqui o numero
+    SUBSTITUI o lancado — e a correcao de um lancamento que veio errado da
+    planilha. Zero apaga o movimento.
+
+    O VALOR TOTAL pago fica: e o numero da nota, e quem corrige a quantidade
+    nao mudou o que pagou. O preco unitario e que se refaz (total / nova
+    quantidade). Movimento detalhado por notas so muda pelas notas, para a
+    soma delas nao deixar de bater com a linha.
+    """
+    data_iso = (corpo.get("data") or "").strip()
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    casa = (corpo.get("casa") or "").strip()
+    insumo = (corpo.get("insumo") or "").strip()
+    tipo = (corpo.get("tipo") or "").strip()
+    if tipo not in TIPOS_ESTOQUE:
+        raise ValueError("tipo de movimento invalido: %s" % tipo)
+    if insumo in DERIVADOS:
+        raise ValueError("%s e uma linha calculada: corrija a libragem" % insumo)
+    nova = numero(corpo.get("qtd"))
+    if nova < 0:
+        raise ValueError("quantidade nao pode ser negativa")
+
+    dados = carregar()
+    campos = ((((dados.get(data_iso) or {}).get(casa) or {})
+               .get("insumos") or {}).get(insumo))
+    if not isinstance(campos, dict) or abs(numero(campos.get(tipo))) <= 0.0005:
+        raise ValueError("nao ha esse movimento lancado em %s" % data_iso)
+    if (campos.get("notas") or {}).get(tipo):
+        raise ValueError("este movimento esta detalhado por notas fiscais — "
+                         "corrija a quantidade pelas notas")
+
+    antes = numero(campos.get(tipo))
+    precos = campos.get("precos") or {}
+    preco_antes = precos.get(tipo)
+    trocar_quantidade(campos, tipo, nova)
+    qtd = numero(campos.get(tipo))
+    if preco_antes is not None:
+        if qtd <= 0.0005:
+            precos.pop(tipo, None)
+        else:
+            precos[tipo] = round(antes * numero(preco_antes) / qtd, 10)
+        if precos:
+            campos["precos"] = precos
+        else:
+            campos.pop("precos", None)
+    dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    preco = (campos.get("precos") or {}).get(tipo)
+    if insumo in FATOR_LIBRA:
+        recalcular_equivalente(dados, data_iso, casa)
+        salvar(dados)
+    return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "antes": round(antes, 4), "qtd": round(qtd, 4), "preco": preco,
+            "valor_total": round(qtd * preco, 2) if preco is not None else None,
+            "custo_un": None,
+            "origem": "Editado" if campos.get("_editado") else "Digitado",
+            "uso": campos.get("uso")}
+
+
+# ------------------------------------------------- notas fiscais e transferencias
+# Uma entrada do dia (215 pacotes de nori na Senador Lemos) pode ter chegado em
+# mais de uma nota, de fornecedores e precos diferentes (5 de um, 210 de
+# outro). O lancamento guarda o dia num numero so; as notas detalham esse
+# numero em insumos[chave]["notas"][tipo] = [{parceiro, nf, qtd, total}], e o
+# preco da linha passa a ser a media ponderada delas (soma dos totais / soma
+# das quantidades). Na transferencia, o parceiro e a casa de destino.
+#
+# A quantidade continua vindo da planilha. A nota so a muda quando a pessoa
+# pede (ajustar_qtd) ou quando ainda nao ha movimento lancado — ai ela CRIA o
+# movimento. Em ambos os casos o registro deixa de ser da planilha, como no
+# botao de acao: a sincronizacao passa a preserva-lo.
+
+def ler_notas(data_iso, casa, insumo, tipo):
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    campos = ((((carregar().get(data_iso) or {}).get(casa) or {})
+               .get("insumos") or {}).get(insumo)) or {}
+    preco = (campos.get("precos") or {}).get(tipo)
+    qtd = numero(campos.get(tipo))
+    return {"data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "qtd": round(qtd, 4), "preco": preco,
+            "valor_total": round(qtd * numero(preco), 2) if preco is not None else None,
+            "origem": "Planilha" if da_planilha(campos) else ("Digitado" if qtd else None),
+            "notas": (campos.get("notas") or {}).get(tipo) or []}
+
+
+def _gravar_notas_sem_trava(corpo):
+    data_iso = (corpo.get("data") or "").strip()
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    casa = (corpo.get("casa") or "").strip()
+    insumo = (corpo.get("insumo") or "").strip()
+    tipo = (corpo.get("tipo") or "").strip()
+    chaves_casa = [c["chave"] for c in CASAS]
+    if casa not in chaves_casa:
+        raise ValueError("casa desconhecida: %s" % casa)
+    if insumo not in [i["chave"] for i in INSUMOS]:
+        raise ValueError("insumo desconhecido: %s" % insumo)
+    if insumo in DERIVADOS:
+        raise ValueError("%s e uma linha calculada: lance na libragem que chegou" % insumo)
+    if tipo not in TIPOS_COM_PRECO:
+        raise ValueError("nota so existe para entrada e transferência")
+
+    linhas = []
+    for ln in corpo.get("linhas") or []:
+        parceiro = str(ln.get("parceiro") or "").strip()
+        nf = str(ln.get("nf") or "").strip()
+        qtd, total = numero(ln.get("qtd")), numero(ln.get("total"))
+        if not parceiro and not nf and qtd == 0 and total == 0:
+            continue                                   # linha em branco da tela
+        if qtd <= 0:
+            raise ValueError("cada nota precisa de quantidade maior que zero")
+        if total < 0:
+            raise ValueError("valor total nao pode ser negativo")
+        if tipo == "transferencia":
+            if parceiro not in chaves_casa:
+                raise ValueError("escolha a casa de destino da transferência")
+            if parceiro == casa:
+                raise ValueError("a transferência nao pode ir para a propria casa")
+        elif not parceiro:
+            raise ValueError("informe o fornecedor de cada nota")
+        linhas.append({"parceiro": parceiro, "nf": nf,
+                       "qtd": round(qtd, 4), "total": round(total, 2)})
+
+    dados = carregar()
+    dia = dados.setdefault(data_iso, {})
+    lan = dia.get(casa)
+    if not isinstance(lan, dict):
+        lan = dia[casa] = {"faturamento": None, "insumos": {}}
+    campos = lan.setdefault("insumos", {}).setdefault(insumo, {})
+    lancado = numero(campos.get(tipo))
+    soma_qtd = round(sum(l["qtd"] for l in linhas), 4)
+    soma_total = round(sum(l["total"] for l in linhas), 2)
+
+    notas = campos.get("notas") or {}
+    precos = campos.get("precos") or {}
+    if not linhas:
+        # Tirar todas as notas apaga o detalhamento e o preco que saiu dele.
+        # A quantidade lancada fica: ela e da planilha, nao da nota.
+        notas.pop(tipo, None)
+        precos.pop(tipo, None)
+    else:
+        if abs(lancado - soma_qtd) > 0.0005:
+            if lancado > 0.0005 and not corpo.get("ajustar_qtd"):
+                raise ValueError(
+                    "as notas somam %s, mas o lancado no dia e %s — marque "
+                    "'atualizar a quantidade' para trocar" % (
+                        ("%g" % soma_qtd).replace(".", ","),
+                        ("%g" % lancado).replace(".", ",")))
+            trocar_quantidade(campos, tipo, soma_qtd)
+        notas[tipo] = linhas
+        precos[tipo] = round(soma_total / soma_qtd, 10)
+    if notas:
+        campos["notas"] = notas
+    else:
+        campos.pop("notas", None)
+    if precos:
+        campos["precos"] = precos
+    else:
+        campos.pop("precos", None)
+    if not campos:
+        lan["insumos"].pop(insumo, None)   # abriu a nota e desistiu: nada a guardar
+    if insumo in FATOR_LIBRA:
+        recalcular_equivalente(dados, data_iso, casa)
+    dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    qtd = numero(campos.get(tipo))
+    preco = precos.get(tipo)
+    return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "qtd": round(qtd, 4), "preco": preco,
+            "valor_total": round(qtd * preco, 2) if preco is not None else None,
+            "notas": linhas, "ajustou": abs(lancado - qtd) > 0.0005}
 
 
 # --------------------------------------------------------------- servidor
@@ -2954,6 +3241,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, {"unidade": uni, "proximo": proximo_numero_oc(uni)})
             if rota == "/api/overview":
                 return self._json(200, overview(q.get("mes")))
+            if rota == "/api/nota":
+                return self._json(200, ler_notas(q.get("data") or "", q.get("casa") or "",
+                                                 q.get("insumo") or "", q.get("tipo") or ""))
             if rota == "/api/movimentacoes":
                 from urllib.parse import unquote
                 pad_i, pad_f = periodo_padrao()
@@ -2990,6 +3280,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, gravar_movimentacao(self._corpo()))
             if self.path == "/api/preco":
                 return self._json(200, gravar_preco(self._corpo()))
+            if self.path == "/api/nota":
+                return self._json(200, gravar_notas(self._corpo()))
+            if self.path == "/api/movimento/editar":
+                return self._json(200, editar_movimento(self._corpo()))
             if self.path == "/api/pedido":
                 return self._json(200, gravar_pedido(self._corpo()))
             if self.path == "/api/ordem":
@@ -3041,6 +3335,16 @@ def gravar_movimentacao(corpo):
 def gravar_preco(corpo):
     with _lock_lanc:
         return _gravar_preco_sem_trava(corpo)
+
+
+def editar_movimento(corpo):
+    with _lock_lanc:
+        return _editar_movimento_sem_trava(corpo)
+
+
+def gravar_notas(corpo):
+    with _lock_lanc:
+        return _gravar_notas_sem_trava(corpo)
 
 
 if __name__ == "__main__":

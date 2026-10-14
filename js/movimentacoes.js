@@ -16,6 +16,7 @@ let DADOS = null;
 // recebeu — a consulta so e refeita quando a lista fecha com escolha diferente,
 // senao marcar camarao G, M e P custaria tres buscas no historico inteiro.
 let INS_SEL = [], INS_ENVIADO = "";
+let CFG = null;          // casas e insumos de /api/config, para o quadro de notas
 
 const $ = (s) => document.querySelector(s);
 const fmt = (n, c = 2) => (n === null || n === undefined || !isFinite(n)) ? "—"
@@ -103,7 +104,8 @@ async function carregar() {
 // conforme o filtro esconde justamente a opção que a pessoa quer escolher.
 async function montarFiltros() {
   if (!$("#f-casa").options.length) {
-    const cfg = await (await fetch("/api/config")).json();
+    const cfg = CFG = await (await fetch("/api/config")).json();
+    montarNota();
     $("#f-casa").innerHTML = '<option value="">Todas</option>' +
       cfg.casas.map((c) => `<option value="${c.chave}">${esc(c.nome)}</option>`).join("");
     // Linha derivada fica fora: o equivalente 08/10 e a soma das libragens,
@@ -194,6 +196,11 @@ function lerMultiInsumo() {
 
 // ------------------------------------------------------------------ desenhar
 function desenhar() {
+  desenharPlacar();
+  desenharTabela();
+}
+
+function desenharPlacar() {
   const r = DADOS.resumo || {};
   $("#placar").innerHTML = Object.entries(DADOS.tipos).map(([t, nome]) => `
     <button class="ficha ${SELO[t] === "neutro" ? "" : SELO[t]}${$("#f-tipo").value === t ? " ativa" : ""}"
@@ -220,7 +227,9 @@ function desenhar() {
       carregar();
     };
   });
+}
 
+function desenharTabela() {
   $("#contagem").textContent = `${DADOS.total} movimento(s) no período`;
   $("#nota").textContent = DADOS.total > DADOS.movimentos.length
     ? `Mostrando os ${DADOS.movimentos.length} mais recentes de ${DADOS.total} — aperte o filtro para ver o resto`
@@ -238,22 +247,29 @@ function desenhar() {
       <tr data-i="${i}"${m.precificavel && m.preco === null ? ' class="sem-preco"' : ""}>
         <td class="fonte">${brDate(m.data)}</td>
         <td><span class="ponto" style="background:${corCasa(m.casa)}"></span>${esc(m.casa_nome)}</td>
-        <td>${esc(m.insumo)}</td>
+        <td>${esc(m.insumo)}${m.precificavel ? ` <button type="button" class="botao-mini abrir-nota"
+              title="${m.notas.length ? esc(resumoNotas(m)) : "Detalhar por nota fiscal"}">${
+              m.notas.length ? m.notas.length + (m.notas.length > 1 ? " notas" : " nota") : "notas"}</button>` : ""}</td>
         <td><span class="selo ${SELO[m.tipo] || "neutro"}">${esc(m.tipo_nome)}</span></td>
-        <td class="calc">${fmt(m.qtd, 3)} <span class="un">${esc(m.un)}</span></td>
+        <td class="calc">${m.notas.length
+          ? `<span title="Detalhado por notas fiscais — corrija a quantidade pelas notas">${fmtQ(m.qtd)}</span>`
+          : `<input class="qtd" type="text" inputmode="decimal" value="${fmtQ(m.qtd)}"
+               title="Corrija a quantidade e saia do campo para salvar. Zero apaga o movimento.">`}
+          <span class="un">${esc(m.un)}</span></td>
         ${m.precificavel
           ? `<td class="calc unitario" title="${tituloUnitario(m.preco)}">${
                m.preco === null ? "—" : "R$ " + fmtPreco(m.preco)}</td>
              <td><input class="preco" type="text" inputmode="decimal"
                value="${m.valor_total === null ? "" : fmtCentavos(m.valor_total)}"
-               placeholder="—" title="${TITULO_TOTAL}"></td>`
+               placeholder="—"${m.notas.length
+                 ? ` readonly title="Soma das notas fiscais — altere pelo botão de notas"`
+                 : ` title="${TITULO_TOTAL}"`}></td>`
           : `<td class="calc nao-precifica"
                title="Desperdício não recebe preço: não se paga para jogar fora. O valor vem do último preço pago por este insumo até a data — da própria casa, ou da rede quando a casa ainda não o tinha comprado${
                  m.custo_un === null ? ". Aqui não há compra precificada dele em casa nenhuma antes desta data, então não há custo para aplicar." : "."}"
              >${m.custo_un === null ? "—" : "R$ " + fmt(m.custo_un)}</td>
              <td class="calc total perda">${m.valor_perdido === null ? "—" : "R$ " + fmt(m.valor_perdido)}</td>`}
-        <td class="fonte" title="${m.origem === "Planilha"
-          ? "veio da planilha da casa, pela sincronização" : "digitado na tela de lançamento"}">${esc(m.origem)}</td>
+        <td class="fonte origem" title="${TITULO_ORIGEM[m.origem] || ""}">${esc(m.origem)}</td>
       </tr>`).join("")}</tbody></table>`;
 
   // Grava ao sair do campo (e no Enter). Salvar a cada tecla mandaria um POST
@@ -261,16 +277,27 @@ function desenhar() {
   // quem troca de filtro no meio — o valor é digitado linha a linha.
   // Com o foco, o campo perde o separador de milhar, para editar sem tropeçar
   // no ponto; depois do Tab ou Enter volta formatado.
+  // Liga uma vez só: o #tabela sobrevive às recargas, e ligar a cada desenho
+  // empilhava ouvintes — um Tab mandava o mesmo POST tantas vezes quantas a
+  // lista tinha sido recarregada.
+  if (desenharTabela.ligado) return;
+  desenharTabela.ligado = true;
+  $("#tabela").addEventListener("click", (e) => {
+    const b = e.target.closest(".abrir-nota");
+    if (b) abrirNota(linhaDo(b));
+  });
   $("#tabela").addEventListener("focusin", (e) => {
-    if (!e.target.classList.contains("preco")) return;
+    if (!e.target.classList.contains("preco") || e.target.readOnly) return;
     const m = linhaDo(e.target);
     if (m) e.target.value = m.valor_total === null ? "" : fmtCheio(m.valor_total);
   });
   $("#tabela").addEventListener("focusout", (e) => {
-    if (e.target.classList.contains("preco")) gravarTotal(e.target);
+    if (e.target.classList.contains("preco") && !e.target.readOnly) gravarTotal(e.target);
+    if (e.target.classList.contains("qtd")) gravarQtd(e.target);
   });
   $("#tabela").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && e.target.classList.contains("preco")) e.target.blur();
+    if (e.key === "Enter" && (e.target.classList.contains("preco")
+                              || e.target.classList.contains("qtd"))) e.target.blur();
   });
 }
 
@@ -349,6 +376,71 @@ async function gravarTotal(campo) {
   }
 }
 
+// ------------------------------------------------------- correção de quantidade
+// O lançamento que veio da planilha pode ser corrigido aqui: o número digitado
+// SUBSTITUI o lançado (não soma, como o botão de ação). O valor total pago fica
+// — é o da nota —, e o preço unitário se refaz sobre a quantidade nova. O
+// registro passa a "Editado", e a sincronização deixa de voltá-lo ao número da
+// planilha. Zero apaga o movimento.
+const TITULO_ORIGEM = {
+  Planilha: "Veio da planilha da casa, pela sincronização",
+  Digitado: "Digitado na tela de lançamento",
+  Editado: "Corrigido no sistema — a sincronização da planilha não muda mais este número",
+};
+
+async function gravarQtd(campo) {
+  const tr = campo.closest("tr");
+  const m = linhaDo(campo);
+  if (!m) return;
+  const bruto = campo.value.trim();
+  const nova = bruto === "" ? m.qtd : Math.round(num(bruto) * 10000) / 10000;
+  if (Math.abs(nova - m.qtd) <= 0.0005) { campo.value = fmtQ(m.qtd); return; }
+  campo.disabled = true;
+  estado("Salvando quantidade…");
+  try {
+    const r = await fetch("/api/movimento/editar", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: m.data, casa: m.casa, insumo: m.insumo_chave,
+                             tipo: m.tipo, qtd: nova }) });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.erro || "erro no servidor");
+    estado("Quantidade salva", "ok");
+    // A contagem final não muda junto: corrigir só a entrada pode deixar o
+    // consumo do dia negativo, e isso precisa ser visto na hora.
+    if (d.uso !== null && d.uso !== undefined && d.uso < -0.0005) {
+      aviso(`Consumo de ${m.insumo} em ${brDate(m.data)} ficou ${fmtQ(d.uso)} ${m.un} — confira a contagem final do dia`, "mau");
+    }
+    if (d.qtd <= 0.0005) {               // apagado: a linha sai do extrato
+      aviso(`${m.insumo} de ${brDate(m.data)} apagado`, "ok");
+      carregar();
+      return;
+    }
+    const r0 = (DADOS.resumo || {})[m.tipo];
+    if (r0) r0.qtd = Math.round((r0.qtd + d.qtd - m.qtd) * 1000) / 1000;
+    m.qtd = d.qtd;
+    m.origem = d.origem;
+    campo.value = fmtQ(m.qtd);
+    tr.querySelector(".origem").textContent = m.origem;
+    tr.querySelector(".origem").title = TITULO_ORIGEM[m.origem] || "";
+    if (m.precificavel) {
+      m.preco = d.preco;
+      m.valor_total = d.valor_total;
+      mostrarUnitario(tr, m.preco);
+    } else {
+      m.valor_perdido = m.custo_un === null ? null : Math.round(m.qtd * m.custo_un * 100) / 100;
+      tr.querySelector(".total").textContent =
+        m.valor_perdido === null ? "—" : "R$ " + fmt(m.valor_perdido);
+    }
+    desenharPlacar();
+  } catch (e) {
+    estado("Falha ao salvar", "erro");
+    aviso("Não consegui salvar a quantidade: " + e.message, "mau");
+    campo.value = fmtQ(m.qtd);
+  } finally {
+    campo.disabled = false;
+  }
+}
+
 // Recalcula o placar com o que está na tela, sem ir ao servidor de novo: o
 // resumo do servidor cobre o período inteiro, e recarregar tudo a cada preço
 // digitado jogaria o foco fora do campo seguinte.
@@ -364,6 +456,208 @@ function atualizarPlacar() {
         (sem ? ` · ${sem} sem preço nesta lista` : " · todos com preço nesta lista");
     }
   });
+}
+
+// ------------------------------------------------- notas fiscais e transferências
+// Um movimento do dia pode ter vindo em mais de uma nota: 215 pacotes de nori
+// na Senador Lemos, 5 de um fornecedor e 210 de outro, cada um com seu preço.
+// O quadro abre o movimento escolhido (data, casa, tipo, insumo), mostra o que
+// já está lançado — normalmente vindo da planilha — e deixa detalhá-lo por
+// nota. O preço da linha do extrato vira a média ponderada das notas.
+//
+// Se as notas somam diferente do lançado, a tela pede confirmação explícita
+// para trocar a quantidade; se nada foi lançado ainda, a nota cria o movimento.
+// Na transferência, o "parceiro" é a casa de destino.
+let NOTA = null;   // { lancado, origem, preco, linhas: [{parceiro, nf, qtd, total}] }
+
+// Quantidade sem zeros sobrando: "215 Pct", "12,5 Kg", "0,375 Kg".
+const fmtQ = (n) => (n === null || n === undefined || !isFinite(n)) ? "—"
+  : n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+const resumoNotas = (m) => m.notas.map((n) =>
+  `${n.parceiro}${n.nf ? " · NF " + n.nf : ""}: ${fmtQ(n.qtd)} ${m.un} por R$ ${fmt(n.total)}`).join("\n");
+const insumoNF = () => (CFG ? CFG.insumos.find((i) => i.chave === $("#nf-insumo").value) : null) || {};
+const nomeCasaNF = (ck) => ((CFG ? CFG.casas.find((c) => c.chave === ck) : null) || {}).nome || ck;
+const hojeISO = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
+
+function montarNota() {
+  $("#nf-data").value = hojeISO();
+  $("#nf-casa").innerHTML = CFG.casas.map((c) =>
+    `<option value="${esc(c.chave)}">${esc(c.nome)}</option>`).join("");
+  // Agrupado como no lançamento diário; a linha derivada (equivalente) não
+  // recebe nota — chegada de salmão se lança na libragem que chegou.
+  const grupos = [];
+  CFG.insumos.filter((i) => !i.derivado).forEach((i) => {
+    let g = grupos.find((x) => x.nome === i.grupo);
+    if (!g) { g = { nome: i.grupo, itens: [] }; grupos.push(g); }
+    g.itens.push(i);
+  });
+  $("#nf-insumo").innerHTML = grupos.map((g) => `<optgroup label="${esc(g.nome)}">` +
+    g.itens.map((i) => `<option value="${esc(i.chave)}">${esc(i.nome)} (${esc(i.un)})</option>`).join("") +
+    "</optgroup>").join("");
+  ["#nf-data", "#nf-casa", "#nf-tipo", "#nf-insumo"].forEach((s) => { $(s).onchange = carregarNota; });
+  $("#nf-mais").onclick = () => { lerLinhasNF(); NOTA.linhas.push(linhaVazia()); desenharNota(true); };
+  $("#nf-limpar").onclick = () => { NOTA.linhas = [linhaVazia()]; desenharNota(true); };
+  $("#nf-salvar").onclick = salvarNota;
+  $("#nf-ajustar").onchange = atualizarSomaNF;
+  $("#nf-linhas").addEventListener("input", () => { lerLinhasNF(); atualizarSomaNF(); });
+  $("#nf-linhas").addEventListener("change", () => { lerLinhasNF(); atualizarSomaNF(); });
+  $("#nf-linhas").addEventListener("click", (e) => {
+    const b = e.target.closest(".nf-tirar");
+    if (!b) return;
+    lerLinhasNF();
+    NOTA.linhas.splice(Number(b.dataset.i), 1);
+    if (!NOTA.linhas.length) NOTA.linhas.push(linhaVazia());
+    desenharNota();
+  });
+  // Fornecedores do cadastro do Gerador de OCs, como sugestão: quem não está
+  // lá ainda pode ser digitado à mão.
+  fetch("/api/base").then((r) => r.json()).then((b) => {
+    $("#nf-fornecedores").innerHTML = (b.fornecedores || []).map((f) =>
+      `<option value="${esc(f.chave)}">${esc(f.razao || "")}</option>`).join("");
+  }).catch(() => {});
+  carregarNota();
+}
+
+const linhaVazia = () => ({ parceiro: "", nf: "", qtd: null, total: null });
+
+// Abre no quadro o movimento de uma linha do extrato.
+function abrirNota(m) {
+  if (!m) return;
+  $("#nf-data").value = m.data;
+  $("#nf-casa").value = m.casa;
+  $("#nf-tipo").value = m.tipo;
+  $("#nf-insumo").value = m.insumo_chave;
+  carregarNota();
+  $("#area-nota").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function carregarNota() {
+  const q = new URLSearchParams({ data: $("#nf-data").value, casa: $("#nf-casa").value,
+                                  tipo: $("#nf-tipo").value, insumo: $("#nf-insumo").value });
+  if (!q.get("data") || !q.get("insumo")) return;
+  try {
+    const d = await (await fetch("/api/nota?" + q.toString(), { cache: "no-store" })).json();
+    if (d.erro) throw new Error(d.erro);
+    NOTA = { lancado: d.qtd, origem: d.origem, preco: d.preco,
+             valor_total: d.valor_total, linhas: d.notas.map((n) => ({ ...n })) };
+  } catch (e) {
+    $("#nota-situacao").textContent = "Não consegui ler o movimento: " + e.message;
+    return;
+  }
+  // Movimento já lançado e ainda sem nota: a primeira linha nasce com a
+  // quantidade inteira (e o valor, se havia preço) — no caso comum de uma
+  // nota só, basta escrever o fornecedor.
+  if (!NOTA.linhas.length) {
+    NOTA.linhas.push(NOTA.lancado > 0
+      ? { parceiro: "", nf: "", qtd: NOTA.lancado, total: NOTA.valor_total }
+      : linhaVazia());
+  }
+  desenharNota();
+}
+
+function desenharNota(focarUltima) {
+  const ins = insumoNF();
+  const tipo = $("#nf-tipo").value;
+  const casa = $("#nf-casa").value;
+  const un = esc(ins.un || "");
+  $("#nota-situacao").textContent = NOTA.lancado > 0
+    ? `Lançado no dia: ${fmtQ(NOTA.lancado)} ${ins.un || ""} (${NOTA.origem})` +
+      (NOTA.preco === null ? " · sem preço" : ` · R$ ${fmt(NOTA.valor_total)}`)
+    : "Nada lançado neste dia — a nota cria o movimento";
+
+  const parceiro = (l) => tipo === "transferencia"
+    ? `<select data-k="parceiro"><option value="">Casa de destino…</option>${
+        CFG.casas.filter((c) => c.chave !== casa).map((c) =>
+          `<option value="${esc(c.chave)}"${l.parceiro === c.chave ? " selected" : ""}>${esc(c.nome)}</option>`).join("")}</select>`
+    : `<input data-k="parceiro" list="nf-fornecedores" value="${esc(l.parceiro)}" placeholder="Fornecedor">`;
+
+  $("#nf-linhas").innerHTML = `<table class="tabela-notas">
+    <thead><tr><th>${tipo === "transferencia" ? "Casa de destino" : "Fornecedor"}</th>
+      <th>Nº da nota</th><th>Quantidade (${un})</th><th>Valor total (R$)</th>
+      <th>Preço unit.</th><th></th></tr></thead>
+    <tbody>${NOTA.linhas.map((l, i) => `
+      <tr data-i="${i}">
+        <td>${parceiro(l)}</td>
+        <td><input data-k="nf" value="${esc(l.nf)}" placeholder="opcional"></td>
+        <td><input data-k="qtd" class="num" inputmode="decimal"
+             value="${l.qtd === null ? "" : fmtQ(l.qtd)}"></td>
+        <td><input data-k="total" class="num" inputmode="decimal"
+             value="${l.total === null ? "" : fmtCentavos(l.total)}"></td>
+        <td class="calc nf-unit"></td>
+        <td><button type="button" class="botao-mini nf-tirar" data-i="${i}"
+             title="Tirar esta nota">×</button></td>
+      </tr>`).join("")}</tbody></table>`;
+  $("#nf-ajustar").checked = false;
+  atualizarSomaNF();
+  if (focarUltima) {
+    const campos = $("#nf-linhas").querySelectorAll("tbody tr:last-child [data-k]");
+    if (campos[0]) campos[0].focus();
+  }
+}
+
+function lerLinhasNF() {
+  NOTA.linhas = Array.from($("#nf-linhas").querySelectorAll("tbody tr")).map((tr) => {
+    const v = (k) => tr.querySelector(`[data-k="${k}"]`).value.trim();
+    return { parceiro: v("parceiro"), nf: v("nf"),
+             qtd: v("qtd") === "" ? null : num(v("qtd")),
+             total: v("total") === "" ? null : Math.round(num(v("total")) * 100) / 100 };
+  });
+}
+
+function atualizarSomaNF() {
+  const un = insumoNF().un || "";
+  let sq = 0, st = 0;
+  $("#nf-linhas").querySelectorAll("tbody tr").forEach((tr, i) => {
+    const l = NOTA.linhas[i] || {};
+    sq += l.qtd || 0;
+    st += l.total || 0;
+    tr.querySelector(".nf-unit").textContent =
+      l.qtd > 0 && l.total !== null ? "R$ " + fmtPreco(l.total / l.qtd) : "—";
+  });
+  $("#nf-soma").textContent = `Soma: ${fmtQ(sq)} ${un} · R$ ${fmt(st)}` +
+    (sq > 0 ? ` · preço médio R$ ${fmtPreco(st / sq)}` : "");
+
+  // Diferença com o lançado: só troca a quantidade com o aval de quem digita.
+  const difere = NOTA.lancado > 0 && sq > 0 && Math.abs(sq - NOTA.lancado) > 0.0005;
+  $("#nf-ajuste").hidden = !difere;
+  $("#nf-ajuste").classList.toggle("alerta", difere && !$("#nf-ajustar").checked);
+  if (difere) {
+    $("#nf-ajuste-txt").textContent =
+      `As notas somam ${fmtQ(sq)}, o lançado é ${fmtQ(NOTA.lancado)} ${un} — ` +
+      `atualizar a quantidade lançada para ${fmtQ(sq)}`;
+  }
+  $("#nf-salvar").disabled = difere && !$("#nf-ajustar").checked;
+}
+
+async function salvarNota() {
+  lerLinhasNF();
+  const corpo = { data: $("#nf-data").value, casa: $("#nf-casa").value,
+                  tipo: $("#nf-tipo").value, insumo: $("#nf-insumo").value,
+                  ajustar_qtd: $("#nf-ajustar").checked,
+                  linhas: NOTA.linhas.map((l) => ({ ...l, qtd: l.qtd || 0, total: l.total || 0 })) };
+  $("#nf-salvar").disabled = true;
+  estado("Salvando notas…");
+  try {
+    const r = await fetch("/api/nota", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.erro || "erro no servidor");
+    estado("Notas salvas", "ok");
+    aviso(d.notas.length
+      ? `${d.notas.length} nota(s) de ${insumoNF().nome} em ${nomeCasaNF(corpo.casa)} salvas` +
+        (d.ajustou ? ` — quantidade lançada agora é ${fmtQ(d.qtd)}` : "")
+      : "Notas apagadas", "ok");
+    await carregarNota();
+    carregar();
+  } catch (e) {
+    estado("Falha ao salvar", "erro");
+    aviso("Não consegui salvar as notas: " + e.message, "mau");
+  } finally {
+    atualizarSomaNF();
+  }
 }
 
 // ------------------------------------------------------------------ CSV

@@ -18,7 +18,11 @@
       <p>O que entrou e saiu do estoque, dia a dia: chegada por nota fiscal,
          transferência entre lojas e desperdício. É aqui também que o preço
          é cadastrado — digite o valor total da nota na coluna de valor e saia do
-         campo para salvar; o preço unitário é calculado sozinho (total ÷ quantidade). Desperdício não recebe preço — não se paga para jogar fora, e o
+         campo para salvar; o preço unitário é calculado sozinho (total ÷ quantidade).
+         Quando o dia chegou em mais de uma nota, lance cada uma no quadro de notas
+         fiscais e transferências: o preço da linha vira a média delas. A quantidade
+         também pode ser corrigida na própria linha, inclusive a que veio da planilha:
+         ela passa a "Editado" e a sincronização não a desfaz. Desperdício não recebe preço — não se paga para jogar fora, e o
          produto perdido já foi pago na linha da chegada dele —, mas é
          valorizado pelo último preço pago por aquele insumo até a data da perda —
          da própria casa, ou da rede quando a casa ainda não o tinha comprado. Esse valor fica na coluna de valor em tom apagado e tem
@@ -60,6 +64,36 @@
   </section>
 
   <div class="placar" id="placar"></div>
+
+  <!-- Notas fiscais e transferências. A quantidade do dia vem da planilha;
+       aqui ela é detalhada por nota (5 pacotes de um fornecedor, 210 de
+       outro, cada um com seu preço) ou lançada, quando ainda não existe. -->
+  <section class="cartao" id="area-nota">
+    <div class="cabeca"><h2>Notas fiscais e transferências</h2>
+      <span class="fonte" id="nota-situacao">Escolha o dia, a casa e o insumo</span>
+      <span style="flex:1"></span>
+      <button class="botao" id="nf-limpar" type="button">Limpar</button></div>
+    <div class="barra barra-interna">
+      <label class="campo"><span>Data</span><input type="date" id="nf-data"></label>
+      <label class="campo"><span>Casa</span><select id="nf-casa"></select></label>
+      <label class="campo"><span>Movimento</span>
+        <select id="nf-tipo">
+          <option value="entrada">Entrada (nota fiscal)</option>
+          <option value="transferencia">Saída (transferência entre lojas)</option>
+        </select></label>
+      <label class="campo"><span>Insumo</span><select id="nf-insumo"></select></label>
+    </div>
+    <div class="rolagem" id="nf-linhas"></div>
+    <div class="nf-pe">
+      <button class="botao" id="nf-mais" type="button">+ Nota</button>
+      <span class="nf-soma" id="nf-soma"></span>
+      <label class="nf-ajuste" id="nf-ajuste" hidden>
+        <input type="checkbox" id="nf-ajustar"> <span id="nf-ajuste-txt"></span></label>
+      <span style="flex:1"></span>
+      <button class="botao primario" id="nf-salvar" type="button">Salvar notas</button>
+    </div>
+    <datalist id="nf-fornecedores"></datalist>
+  </section>
 
   <section class="cartao">
     <div class="cabeca"><h2>Extrato</h2><span class="fonte" id="nota">—</span></div>

@@ -544,6 +544,9 @@ def gravar(novos):
                 # apagaria o cadastro de precos do dia.
                 if isinstance(antigo, dict) and antigo.get("precos"):
                     marcado["precos"] = antigo["precos"]
+                # as notas fiscais que detalham esse preco, idem
+                if isinstance(antigo, dict) and antigo.get("notas"):
+                    marcado["notas"] = antigo["notas"]
                 insumos[ik] = marcado
                 tocados += 1
             if lan.get("processamento"):
@@ -553,6 +556,16 @@ def gravar(novos):
                 destino.setdefault("processamento", {}).update(lan["processamento"])
             if not destino.get("faturamento"):
                 destino["faturamento"] = lan["faturamento"]
+    # A libragem corrigida no sistema ficou (regra acima), mas o equivalente
+    # que veio no lote foi somado com o numero da PLANILHA. Onde houver faixa
+    # ou file corrigido, o equivalente e refeito com o que ficou gravado.
+    import server
+    for iso, dia in novos.items():
+        for casa in dia:
+            ins = ((atual.get(iso) or {}).get(casa) or {}).get("insumos") or {}
+            if any(isinstance(ins.get(k), dict) and ins[k].get(MARCA_PLANILHA) != "planilha"
+                   for k in list(FATOR_LIBRA) + ["salmao_file"]):
+                server.recalcular_equivalente(atual, iso, casa)
     tmp = DESTINO.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(atual, f, ensure_ascii=False, indent=1)
