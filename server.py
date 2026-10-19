@@ -246,6 +246,58 @@ def somar_file_no_equivalente(soma, sobra_ontem, sobra_hoje):
 _cache_lanc = {"mtime": None, "dados": None}
 
 
+
+def recalcular_equivalente(dados, iso, casa):
+    """Refaz o salmao equivalente 08/10 gravado de um dia e casa.
+
+    O equivalente gravado e o que o painel, a Visao Geral e o consumo leem, e
+    so a sincronizacao o calculava — a partir da PLANILHA. Corrigir uma
+    libragem no sistema (Movimentacoes, notas fiscais, botao de acao,
+    lancamento do dia) deixava o equivalente com o numero antigo, e a
+    sincronizacao seguinte o refazia com o numero da planilha, nao com o
+    corrigido.
+
+    A conta e a mesma do importar_diario (equivalente + somar_file): cada campo
+    e a soma das faixas pelo fator, e o file limpo que sobrou entra no final
+    do dia e no inicial do seguinte. Feita sobre as libragens GRAVADAS, com as
+    correcoes dentro.
+
+    Faixa sem contagem final deixa o equivalente como esta, pela mesma regra
+    da sincronizacao: somar so as faixas completas pareceria queda de estoque.
+    Devolve o equivalente novo, ou None quando nao mexeu.
+    """
+    lan = (dados.get(iso) or {}).get(casa)
+    if not isinstance(lan, dict):
+        return None
+    insumos = lan.get("insumos") or {}
+    faixas = [insumos.get(f) for f in FATOR_LIBRA if isinstance(insumos.get(f), dict)]
+    if not faixas or any(f.get("final") in (None, "") for f in faixas):
+        return None
+    soma = {}
+    for campo in ("inicial", "final", "entrada", "transferencia", "desperdicio", "uso"):
+        total, achou = 0.0, False
+        for faixa, fator in FATOR_LIBRA.items():
+            v = (insumos.get(faixa) or {}).get(campo)
+            if v not in (None, ""):
+                total += numero(v) * fator
+                achou = True
+        if achou:
+            soma[campo] = round(total, 4)
+    vespera = (datetime.strptime(iso, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    ontem = (dados.get(vespera) or {}).get(casa)
+    sobra_ontem = (((ontem.get("insumos") or {}).get("salmao_file") or {}).get("final")
+                   if isinstance(ontem, dict) else None)
+    sobra_hoje = (insumos.get("salmao_file") or {}).get("final")
+    soma = somar_file_no_equivalente(soma, sobra_ontem, sobra_hoje)
+    antigo = insumos.get("salmao_equivalente")
+    # A marca de origem fica a que estava: o equivalente continua sendo "da
+    # sincronizacao", so que agora feito com as libragens corrigidas.
+    if isinstance(antigo, dict) and antigo.get(MARCA_PLANILHA):
+        soma[MARCA_PLANILHA] = antigo[MARCA_PLANILHA]
+    insumos["salmao_equivalente"] = soma
+    lan["insumos"] = insumos
+    return soma
+
 def carregar():
     if not ARQ.exists():
         return {}
@@ -668,14 +720,30 @@ def _gravar_dia_sem_trava(corpo):
             # O preco e cadastrado na tela de Movimentacoes, nao aqui. Como esta
             # gravacao remonta o registro do insumo campo a campo, sem esta
             # linha salvar o dia apagaria todo o cadastro de precos daquele dia.
+            # As notas fiscais que detalham o preco vao junto, pelo mesmo motivo.
             if isinstance(velho, dict) and velho.get("precos"):
                 vals["precos"] = velho["precos"]
+            if isinstance(velho, dict) and velho.get("notas"):
+                vals["notas"] = velho["notas"]
+            if isinstance(velho, dict) and velho.get("kg"):
+                vals["kg"] = velho["kg"]
+            if isinstance(velho, dict) and velho.get("mov"):
+                vals["mov"] = velho["mov"]
+            if isinstance(velho, dict) and velho.get("info"):
+                vals["info"] = velho["info"]
             if vals:
                 limpo["insumos"][ik] = vals
         # insumo travado que a tela nem enviou nao pode desaparecer na gravacao
         for ik, campos in antigo.items():
             if da_planilha(campos):
                 limpo["insumos"].setdefault(ik, campos)
+            elif isinstance(campos, dict) and ik not in limpo["insumos"]:
+                # nem o que e so de Movimentacoes (notas, quantidade propria,
+                # preco, kg): o lancamento do dia nao e dono disso
+                proprio = {k: campos[k] for k in ("mov", "notas", "precos", "kg", "info")
+                           if campos.get(k)}
+                if proprio:
+                    limpo["insumos"][ik] = proprio
         # Processamento: so os dois numeros digitados. Perda e rendimento sao
         # recalculados na leitura, nunca gravados.
         proc_antigo = (dia.get(ck) or {}).get("processamento") or {}
@@ -695,6 +763,13 @@ def _gravar_dia_sem_trava(corpo):
         if proc:
             limpo["processamento"] = proc
         dia[ck] = limpo
+        # O equivalente nao vem da tela (linha calculada); e refeito aqui com
+        # as libragens que acabaram de ser gravadas. O file que sobrou hoje
+        # abre o dia seguinte, que tambem e refeito.
+        recalcular_equivalente(dados, data_iso, ck)
+        amanha = (datetime.strptime(data_iso, "%Y-%m-%d")
+                  + timedelta(days=1)).strftime("%Y-%m-%d")
+        recalcular_equivalente(dados, amanha, ck)
     dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
     return {"ok": True, "data": data_iso}
@@ -744,21 +819,30 @@ def _gravar_movimentacao_sem_trava(corpo):
         lan = dia[casa] = {"faturamento": None, "insumos": {}}
     insumos = lan.setdefault("insumos", {})
     campos = insumos.setdefault(insumo, {})
-    if da_planilha(campos):
-        # Mesma regra da tela de lancamento: registrar por cima do que veio da
-        # planilha e permitido, e o registro passa a ser do sistema. Antes isto
-        # levantava erro e mandava "corrija na planilha e sincronize" — o que
-        # inviabilizava justamente o caso de uso do botao de acao, registrar a
-        # chegada do caminhao num dia que ja tinha sido sincronizado.
-        campos.pop(MARCA_PLANILHA, None)
-        campos.pop("uso", None)         # foi calculado sobre o numero antigo
-        campos["_editado"] = True
-
+    # Registrar por cima do que veio da planilha e permitido, e o registro
+    # passa a ser do sistema. Antes isto levantava erro e mandava "corrija na
+    # planilha e sincronize" — o que inviabilizava justamente o caso de uso do
+    # botao de acao, registrar a chegada do caminhao num dia ja sincronizado.
+    #
+    # O uso do dia anda com a diferenca (trocar_quantidade), em vez de ser
+    # apagado: sem ele o consumo daquele dia sumia do painel e da Visao Geral.
     antes = numero(campos.get(tipo))
     if tipo == "final":
-        campos["final"] = round(qtd, 4)
+        novo = round(qtd, 4)
+        if campos.get("uso") is not None and campos.get("final") is not None:
+            campos["uso"] = round(numero(campos["uso"]) - (novo - antes), 4)
+        if da_planilha(campos):
+            campos.pop(MARCA_PLANILHA, None)
+            campos["_editado"] = True
+        campos["final"] = novo
     else:
-        campos[tipo] = round(antes + qtd, 4)
+        trocar_quantidade(campos, tipo, antes + qtd)
+    if insumo in FATOR_LIBRA or insumo == "salmao_file":
+        recalcular_equivalente(dados, data_iso, casa)
+        if insumo == "salmao_file":    # a sobra de file abre o dia seguinte
+            amanha = (datetime.strptime(data_iso, "%Y-%m-%d")
+                      + timedelta(days=1)).strftime("%Y-%m-%d")
+            recalcular_equivalente(dados, amanha, casa)
     dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
 
@@ -1060,7 +1144,8 @@ def sincronizar(mes=None, inicio=None, fim=None):
                 # a regra do gravar(). Sem esta guarda, ele divergia da fonte
                 # para sempre e o botao anunciava "1 dia atualizado" a cada
                 # clique, sem nada ter mudado.
-                if isinstance(anterior, dict) and not da_planilha(anterior):
+                if (isinstance(anterior, dict) and not da_planilha(anterior)
+                        and not so_movimentacoes(anterior)):
                     preservados.append("%s %s" % (iso, ck))
                     continue
                 anterior = anterior or {}
@@ -1142,13 +1227,39 @@ def numero_ou_nada(v):
     return n if n > 0 else None
 
 
+SEM_FORNECEDOR = "sem_fornecedor"
+
+
+def prazo_entrega(ik, ck, cfg=None):
+    """(dias, origem) da cobertura do minimo de um insumo numa casa.
+
+    origem "prazo": dias entre pedido e entrega (prazo_entrega do
+    compras.json), com excecao por casa — o camarao chega em 1 dia nas casas
+    da cidade e em 2 na Cidade Nova. origem "seguranca": insumo sem prazo
+    cadastrado, vale dias_seguranca. origem SEM_FORNECEDOR: prazo null, nao ha
+    de quem comprar, entao nao ha minimo a cobrar.
+    """
+    cfg = cfg or ler_compras()
+    tabela = cfg.get("prazo_entrega") or {}
+    if ik in tabela and not ik.startswith("_"):
+        v = tabela[ik]
+        if isinstance(v, dict):
+            v = v.get(ck, v.get("padrao"))
+        if v is None:
+            return None, SEM_FORNECEDOR
+        return numero(v), "prazo"
+    return cfg.get("dias_seguranca", 7), "seguranca"
+
+
 def minimo_calculado(hoje_iso=None):
-    """{(insumo, casa): {media_dia, dias, minimo}} — o minimo da regra da casa.
+    """{(insumo, casa): {media_dia, dias, minimo, cobertura, origem}}.
 
-        minimo = media diaria de consumo dos ultimos 14 dias x dias de uso
+        minimo = media diaria de consumo dos ultimos 14 dias x prazo de entrega
 
-    A janela e o janela_media_dias e a cobertura e o dias_seguranca, os dois
-    editaveis na tela de Parametros. E a MESMA conta que a tela de Parametros
+    O minimo e o estoque que tem de existir no momento do pedido para a casa
+    nao zerar antes de a mercadoria chegar. A janela e o janela_media_dias; a
+    cobertura e o prazo de entrega do insumo (prazo_entrega), ou o
+    dias_seguranca para o insumo que nao tem prazo cadastrado. E a MESMA conta que a tela de Parametros
     mostra como sugestao e que a Visao Geral usa quando o insumo nao tem minimo
     definido a mao — uma conta so, para as duas telas nao discordarem.
 
@@ -1159,20 +1270,37 @@ def minimo_calculado(hoje_iso=None):
     """
     cfg = ler_compras()
     janela = cfg.get("janela_media_dias", 14)
-    dias_uso = cfg.get("dias_seguranca", 7)
     _estoque, usos = estoque_e_media(hoje_iso or datetime.now().strftime("%Y-%m-%d"),
                                      janela)
+    un = {i["chave"]: i["un"] for i in INSUMOS}
     fora = {}
     for (ik, ck), lista in usos.items():
         if not lista:
             continue
         media = sum(lista) / len(lista)
+        dias_uso, origem = prazo_entrega(ik, ck, cfg)
         fora[(ik, ck)] = {
             "media_dia": round(media, 3),
             "dias": len(lista),
-            "minimo": round(media * dias_uso, 2),
+            "minimo": None if dias_uso is None else arredonda_minimo(media * dias_uso, un.get(ik)),
+            "cobertura": dias_uso,
+            "origem": origem,
         }
     return fora
+
+
+def arredonda_minimo(q, un):
+    """Minimo sempre para cima, na unidade em que a casa conta.
+
+    Peixe, pacote e bisnaga se contam inteiros — 21,3 peixes de minimo vira
+    22, porque 21 ja deixa a casa descoberta. Quilo fica em decimo de quilo.
+    """
+    import math
+    if q <= 0:
+        return 0.0
+    if (un or "").lower() in ("px", "pxs", "pct", "bng", "un", "cx"):
+        return float(math.ceil(q - 1e-9))
+    return math.ceil(q * 10 - 1e-9) / 10
 
 
 def parametros_para_tela():
@@ -1197,11 +1325,14 @@ def parametros_para_tela():
                 "sugestao": (s or {}).get("minimo"),
                 "media_dia": (s or {}).get("media_dia"),
                 "dias": (s or {}).get("dias"),
+                "cobertura": prazo_entrega(ik, ck, cfg)[0],
+                "origem": prazo_entrega(ik, ck, cfg)[1],
             })
     return {
         "estoque": itens,
         "regra": {"janela": cfg.get("janela_media_dias", 14),
                   "dias_uso": cfg.get("dias_seguranca", 7)},
+        "prazos": prazos_para_tela(cfg),
         "projecao": {
             "dias_a_cobrir_padrao": cfg.get("dias_a_cobrir_padrao", 7),
             "janela_media_dias": cfg.get("janela_media_dias", 14),
@@ -1210,6 +1341,21 @@ def parametros_para_tela():
             "fornecedores": cfg.get("fornecedores") or [],
         },
     }
+
+
+def prazos_para_tela(cfg):
+    """Uma linha por insumo comprado: prazo padrao e excecao por casa."""
+    tabela = cfg.get("prazo_entrega") or {}
+    nomes = {i["chave"]: i["nome"] for i in INSUMOS}
+    fora = []
+    for ik, v in tabela.items():
+        if ik.startswith("_"):
+            continue
+        padrao = v.get("padrao") if isinstance(v, dict) else v
+        excecoes = {k: x for k, x in v.items() if k != "padrao"} if isinstance(v, dict) else {}
+        fora.append({"chave": ik, "insumo": nomes.get(ik, ik),
+                     "padrao": padrao, "casas": excecoes})
+    return fora
 
 
 def gravar_parametros(corpo):
@@ -1262,6 +1408,24 @@ def gravar_parametros(corpo):
                     if not (minimo <= v <= maximo):
                         raise ValueError("%s deve ficar entre %d e %d" % (campo, minimo, maximo))
                     cfg[campo] = int(v)
+            if isinstance(proj.get("prazo_entrega"), list):
+                velho = cfg.get("prazo_entrega") or {}
+                novo = {k: v for k, v in velho.items() if k.startswith("_")}
+                for linha in proj["prazo_entrega"]:
+                    ik = str(linha.get("chave") or "").strip()
+                    if not ik:
+                        continue
+                    padrao = numero_ou_nada(linha.get("padrao"))
+                    exc = {ck: numero_ou_nada(x) for ck, x in (linha.get("casas") or {}).items()
+                           if numero_ou_nada(x) is not None}
+                    for d in [padrao] + list(exc.values()):
+                        if d is not None and not (1 <= d <= 90):
+                            raise ValueError("%s: prazo de entrega deve ficar entre 1 e 90 dias" % ik)
+                    # padrao em branco = sem fornecedor; excecao sem padrao nao tem
+                    # sentido, cai junto.
+                    novo[ik] = None if padrao is None else (
+                        dict({"padrao": padrao}, **exc) if exc else padrao)
+                cfg["prazo_entrega"] = novo
             for campo in ("responsaveis", "fornecedores"):
                 if campo in proj:
                     nomes, vistos = [], set()
@@ -1305,15 +1469,70 @@ def estoque_e_media(data_iso, janela):
     return estoque, usos
 
 
+# Quantos dias para tras a Projecao oferece para escolher a media. A janela
+# padrao (14) vem marcada; o resto existe para comparar com um periodo
+# parecido — o feriado do mes passado, a semana de evento.
+HISTORICO_ESCOLHA_DIAS = 60
+
+
+def usos_por_dia(data_iso, dias):
+    """{(insumo, casa): [(iso, uso), ...]} dos `dias` anteriores a data, do mais
+    recente para o mais antigo. So dia com consumo lancado entra: dia sem
+    lancamento nao e consumo zero, e entrar como zero rebaixaria a media."""
+    dados = carregar()
+    limite = datetime.strptime(data_iso, "%Y-%m-%d")
+    inicio = (limite - timedelta(days=dias)).strftime("%Y-%m-%d")
+    fora = {}
+    for iso in sorted(dados, reverse=True):
+        if iso >= data_iso or iso < inicio:
+            continue
+        for ck, lan in dados[iso].items():
+            if not isinstance(lan, dict):
+                continue
+            for ik, campos in (lan.get("insumos") or {}).items():
+                if campos.get("uso") is not None:
+                    fora.setdefault((ik, ck), []).append((iso, numero(campos["uso"])))
+    return fora
+
+
+def media_dos_dias(historico, escolhidos):
+    """Media do consumo nos dias escolhidos que tem lancamento."""
+    alvo = set(escolhidos)
+    lista = [u for iso, u in historico if iso in alvo]
+    return (sum(lista) / len(lista) if lista else 0.0), len(lista)
+
+
+CASA_DIAS = "SL"
+
+
+def dias_item(dias_sl, ik, padrao):
+    """Dias a cobrir do item: o digitado na SL, ou o padrao do pedido."""
+    v = dias_sl.get(ik)
+    return numero(v) if v not in (None, "") else padrao
+
+
 def projetar(data_iso, dias_cobrir):
     cfg = ler_compras()
     janela = cfg.get("janela_media_dias", 14)
     vinculos = ler_vinculos()
     estoque, usos = estoque_e_media(data_iso, janela)
+    historicos = usos_por_dia(data_iso, max(HISTORICO_ESCOLHA_DIAS, janela))
+    inicio_janela = (datetime.strptime(data_iso, "%Y-%m-%d")
+                     - timedelta(days=janela)).strftime("%Y-%m-%d")
     salvos = ler_pedidos().get(data_iso, {})
     casas = [c["chave"] for c in CASAS]
+    # Dias a cobrir e UM numero para o pedido inteiro — as quatro casas e todos
+    # os itens. O que foi salvo com o pedido daquela data manda; sem pedido
+    # salvo, vale o que a tela pediu (o padrao de Parametros).
     fora = {"data": data_iso, "dias_cobrir": dias_cobrir,
-            "janela_media_dias": janela, "casas": {}, "config": cfg}
+            "dias_salvo": salvos.get("_dias_cobrir"),
+            "janela_media_dias": janela, "historico_dias": HISTORICO_ESCOLHA_DIAS,
+            "casas": {}, "config": cfg}
+
+    # Dias a cobrir por item: digitados na Senador Lemos e copiados para as
+    # outras casas. Item sem numero proprio segue o padrao do pedido.
+    dias_sl = {ik: g.get("dias_item") for ik, g in
+               ((salvos.get(CASA_DIAS) or {}).get("insumos") or {}).items()}
 
     dados_lanc = carregar()
     for ck in casas:
@@ -1327,6 +1546,16 @@ def projetar(data_iso, dias_cobrir):
             # registro na janela, nao pelos 14 corridos. Dividir por 14 fixo
             # rebaixaria a media sempre que faltasse lancamento, e o pedido sairia menor.
             media = sum(lista) / len(lista) if lista else 0.0
+            # Dias escolhidos a mao para a media (feriado, evento, semana
+            # atipica). Sem escolha, a media e a da janela, como sempre foi.
+            g = guardado.get(ik, {})
+            historico = historicos.get((ik, ck), [])
+            padrao_dias = [iso for iso, _u in historico if iso >= inicio_janela]
+            escolha = g.get("dias_media")
+            if isinstance(escolha, list):
+                media, n_dias = media_dos_dias(historico, escolha)
+            else:
+                escolha, n_dias = None, len(lista)
             # Lula, tentaculo e atum: o que a casa CONTA e o processado, mas o
             # que ela COMPRA e o in natura. Antes a conversao usava um
             # rendimento medio fixo (70%, 30%, 85%); agora usa o rendimento do
@@ -1340,6 +1569,7 @@ def projetar(data_iso, dias_cobrir):
                 est_proc = est
                 est = est_cru + (est_proc / rend if rend else 0.0)
                 media = media / rend if rend else media
+                historico = [(iso, u / rend if rend else u) for iso, u in historico]
                 quando = max(x for x in (quando, quando_cru) if x is not None) or quando
                 proc = {
                     "rendimento": rend, "rendimento_de": rend_de,
@@ -1349,15 +1579,17 @@ def projetar(data_iso, dias_cobrir):
                     "estoque_in_natura": round(est_cru, 3),
                     "nome": par["nome"],
                 }
-            g = guardado.get(ik, {})
             linhas.append({
                 "chave": ik, "nome": ins["nome"], "un": ins["un"],
                 "conversao": ins.get("conversao"),
                 "processamento": proc,
                 "estoque": round(est, 3), "estoque_de": quando,
-                "media_diaria": round(media, 4), "dias_com_uso": len(lista),
+                "media_diaria": round(media, 4), "dias_com_uso": n_dias,
+                "historico": [{"data": iso, "uso": round(u, 3)} for iso, u in historico],
+                "dias_media": escolha, "dias_media_padrao": padrao_dias,
                 "transito": g.get("transito"), "fator": g.get("fator", 1),
-                "dias_cobrir": g.get("dias_cobrir", dias_cobrir),
+                "dias_cobrir": dias_item(dias_sl, ik, dias_cobrir),
+                "dias_item": dias_sl.get(ik),
                 "fornecedor": g.get("fornecedor"),
                 "qtd_manual": g.get("qtd_manual"),
                 # conciliacao com o catalogo de compras: qual produto este item
@@ -1476,6 +1708,20 @@ def gravar_pedido(corpo):
     datetime.strptime(data_iso, "%Y-%m-%d")
     todos = ler_pedidos()
     todos[data_iso] = corpo.get("casas") or {}
+    if corpo.get("dias_cobrir") not in (None, ""):
+        d = numero(corpo.get("dias_cobrir"))
+        if not (1 <= d <= 60):
+            raise ValueError("dias a cobrir deve ficar entre 1 e 60")
+        todos[data_iso]["_dias_cobrir"] = d
+    for ik, g in (((todos[data_iso].get(CASA_DIAS) or {}).get("insumos")) or {}).items():
+        v = g.get("dias_item")
+        if v in (None, ""):
+            g["dias_item"] = None
+            continue
+        v = numero(v)
+        if not (1 <= v <= 60):
+            raise ValueError("%s: dias a cobrir deve ficar entre 1 e 60" % ik)
+        g["dias_item"] = v
     todos[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     ARQ_PEDIDOS.parent.mkdir(exist_ok=True)
     tmp = ARQ_PEDIDOS.with_suffix(".tmp")
@@ -1802,7 +2048,8 @@ def sincronizar_ordens(data_iso):
     cfg = ler_compras()
     partes = cfg.get("salmao_partes") or []
     pedido = ler_pedidos().get(data_iso) or {}
-    proj = projetar(data_iso, cfg.get("dias_a_cobrir_padrao", 7))
+    dias = pedido.get("_dias_cobrir") or cfg.get("dias_a_cobrir_padrao", 7)
+    proj = projetar(data_iso, dias)
     todas = ler_ordens()
     ordens = todas.setdefault("ordens", {})
     tocadas, travadas = [], []
@@ -1817,7 +2064,8 @@ def sincronizar_ordens(data_iso):
             forn = (g.get("fornecedor") or "").strip()
             if not forn:
                 continue
-            r = calcular_linha(ins, g)
+            # dias a cobrir do item (digitado na SL) ou o padrao do pedido
+            r = calcular_linha(ins, dict(g, dias_cobrir=ins["dias_cobrir"]))
             if r["pedido"] <= 0.0005:
                 continue
             por_forn.setdefault(forn, []).extend(
@@ -2317,7 +2565,7 @@ def overview(mes=None):
             # mudaria o minimo de hoje.
             mi, ma = limite_estoque(ik, ck)
             calc = regra_min.get((ik, ck)) or {}
-            minimo = mi if mi is not None else calc.get("minimo", 0.0)
+            minimo = mi if mi is not None else (calc.get("minimo") or 0.0)
             linhas_estoque.append({
                 "insumo": ins["nome"], "chave": ik, "un": ins["un"],
                 "casa": ck, "casa_nome": c["nome"],
@@ -2392,8 +2640,13 @@ def overview(mes=None):
         for c in CASAS:
             a = mov.get((ik, c["chave"]), {}).get("consumo", 0.0)
             b = mov_ant.get((ik, c["chave"]), {}).get("consumo", 0.0)
+            # Impacto com o custo DAQUELA casa: os cartões de "subiu" e "caiu"
+            # da Visão Geral filtrada escolhem o insumo por ele, e sem o número
+            # a escolha caía no primeiro da lista.
+            custo_c, _f = custo_unitario(ik, c["chave"], custos, catalogo, ref_preco)
             por_casa[c["chave"]] = {"atual": round(a, 2), "anterior": round(b, 2),
-                                   "variacao": round((a - b) / b, 4) if b else None}
+                                   "variacao": round((a - b) / b, 4) if b else None,
+                                   "impacto_reais": round((a - b) * custo_c, 2) if custo_c else None}
         variacao.append({
             "insumo": ins["nome"], "chave": ik, "un": ins["un"],
             "atual": round(atual, 2), "anterior": round(antes, 2),
@@ -2432,11 +2685,12 @@ def overview(mes=None):
     # curva era agosto com 17 dias contra julho com 31 — e o desenho descia.
     serie = []
     consumo_mes, consumo_mes_p = {}, {}
+    consumo_mes_p_casa = {}                  # (insumo, casa) -> {mes: qtd no trecho}
     for m in meses[-12:]:
         f_m, mv_m = totais_do_mes(m)
         f_p, mv_p = totais_do_mes(m, dia_limite) if parcial else (f_m, mv_m)
         valor = valor_p = 0.0
-        consumo_casa_m = {}
+        consumo_casa_m, consumo_casa_p = {}, {}
         for (ik, ck), mm in mv_m.items():
             custo, _f = custo_unitario(ik, ck, custos, catalogo, ref_preco)
             if custo and not nomes.get(ik, {}).get("so_lancamento"):
@@ -2451,7 +2705,10 @@ def overview(mes=None):
             custo, _f = custo_unitario(ik, ck, custos, catalogo, ref_preco)
             if custo and not nomes.get(ik, {}).get("so_lancamento"):
                 valor_p += mm["consumo"] * custo
+                consumo_casa_p[ck] = consumo_casa_p.get(ck, 0.0) + mm["consumo"] * custo
             consumo_mes_p.setdefault(ik, {})[m] = consumo_mes_p.setdefault(ik, {}).get(m, 0.0) + mm["consumo"]
+            hist_c = consumo_mes_p_casa.setdefault((ik, ck), {})
+            hist_c[m] = hist_c.get(m, 0.0) + mm["consumo"]
         total_m, total_p = sum(f_m.values()), sum(f_p.values())
         serie.append({"mes": m, "faturamento": round(total_m, 2),
                       "consumo_valor": round(valor, 2),
@@ -2460,7 +2717,12 @@ def overview(mes=None):
                       "peso": round(valor / total_m, 4) if total_m else None,
                       "por_casa": {ck: round(v, 2) for ck, v in f_m.items()},
                       "consumo_por_casa": {ck: round(v, 2)
-                                           for ck, v in consumo_casa_m.items()}})
+                                           for ck, v in consumo_casa_m.items()},
+                      # o mesmo recorte do dia 1 ao dia_limite, por casa: é o
+                      # que a curva dos cartões de destaque usa com casa filtrada
+                      "por_casa_trecho": {ck: round(v, 2) for ck, v in f_p.items()},
+                      "consumo_por_casa_trecho": {ck: round(v, 2)
+                                                  for ck, v in consumo_casa_p.items()}})
 
     # a série curta de cada insumo alimenta o mini gráfico dos blocos de
     # destaque, e vai recortada no mesmo trecho para poder ser comparada
@@ -2468,6 +2730,9 @@ def overview(mes=None):
     for v in variacao:
         historico = consumo_mes_p.get(v["chave"], {})
         v["serie"] = [round(historico.get(m, 0.0), 2) for m in meses_serie]
+        for ck, pc in v["por_casa"].items():
+            hist_c = consumo_mes_p_casa.get((v["chave"], ck), {})
+            pc["serie"] = [round(hist_c.get(m, 0.0), 2) for m in meses_serie]
 
     # Consumo valorizado do mes e do mesmo trecho do mes anterior. Sem o
     # segundo numero o cartao mostraria um total sem referencia — e total sem
@@ -2577,6 +2842,15 @@ def compras_precificadas():
 
     Uma lista por casa e insumo, do mais antigo para o mais novo, para achar
     por data qual era o preco vigente.
+
+    O salmao equivalente nao e comprado: compra-se por libragem, e o preco e
+    por peca de cada faixa. A compra dele e DERIVADA das libragens do dia, e
+    o preco e o MESMO informado em Movimentacoes — a conversao para 08/10
+    muda so a quantidade de peixes, nunca o preco (regra da area). Com faixas
+    a precos diferentes no mesmo dia, vale a media pelas pecas: total pago /
+    pecas. Sem isso o custo do salmao, o maior item do consumo, vinha de um
+    valor fixo do custos.json, que fica so para quando nao ha compra
+    precificada ate a data.
     """
     mt = ARQ.stat().st_mtime if ARQ.exists() else None
     if _cache_compras["mtime"] == mt and _cache_compras["linha"] is not None:
@@ -2591,13 +2865,29 @@ def compras_precificadas():
         for ck, lan in dia.items():
             if not isinstance(lan, dict):
                 continue
+            pago_eq = pecas = 0.0
             for ik, campos in (lan.get("insumos") or {}).items():
                 if not isinstance(campos, dict):
                     continue
                 preco = (campos.get("precos") or {}).get("entrada")
-                if preco is None or numero(campos.get("entrada")) <= 0:
+                # a compra e a de Movimentacoes (a quantidade da nota)
+                q = qtd_movimentacoes(campos, "entrada")
+                notas_e = (campos.get("notas") or {}).get("entrada") or []
+                if notas_e:
+                    # entrada dividida: so as linhas de NOTA FISCAL sao compra;
+                    # transferencia recebida de outra casa nao e preco pago
+                    nfs = [n for n in notas_e if not e_transferencia_recebida(n)]
+                    preco = preco_das_linhas(nfs)
+                    q = sum(numero(n.get("qtd")) for n in nfs)
+                if preco is None or q <= 0:
                     continue
                 fora.setdefault((ck, ik), []).append((iso, float(preco)))
+                if ik in FATOR_LIBRA:
+                    pago_eq += q * float(preco)
+                    pecas += q                 # pecas, sem o fator: o preco nao converte
+            if pecas > 0:
+                fora.setdefault((ck, "salmao_equivalente"), []).append(
+                    (iso, pago_eq / pecas))
     _cache_compras.update(mtime=mt, linha=fora)
     return fora
 
@@ -2710,12 +3000,22 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                     continue
                 precos = campos.get("precos") or {}
                 for t in TIPOS_ESTOQUE:
-                    valor = numero(campos.get(t))
-                    if abs(valor) <= 0.0005:
+                    lancado = numero(campos.get(t))
+                    propria = tem_quantidade_propria(campos, t)
+                    if abs(lancado) <= 0.0005 and not propria:
                         continue
+                    # a quantidade da linha e a de Movimentacoes; o lancamento
+                    # diario vai ao lado, como referencia
+                    valor = qtd_movimentacoes(campos, t)
+                    alerta = valor < lancado - 0.0005
                     precificavel = t in TIPOS_COM_PRECO
                     preco = precos.get(t) if precificavel else None
                     total = round(valor * numero(preco), 2) if preco is not None else None
+                    notas_t = (campos.get("notas") or {}).get(t) or []
+                    if notas_t and preco is not None:
+                        # com notas, o valor e o que elas somam (transferencia
+                        # recebida sem valor nao ganha o preco das NFs)
+                        total = round(sum(numero(n.get("total")) for n in notas_t), 2)
                     # A perda nao tem preco digitado: e valorizada pelo custo da
                     # compra, num par de campos separado do dinheiro de compra.
                     custo_un = perdido = None
@@ -2724,6 +3024,9 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                         perdido = round(valor * custo_un, 2) if custo_un else None
                     resumo[t]["qtd"] += valor
                     resumo[t]["n"] += 1
+                    resumo[t].setdefault("alerta", 0)
+                    if alerta:
+                        resumo[t]["alerta"] += 1
                     if precificavel and total is None:
                         resumo[t]["sem_preco"] += 1
                     elif total is not None:
@@ -2745,11 +3048,27 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                         "data": iso, "casa": ck, "casa_nome": casas.get(ck, ck),
                         "insumo": ins["nome"], "insumo_chave": ik, "un": ins["un"],
                         "tipo": t, "tipo_nome": TIPOS_ESTOQUE[t], "qtd": round(valor, 3),
+                        "qtd_lancamento": round(lancado, 3),
+                        # fornecedor (ou casa de destino) e NF de movimento sem
+                        # nota — os lancamentos antigos chegaram sem isso
+                        "parceiro": ((campos.get("info") or {}).get(t) or {}).get("parceiro", ""),
+                        "nf": ((campos.get("info") or {}).get(t) or {}).get("nf", ""),
+                        "propria": propria, "alerta": alerta,
                         "preco": preco, "valor_total": total,
                         "custo_un": round(custo_un, 4) if custo_un else None,
                         "valor_perdido": perdido,
                         "precificavel": precificavel,
-                        "origem": "Planilha" if da_planilha(campos) else "Digitado",
+                        "notas": (campos.get("notas") or {}).get(t) or [],
+                        # salmao e faturado em kg: a entrada da libragem guarda
+                        # os kg da nota, para o relatorio mensal
+                        "pesavel": ik in FATOR_LIBRA and t == "entrada",
+                        "kg": (campos.get("kg") or {}).get(t),
+                        "origem": "Movimentações" if propria
+                                  else "Planilha" if da_planilha(campos)
+                                  else ("Editado" if campos.get("_editado") else "Digitado"),
+                        "origem_lancamento": None if abs(lancado) <= 0.0005
+                                  else "Planilha" if da_planilha(campos)
+                                  else ("Editado" if campos.get("_editado") else "Digitado"),
                     })
     fora.sort(key=lambda m: (m["data"], m["casa"], m["insumo"]), reverse=True)
     for t in resumo:
@@ -2788,24 +3107,35 @@ def _gravar_preco_sem_trava(corpo):
     if tipo not in TIPOS_COM_PRECO:
         raise ValueError("preco so existe para entrada e transferência — "
                          "%s nao e compra" % TIPOS_ESTOQUE.get(tipo, tipo))
+    # A tela de Movimentacoes manda o VALOR TOTAL da nota, que e o numero que
+    # a pessoa tem na mao; o preco unitario sai dele dividido pela quantidade
+    # gravada. O cadastro continua guardando o preco unitario, como antes.
+    por_total = "total" in corpo
+    if por_total:
+        bruto = corpo.get("total")
     apagar = bruto in (None, "")
     preco = numero(bruto)
     if not apagar and preco < 0:
-        raise ValueError("preco nao pode ser negativo")
-    # O preco DIGITADO guarda as casas que foram digitadas (ate dez; o
-    # importado pelo importar_precos_planilha.py guarda seis). O arredondamento para o
-    # centavo e so da coluna na tela: preco de nota costuma ter mais de duas
-    # casas, e cortar aqui afastaria o valor total da linha do total da nota.
-    preco = round(preco, 10)
+        raise ValueError("%s nao pode ser negativo" % ("valor total" if por_total else "preco"))
 
     dados = carregar()
     campos = (((dados.get(data_iso) or {}).get(casa) or {}).get("insumos") or {}).get(insumo)
     if not isinstance(campos, dict):
         raise ValueError("nao ha lancamento de %s nessa casa em %s"
                          % (insumo, data_iso))
-    if abs(numero(campos.get(tipo))) <= 0.0005:
+    # o preco e sobre a quantidade de Movimentacoes (a da nota), nao a do
+    # lancamento diario
+    qtd_mov = qtd_movimentacoes(campos, tipo)
+    if abs(qtd_mov) <= 0.0005:
         raise ValueError("nao ha %s desse insumo em %s para precificar"
                          % (TIPOS_ESTOQUE[tipo], data_iso))
+    if por_total and not apagar:
+        preco = preco / qtd_mov
+    # O preco guarda ate dez casas (o importado pelo importar_precos_planilha.py
+    # guarda seis). O arredondamento para o centavo e so da coluna na tela:
+    # preco de nota costuma ter mais de duas casas, e cortar aqui afastaria o
+    # valor total da linha do total da nota.
+    preco = round(preco, 10)
 
     precos = campos.setdefault("precos", {})
     if apagar:
@@ -2814,13 +3144,317 @@ def _gravar_preco_sem_trava(corpo):
             campos.pop("precos", None)
     else:
         precos[tipo] = preco
+    # Preco digitado direto na linha substitui o detalhamento por nota: as
+    # notas antigas deixariam de somar o valor que a linha passa a mostrar.
+    notas = campos.get("notas") or {}
+    if tipo in notas:
+        notas.pop(tipo)
+        if not notas:
+            campos.pop("notas", None)
     dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
-    qtd = numero(campos.get(tipo))
+    qtd = qtd_movimentacoes(campos, tipo)
     return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo,
             "tipo": tipo, "preco": None if apagar else preco,
             "qtd": round(qtd, 3),
             "valor_total": None if apagar else round(qtd * preco, 2)}
+
+
+# ------------------------------------------------- movimentacoes x lancamento
+# A tela de Movimentacoes tem QUANTIDADE PROPRIA, independente do lancamento
+# diario. O lancamento (planilha ou tela de lancamento) e a contagem da casa e
+# nunca e alterado por Movimentacoes; o que Movimentacoes registra — a
+# quantidade corrigida de uma linha, ou as notas fiscais — fica a parte:
+#
+#   insumos[chave]["mov"][tipo]    quantidade corrigida na linha do extrato
+#   insumos[chave]["notas"][tipo]  notas fiscais; a quantidade e a soma delas
+#
+# Sem nenhum dos dois, Movimentacoes espelha o lancamento. Quando a quantidade
+# de Movimentacoes fica ABAIXO da do lancamento, a linha do extrato acende em
+# vermelho: chegou na contagem da casa mais do que as notas cobrem.
+CAMPOS_LANC = ("inicial", "final", "entrada", "transferencia", "desperdicio", "uso")
+
+
+def tem_quantidade_propria(campos, tipo):
+    return bool((campos.get("notas") or {}).get(tipo)) or tipo in (campos.get("mov") or {})
+
+
+def qtd_movimentacoes(campos, tipo):
+    """Quantidade que a tela de Movimentacoes considera para o movimento."""
+    notas = (campos.get("notas") or {}).get(tipo)
+    if notas:
+        return round(sum(numero(n.get("qtd")) for n in notas), 4)
+    mov = campos.get("mov") or {}
+    if tipo in mov:
+        return numero(mov[tipo])
+    return numero(campos.get(tipo))
+
+
+def so_movimentacoes(campos):
+    """Registro que so tem dado de Movimentacoes (nota de um dia que a planilha
+    ainda nao trouxe). Nao e lancamento digitado: a sincronizacao pode
+    escreve-lo por cima, levando junto as notas, os precos e o kg."""
+    return isinstance(campos, dict) and not any(campos.get(k) is not None for k in CAMPOS_LANC)
+
+
+def preco_das_linhas(linhas):
+    """Preco unitario de um conjunto de notas: soma dos totais / soma das
+    quantidades, so das linhas COM valor. Transferencia recebida sem valor
+    informado nao dilui o preco das notas fiscais do mesmo dia."""
+    com_valor = [l for l in linhas if numero(l.get("total")) > 0]
+    q = sum(numero(l.get("qtd")) for l in com_valor)
+    return round(sum(numero(l.get("total")) for l in com_valor) / q, 10) if q > 0 else None
+
+
+def e_transferencia_recebida(nota):
+    return nota.get("origem") == "transferencia"
+
+
+def _limpar_vazios(campos):
+    for k in ("mov", "notas", "precos", "kg", "info"):
+        if k in campos and not campos[k]:
+            campos.pop(k)
+
+
+def trocar_quantidade(campos, tipo, nova):
+    """Troca a quantidade de UM movimento (entrada, transferencia, desperdicio)
+    e deixa o resto do registro coerente com ela. Devolve a diferenca.
+
+    O uso do dia nao e apagado: em 24.006 de 24.008 registros ele e
+    inicial + entrada - transferencia - final, entao anda junto com a
+    diferenca (entrada soma, transferencia subtrai; o desperdicio nao entra no
+    uso). Apagar o uso — o que se fazia antes — tirava o consumo daquele dia
+    do painel e da Visao Geral.
+
+    O registro deixa de ser da planilha e passa a editado: a sincronizacao
+    preserva o que foi corrigido aqui em vez de voltar ao numero antigo.
+    """
+    antes = numero(campos.get(tipo))
+    nova = round(max(nova, 0.0), 4)
+    delta = nova - antes
+    if abs(delta) <= 0.0005:
+        return 0.0
+    if campos.get("uso") is not None and tipo in ("entrada", "transferencia"):
+        sinal = 1 if tipo == "entrada" else -1
+        campos["uso"] = round(numero(campos["uso"]) + sinal * delta, 4)
+    if da_planilha(campos):
+        campos.pop(MARCA_PLANILHA, None)
+        campos["_editado"] = True
+    if nova <= 0.0005:
+        campos.pop(tipo, None)
+    else:
+        campos[tipo] = nova
+    return delta
+
+
+def _editar_movimento_sem_trava(corpo):
+    """Corrige a quantidade de um movimento NA TELA DE MOVIMENTACOES.
+
+    O lancamento diario nao muda: a quantidade digitada fica em
+    insumos[chave]["mov"][tipo], como entrada propria de Movimentacoes.
+    Digitar de volta o numero do lancamento desfaz a entrada propria (a linha
+    volta a espelhar o lancamento). Zero numa linha sem lancamento apaga o
+    movimento; zero numa linha com lancamento fica registrado — e acende o
+    alerta, porque o lancamento tem quantidade que Movimentacoes nao cobre.
+
+    O VALOR TOTAL pago fica: e o numero da nota, e quem corrige a quantidade
+    nao mudou o que pagou. O preco unitario e que se refaz (total / nova
+    quantidade). Movimento detalhado por notas so muda pelas notas.
+    """
+    data_iso = (corpo.get("data") or "").strip()
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    casa = (corpo.get("casa") or "").strip()
+    insumo = (corpo.get("insumo") or "").strip()
+    tipo = (corpo.get("tipo") or "").strip()
+    if tipo not in TIPOS_ESTOQUE:
+        raise ValueError("tipo de movimento invalido: %s" % tipo)
+    if insumo in DERIVADOS:
+        raise ValueError("%s e uma linha calculada: corrija a libragem" % insumo)
+    nova = numero(corpo.get("qtd"))
+    if nova < 0:
+        raise ValueError("quantidade nao pode ser negativa")
+    nova = round(nova, 4)
+
+    dados = carregar()
+    lan = (dados.get(data_iso) or {}).get(casa) or {}
+    campos = (lan.get("insumos") or {}).get(insumo)
+    if not isinstance(campos, dict):
+        raise ValueError("nao ha esse movimento em %s" % data_iso)
+    lancado = numero(campos.get(tipo))
+    if lancado <= 0.0005 and not tem_quantidade_propria(campos, tipo):
+        raise ValueError("nao ha esse movimento em %s" % data_iso)
+    if (campos.get("notas") or {}).get(tipo):
+        raise ValueError("este movimento esta detalhado por notas fiscais — "
+                         "corrija a quantidade pelas notas")
+
+    antes = qtd_movimentacoes(campos, tipo)
+    precos = campos.setdefault("precos", {})
+    preco_antes = precos.get(tipo)
+    mov = campos.setdefault("mov", {})
+    if abs(nova - lancado) <= 0.0005:
+        mov.pop(tipo, None)                 # igual ao lancamento: volta a espelhar
+    else:
+        mov[tipo] = nova
+    if preco_antes is not None:
+        if nova <= 0.0005:
+            precos.pop(tipo, None)
+        else:
+            precos[tipo] = round(antes * numero(preco_antes) / nova, 10)
+    if lancado <= 0.0005 and nova <= 0.0005:
+        # movimento que so existia em Movimentacoes: zero apaga tudo dele
+        mov.pop(tipo, None)
+        precos.pop(tipo, None)
+        (campos.get("kg") or {}).pop(tipo, None)
+    _limpar_vazios(campos)
+    if not campos:
+        lan["insumos"].pop(insumo, None)
+    dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    qtd = qtd_movimentacoes(campos, tipo)
+    preco = (campos.get("precos") or {}).get(tipo)
+    propria = tem_quantidade_propria(campos, tipo)
+    return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "antes": round(antes, 4), "qtd": round(qtd, 4),
+            "qtd_lancamento": round(lancado, 4), "propria": propria,
+            "alerta": qtd < lancado - 0.0005, "preco": preco,
+            "valor_total": round(qtd * preco, 2) if preco is not None else None,
+            "origem": "Movimentações" if propria
+                      else "Planilha" if da_planilha(campos)
+                      else ("Editado" if campos.get("_editado") else "Digitado")}
+
+
+# ------------------------------------------------- notas fiscais e transferencias
+# Uma entrada do dia (215 pacotes de nori na Senador Lemos) pode ter chegado em
+# mais de uma nota, de fornecedores e precos diferentes (5 de um, 210 de
+# outro). As notas ficam em insumos[chave]["notas"][tipo] =
+# [{parceiro, nf, qtd, total, kg}], e o preco da linha passa a ser a media
+# ponderada delas. Na transferencia, o parceiro e a casa de destino.
+#
+# As notas sao a quantidade de MOVIMENTACOES, independente do lancamento
+# diario, que nunca e alterado aqui. Nota de um dia sem lancamento cria o
+# movimento so em Movimentacoes. Se as notas somam menos que o lancamento, a
+# linha do extrato acende em vermelho.
+
+def ler_notas(data_iso, casa, insumo, tipo):
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    campos = ((((carregar().get(data_iso) or {}).get(casa) or {})
+               .get("insumos") or {}).get(insumo)) or {}
+    preco = (campos.get("precos") or {}).get(tipo)
+    lancado = numero(campos.get(tipo))
+    qtd = qtd_movimentacoes(campos, tipo)
+    return {"data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "qtd": round(lancado, 4), "qtd_mov": round(qtd, 4),
+            "propria": tem_quantidade_propria(campos, tipo), "preco": preco,
+            "valor_total": round(qtd * numero(preco), 2) if preco is not None else None,
+            "origem": "Planilha" if da_planilha(campos) else ("Digitado" if lancado else None),
+            "notas": (campos.get("notas") or {}).get(tipo) or [],
+            "pesavel": insumo in FATOR_LIBRA and tipo == "entrada",
+            "kg": (campos.get("kg") or {}).get(tipo),
+            "info": (campos.get("info") or {}).get(tipo) or {}}
+
+
+def _gravar_notas_sem_trava(corpo):
+    data_iso = (corpo.get("data") or "").strip()
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    casa = (corpo.get("casa") or "").strip()
+    insumo = (corpo.get("insumo") or "").strip()
+    tipo = (corpo.get("tipo") or "").strip()
+    chaves_casa = [c["chave"] for c in CASAS]
+    if casa not in chaves_casa:
+        raise ValueError("casa desconhecida: %s" % casa)
+    if insumo not in [i["chave"] for i in INSUMOS]:
+        raise ValueError("insumo desconhecido: %s" % insumo)
+    if insumo in DERIVADOS:
+        raise ValueError("%s e uma linha calculada: lance na libragem que chegou" % insumo)
+    if tipo not in TIPOS_COM_PRECO:
+        raise ValueError("nota so existe para entrada e transferência")
+
+    linhas = []
+    for ln in corpo.get("linhas") or []:
+        parceiro = str(ln.get("parceiro") or "").strip()
+        nf = str(ln.get("nf") or "").strip()
+        qtd, total = numero(ln.get("qtd")), numero(ln.get("total"))
+        if not parceiro and not nf and qtd == 0 and total == 0:
+            continue                                   # linha em branco da tela
+        if qtd <= 0:
+            raise ValueError("cada nota precisa de quantidade maior que zero")
+        if total < 0:
+            raise ValueError("valor total nao pode ser negativo")
+        # Uma ENTRADA pode vir parte por nota fiscal (fornecedor) e parte por
+        # transferencia de outra casa (casa de origem): cada linha diz qual.
+        origem = "transferencia" if (tipo == "entrada"
+                                     and ln.get("origem") == "transferencia") else "nf"
+        if tipo == "transferencia" or origem == "transferencia":
+            de_para = "destino" if tipo == "transferencia" else "origem"
+            if parceiro not in chaves_casa:
+                raise ValueError("escolha a casa de %s da transferência" % de_para)
+            if parceiro == casa:
+                raise ValueError("a transferência nao pode %s propria casa"
+                                 % ("ir para a" if de_para == "destino" else "vir da"))
+        elif not parceiro:
+            raise ValueError("informe o fornecedor de cada nota")
+        linha = {"parceiro": parceiro, "nf": nf,
+                 "qtd": round(qtd, 4), "total": round(total, 2)}
+        if origem == "transferencia":
+            linha["origem"] = "transferencia"
+        kg = numero(ln.get("kg"))
+        if kg < 0:
+            raise ValueError("kg da nota nao pode ser negativo")
+        if kg > 0 and insumo in FATOR_LIBRA and tipo == "entrada":
+            linha["kg"] = round(kg, 3)
+        linhas.append(linha)
+
+    dados = carregar()
+    dia = dados.setdefault(data_iso, {})
+    lan = dia.get(casa)
+    if not isinstance(lan, dict):
+        lan = dia[casa] = {"faturamento": None, "insumos": {}}
+    campos = lan.setdefault("insumos", {}).setdefault(insumo, {})
+    lancado = numero(campos.get(tipo))
+    soma_qtd = round(sum(l["qtd"] for l in linhas), 4)
+    soma_total = round(sum(l["total"] for l in linhas), 2)
+
+    notas = campos.setdefault("notas", {})
+    precos = campos.setdefault("precos", {})
+    kgs = campos.setdefault("kg", {})
+    # as notas passam a ser a quantidade de Movimentacoes: a correcao avulsa
+    # da linha, se havia, sai — e o fornecedor/NF avulsos, que agora estao
+    # nas notas
+    (campos.get("mov") or {}).pop(tipo, None)
+    if linhas:
+        (campos.get("info") or {}).pop(tipo, None)
+    if not linhas:
+        # Tirar todas as notas apaga o detalhamento e o preco que saiu dele;
+        # a linha volta a espelhar o lancamento diario.
+        notas.pop(tipo, None)
+        precos.pop(tipo, None)
+    else:
+        notas[tipo] = linhas
+        preco = preco_das_linhas(linhas)
+        if preco is None:
+            precos.pop(tipo, None)
+        else:
+            precos[tipo] = preco
+    # Kg da NF do salmao: com notas, e a soma dos kg delas (nota sem kg nao
+    # soma nada); sem notas, nao fica kg de nota que ja nao existe.
+    soma_kg = round(sum(l.get("kg", 0) for l in linhas), 3)
+    if soma_kg > 0:
+        kgs[tipo] = soma_kg
+    else:
+        kgs.pop(tipo, None)
+    _limpar_vazios(campos)
+    if not campos:
+        lan["insumos"].pop(insumo, None)   # abriu a nota e desistiu: nada a guardar
+    dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    qtd = qtd_movimentacoes(campos, tipo)
+    preco = (campos.get("precos") or {}).get(tipo)
+    return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "qtd": round(qtd, 4), "preco": preco,
+            "valor_total": round(qtd * preco, 2) if preco is not None else None,
+            "qtd_mov": round(qtd, 4), "qtd_lancamento": round(lancado, 4),
+            "alerta": bool(linhas) and qtd < lancado - 0.0005,
+            "notas": linhas, "kg": (campos.get("kg") or {}).get(tipo)}
 
 
 # --------------------------------------------------------------- servidor
@@ -2929,6 +3563,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, {"unidade": uni, "proximo": proximo_numero_oc(uni)})
             if rota == "/api/overview":
                 return self._json(200, overview(q.get("mes")))
+            if rota == "/api/nota":
+                return self._json(200, ler_notas(q.get("data") or "", q.get("casa") or "",
+                                                 q.get("insumo") or "", q.get("tipo") or ""))
             if rota == "/api/movimentacoes":
                 from urllib.parse import unquote
                 pad_i, pad_f = periodo_padrao()
@@ -2965,6 +3602,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, gravar_movimentacao(self._corpo()))
             if self.path == "/api/preco":
                 return self._json(200, gravar_preco(self._corpo()))
+            if self.path == "/api/nota":
+                return self._json(200, gravar_notas(self._corpo()))
+            if self.path == "/api/movimento/editar":
+                return self._json(200, editar_movimento(self._corpo()))
+            if self.path == "/api/kg":
+                return self._json(200, gravar_kg(self._corpo()))
+            if self.path == "/api/movimento/info":
+                return self._json(200, editar_info(self._corpo()))
+            if self.path == "/api/movimento/excluir":
+                return self._json(200, excluir_movimento(self._corpo()))
             if self.path == "/api/pedido":
                 return self._json(200, gravar_pedido(self._corpo()))
             if self.path == "/api/ordem":
@@ -3016,6 +3663,188 @@ def gravar_movimentacao(corpo):
 def gravar_preco(corpo):
     with _lock_lanc:
         return _gravar_preco_sem_trava(corpo)
+
+
+def _gravar_kg_sem_trava(corpo):
+    """Grava os kg da nota fiscal na entrada de uma libragem de salmao.
+
+    O salmao e contado em pecas por faixa, mas faturado em kg: o relatorio
+    mensal precisa dos dois. O preco por kg nao e gravado — sai do valor
+    total / kg, e assim nunca desmente o total da linha. Vazio apaga.
+    Entrada detalhada por notas recebe os kg nas notas.
+    """
+    data_iso = (corpo.get("data") or "").strip()
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    casa = (corpo.get("casa") or "").strip()
+    insumo = (corpo.get("insumo") or "").strip()
+    tipo = (corpo.get("tipo") or "entrada").strip()
+    if insumo not in FATOR_LIBRA or tipo != "entrada":
+        raise ValueError("kg da NF existe so na entrada das libragens de salmao")
+    bruto = corpo.get("kg")
+    apagar = bruto in (None, "")
+    kg = numero(bruto)
+    if not apagar and kg <= 0:
+        raise ValueError("informe kg maior que zero (vazio apaga)")
+    dados = carregar()
+    campos = ((((dados.get(data_iso) or {}).get(casa) or {})
+               .get("insumos") or {}).get(insumo))
+    if not isinstance(campos, dict) or qtd_movimentacoes(campos, tipo) <= 0.0005:
+        raise ValueError("nao ha entrada de %s em %s" % (insumo, data_iso))
+    if (campos.get("notas") or {}).get(tipo):
+        raise ValueError("esta entrada esta detalhada por notas — informe os kg nas notas")
+    kgs = campos.get("kg") or {}
+    if apagar:
+        kgs.pop(tipo, None)
+    else:
+        kgs[tipo] = round(kg, 3)
+    if kgs:
+        campos["kg"] = kgs
+    else:
+        campos.pop("kg", None)
+    dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    return {"ok": True, "data": data_iso, "casa": casa, "insumo": insumo, "tipo": tipo,
+            "kg": kgs.get(tipo)}
+
+
+def _alvo_movimento(dados, corpo):
+    """(lan, campos, data, casa, insumo, tipo) do movimento pedido, validado."""
+    data_iso = (corpo.get("data") or "").strip()
+    datetime.strptime(data_iso, "%Y-%m-%d")
+    casa = (corpo.get("casa") or "").strip()
+    insumo = (corpo.get("insumo") or "").strip()
+    tipo = (corpo.get("tipo") or "").strip()
+    if tipo not in TIPOS_ESTOQUE:
+        raise ValueError("tipo de movimento invalido: %s" % tipo)
+    lan = (dados.get(data_iso) or {}).get(casa) or {}
+    campos = (lan.get("insumos") or {}).get(insumo)
+    if not isinstance(campos, dict) or (numero(campos.get(tipo)) <= 0.0005
+                                        and not tem_quantidade_propria(campos, tipo)):
+        raise ValueError("nao ha esse movimento em %s" % data_iso)
+    return lan, campos, data_iso, casa, insumo, tipo
+
+
+def _indice_nota(campos, tipo, bruto):
+    notas = (campos.get("notas") or {}).get(tipo) or []
+    if bruto in (None, ""):
+        return None, notas
+    i = int(bruto)
+    if not 0 <= i < len(notas):
+        raise ValueError("nota inexistente")
+    return i, notas
+
+
+def _editar_info_sem_trava(corpo):
+    """Fornecedor (ou casa de destino) e numero da NF de um movimento.
+
+    Os lancamentos antigos chegaram da planilha sem esses dois dados. Numa
+    linha de nota, muda aquela nota; numa linha sem nota, guarda so os dois
+    campos em insumos[chave]["info"][tipo] — quantidade e preco nao mudam.
+    """
+    dados = carregar()
+    lan, campos, data_iso, casa, insumo, tipo = _alvo_movimento(dados, corpo)
+    if tipo not in TIPOS_COM_PRECO:
+        raise ValueError("desperdicio nao tem fornecedor nem nota fiscal")
+    parceiro = str(corpo.get("parceiro") or "").strip()
+    nf = str(corpo.get("nf") or "").strip()
+    i, notas = _indice_nota(campos, tipo, corpo.get("nota"))
+    casa_parceira = tipo == "transferencia" or (
+        i is not None and e_transferencia_recebida(notas[i]))
+    if casa_parceira and parceiro:
+        if parceiro not in [c["chave"] for c in CASAS]:
+            raise ValueError("escolha a casa da transferência")
+        if parceiro == casa:
+            raise ValueError("a transferência nao pode ser com a propria casa")
+    if i is not None:
+        if not parceiro:
+            raise ValueError("a nota precisa de %s" % (
+                "casa" if casa_parceira else "fornecedor"))
+        notas[i]["parceiro"] = parceiro
+        notas[i]["nf"] = nf
+    else:
+        if notas:
+            raise ValueError("este movimento tem notas: edite a linha da nota")
+        info = campos.setdefault("info", {})
+        if parceiro or nf:
+            info[tipo] = {"parceiro": parceiro, "nf": nf}
+        else:
+            info.pop(tipo, None)
+        _limpar_vazios(campos)
+    dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    return {"ok": True, "parceiro": parceiro, "nf": nf}
+
+
+def _excluir_movimento_sem_trava(corpo):
+    """Exclui um lancamento da tela de Movimentacoes.
+
+    - linha de nota: apaga aquela nota; o preco e os kg se refazem com as que
+      sobram (sem nenhuma, a linha volta a espelhar o lancamento diario);
+    - linha sem nota: apaga o que Movimentacoes acrescentou (correcao de
+      quantidade, preco, kg, fornecedor e NF). Se o movimento so existia em
+      Movimentacoes, ele some; se veio do lancamento diario, a linha volta a
+      espelha-lo — o lancamento diario nao e apagado por esta tela.
+    """
+    dados = carregar()
+    lan, campos, data_iso, casa, insumo, tipo = _alvo_movimento(dados, corpo)
+    lancado = numero(campos.get(tipo))
+    i, notas = _indice_nota(campos, tipo, corpo.get("nota"))
+    precos = campos.setdefault("precos", {})
+    kgs = campos.setdefault("kg", {})
+    if i is not None:
+        notas.pop(i)
+        if notas:
+            preco = preco_das_linhas(notas)
+            if preco is None:
+                precos.pop(tipo, None)
+            else:
+                precos[tipo] = preco
+            sk = round(sum(numero(n.get("kg")) for n in notas), 3)
+            if sk > 0:
+                kgs[tipo] = sk
+            else:
+                kgs.pop(tipo, None)
+        else:
+            campos["notas"].pop(tipo, None)
+            precos.pop(tipo, None)
+            kgs.pop(tipo, None)
+    else:
+        if notas:
+            raise ValueError("este movimento tem notas: exclua as linhas das notas")
+        for k in ("mov", "precos", "kg", "info"):
+            (campos.get(k) or {}).pop(tipo, None)
+    _limpar_vazios(campos)
+    if not campos:
+        lan["insumos"].pop(insumo, None)
+    dados[data_iso]["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
+    salvar(dados)
+    sobrou = isinstance(campos, dict) and (lancado > 0.0005 or tem_quantidade_propria(campos, tipo))
+    return {"ok": True, "sobrou": bool(sobrou), "lancamento": round(lancado, 4)}
+
+
+def editar_info(corpo):
+    with _lock_lanc:
+        return _editar_info_sem_trava(corpo)
+
+
+def excluir_movimento(corpo):
+    with _lock_lanc:
+        return _excluir_movimento_sem_trava(corpo)
+
+
+def gravar_kg(corpo):
+    with _lock_lanc:
+        return _gravar_kg_sem_trava(corpo)
+
+
+def editar_movimento(corpo):
+    with _lock_lanc:
+        return _editar_movimento_sem_trava(corpo)
+
+
+def gravar_notas(corpo):
+    with _lock_lanc:
+        return _gravar_notas_sem_trava(corpo)
 
 
 if __name__ == "__main__":

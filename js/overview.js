@@ -80,9 +80,9 @@ async function carregar() {
 //
 // O que o recorte NÃO tenta reconstruir fica explícito em vez de sair errado:
 // a pizza de participação continua sendo a da rede (é a comparação entre
-// casas, filtrá-la não faria sentido) e a minicurva de cada insumo é omitida,
-// porque a série que o servidor manda por insumo é da rede — mostrá-la ao
-// lado dos números de uma casa seria uma mentira discreta.
+// casas, filtrá-la não faria sentido). A minicurva e o impacto em R$ de cada
+// insumo usam os valores por casa que o servidor manda em variacao.por_casa —
+// a série da rede ao lado dos números de uma casa seria uma mentira discreta.
 // ======================================================================
 let VISTA = null;
 
@@ -128,9 +128,10 @@ function variacaoDaCasa(ck) {
     return {
       ...v, atual: c.atual, anterior: c.anterior, variacao: c.variacao,
       diferenca: c.atual - c.anterior,
-      // Impacto em reais e minicurva vêm da rede: sem recorte por casa, é
-      // melhor não mostrar do que mostrar o número de outro conjunto.
-      impacto_reais: null, serie: null,
+      // Impacto e minicurva também vêm recortados pelo servidor. Se faltarem
+      // (servidor antigo), melhor não mostrar do que mostrar os da rede.
+      impacto_reais: c.impacto_reais === undefined ? null : c.impacto_reais,
+      serie: c.serie || null,
     };
   }).filter(Boolean)
     .sort((a, b) => Math.abs(b.variacao || 0) - Math.abs(a.variacao || 0));
@@ -141,6 +142,7 @@ function montarVista() {
   if (!ck) return DADOS;
 
   const part = (DADOS.participacao || []).find((x) => x.casa === ck) || {};
+  const estoque = (DADOS.estoque || []).filter((l) => l.casa === ck);
   return {
     ...DADOS,
     casa_filtro: ck,
@@ -153,14 +155,15 @@ function montarVista() {
       ...m,
       faturamento: (m.por_casa || {})[ck] || 0,
       consumo_valor: (m.consumo_por_casa || {})[ck] || 0,
-      faturamento_trecho: (m.por_casa || {})[ck] || 0,
-      consumo_valor_trecho: (m.consumo_por_casa || {})[ck] || 0,
+      faturamento_trecho: (m.por_casa_trecho || m.por_casa || {})[ck] || 0,
+      consumo_valor_trecho: (m.consumo_por_casa_trecho || m.consumo_por_casa || {})[ck] || 0,
       peso: (m.por_casa || {})[ck]
         ? ((m.consumo_por_casa || {})[ck] || 0) / m.por_casa[ck] : null,
     })),
     abc: abcDaCasa(ck),
     variacao: variacaoDaCasa(ck),
-    estoque: (DADOS.estoque || []).filter((l) => l.casa === ck),
+    estoque,
+    valor_estoque: estoque.reduce((s, l) => s + (l.valor || 0), 0),
     criticos: (DADOS.criticos || []).filter((l) => l.casa === ck),
     perdas: (DADOS.perdas || []).filter((l) => l.casa === ck),
     movimentos: (DADOS.movimentos || []).filter((l) => l.casa === ck),
@@ -240,8 +243,10 @@ const svgIns = (d) => `<svg width="17" height="17" viewBox="0 0 24 24" fill="non
 // virou insumo, o que está parado, o que mais subiu, o que mais caiu e o que
 // vai faltar. Os quatro primeiros vêm do antigo placar — nada se perdeu ao
 // apagá-lo.
+// Leem da VISTA, não do DADOS: com casa escolhida, os seis números, variações e
+// curvas são os daquela casa — o mês já chega certo do servidor.
 function destaques() {
-  const d = DADOS;
+  const d = VISTA;
   const fora = [];
   // no mês em curso as curvas dos blocos usam o mesmo trecho de cada mês, para
   // a curva não desmentir a variação escrita ao lado dela
@@ -253,7 +258,8 @@ function destaques() {
                              : `vs. ${mesFrase(d.mes_anterior)}`;
 
   fora.push({
-    rotulo: "Faturamento (Bruto) do grupo", valor: curto(d.faturamento_total),
+    rotulo: d.casa_filtro ? `Faturamento (Bruto) — ${d.casa_filtro_nome}` : "Faturamento (Bruto) do grupo",
+    valor: curto(d.faturamento_total),
     delta: d.faturamento_anterior
       ? (d.faturamento_total - d.faturamento_anterior) / d.faturamento_anterior : null,
     bomSeSobe: true, icone: ICO_INS.dinheiro, contexto, serie: serieFat,
@@ -801,7 +807,7 @@ function topMovimentos() {
 function minimos() {
   const lista = VISTA.criticos || [];
   $("#nota-minimo").textContent = `${lista.length} item(ns) · Mínimo = média diária dos`
-    + ` últimos ${VISTA.janela_media_dias} dias × ${VISTA.dias_seguranca} dia(s) de uso`
+    + ` últimos ${VISTA.janela_media_dias} dias × prazo de entrega do insumo`
     + ` — ajustável em Parâmetros`;
   if (!lista.length) {
     $("#tabela-minimos").innerHTML =

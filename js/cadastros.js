@@ -378,7 +378,14 @@ function telaProdutos() {
 
 // A identidade do produto é (fornecedor, produto): o mesmo nome existe em vários
 // fornecedores com preços diferentes, e é isso que permite comparar.
-function idProduto(p) { return chave(p.fornecedor) + " " + chave(p.produto); }
+//
+// O separador PRECISA sobreviver ao HTML: a linha da tabela guarda este id
+// em data-k, montado por texto. Antes era o caractere nulo, que o navegador
+// troca por U+FFFD ao montar a tabela — o id lido de volta nunca casava, e
+// editar ou apagar produto pela tabela não fazia nada, em silêncio. O ␟
+// (separador de unidade) é visível ao HTML e não aparece em nome de produto.
+const SEP_ID = "␟";
+function idProduto(p) { return chave(p.fornecedor) + SEP_ID + chave(p.produto); }
 
 function linhaProduto(p, i) {
   const semPreco = !(num(p.preco) > 0);

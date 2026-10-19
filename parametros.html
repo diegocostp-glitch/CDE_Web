@@ -48,6 +48,22 @@
     </div>
   </section>
 
+  <section class="cartao dobravel aberta" data-secao="prazos">
+    <div class="cabeca dobra"><h2>Prazo de entrega</h2>
+      <span class="fonte">Dias entre o pedido e a chegada — é a cobertura do mínimo</span>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <p class="fonte nota-secao">O mínimo calculado é o consumo médio diário × este prazo:
+        o estoque que precisa existir no dia do pedido para a casa não zerar antes de a
+        mercadoria chegar. O <strong>prazo padrão</strong> vale para as quatro casas; preencha a
+        coluna de uma casa só quando ela recebe em outro prazo. Padrão em branco quer dizer
+        <strong>sem fornecedor disponível</strong> — o insumo fica sem mínimo. Lula e polvo:
+        o prazo vale para o in natura, que é o que se compra. Mudou o prazo, salve e use
+        <strong>Preencher mínimos com a sugestão</strong> para levar o novo cálculo à tabela.</p>
+      <div class="rolagem" id="tabela-prazos"></div>
+    </div>
+  </section>
+
   <section class="cartao dobravel aberta" data-secao="projecao">
     <div class="cabeca dobra"><h2>Projeção de compras</h2>
       <span class="fonte">Janela de cálculo e quem assina</span>
@@ -64,8 +80,8 @@
             pedido.</small></label>
         <label class="campo"><span>Dias de segurança</span>
           <input type="number" id="p-seguranca" min="0" max="60" step="1">
-          <small class="fonte">Usado no mínimo calculado, para o insumo que não tem mínimo
-            definido acima.</small></label>
+          <small class="fonte">Cobertura do mínimo calculado para o insumo que não tem
+            prazo de entrega cadastrado (hoje: lula e polvo processados).</small></label>
       </div>
       <div class="param-listas">
         <div class="param-lista">

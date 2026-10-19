@@ -19,6 +19,7 @@ import argparse, json, os, re, sys
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
+from organizacao import RAIZ_RELATORIOS   # noqa: E402
 from gerar_relatorio_coef import (        # noqa: E402
     INSUMOS, CASAS, NOMES_CASA, MESES, MES_ABR, EM_KG, PROCESSAVEIS,
     piso_faturamento, rendimentos, rendimento_de, find_browser, render_pdf)
@@ -236,7 +237,7 @@ def main():
     ap.add_argument('--de', default='2026-01')
     ap.add_argument('--ate', default='2026-08')
     ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', 'dados')))
-    ap.add_argument('--saida', default=os.path.join(AQUI, 'saida'))
+    ap.add_argument('--saida', default=RAIZ_RELATORIOS)
     ap.add_argument('--modelo', default=os.path.join(AQUI, 'modelo_coef.html'))
     ap.add_argument('--piso', type=float, default=0.10)
     ap.add_argument('--no-pdf', action='store_true')
@@ -298,16 +299,15 @@ def main():
                  .replace('{{DADOS}}', json.dumps(pacote, ensure_ascii=False))
                  .replace('{{CFG}}', json.dumps(cfg, ensure_ascii=False)))
 
-    from organizacao import pasta_financeiro
-    destino = pasta_financeiro(args.saida)     # saida/Evolução/Estoque - Compras/
-    base = 'Consolidado_financeiro_%s_a_%s' % (lista[0], lista[-1])
-    hp = os.path.join(destino, base + '.html')
+    from organizacao import arquivo_financeiro
+    base = arquivo_financeiro(args.saida, lista[0], lista[-1])
+    hp = base + '.html'
     open(hp, 'w', encoding='utf-8').write(html)
     print('HTML :', hp)
     if not args.no_pdf:
         br = find_browser()
         if br:
-            pp = os.path.join(destino, base + '.pdf')
+            pp = base + '.pdf'
             print('PDF  :', pp if render_pdf(br, hp, pp) else '(falhou)')
 
     tc = sum(sum(d['meses'][m]['consRs'] for m in d['meses']) for d in dados.values())

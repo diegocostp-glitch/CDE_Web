@@ -1,0 +1,32 @@
+{
+ "_nota": "Calendario de feriados e eventos lido pelo relatorio Feriados e Eventos (relatorios-coef/gerar_eventos.py). Um registro por dia: data AAAA-MM-DD, nome, tipo (feriado nacional | feriado local | data comercial | evento). 'casas' e opcional: lista de casas (SL, DC, DLU, DLCN) quando o evento so vale para algumas. Acrescente aqui os dias que o relatorio aponta como 'fora do padrao sem evento cadastrado' (jogo do Brasil, show, chuva forte, falta de energia) — dia explicado deixa de ser ruido e vira referencia para a proxima compra. Os feriados locais sao de Belem/PA; confira o ponto facultativo de cada ano.",
+ "eventos": [
+  {"data": "2026-01-01", "nome": "Confraternização Universal", "tipo": "feriado nacional"},
+  {"data": "2026-01-12", "nome": "Aniversário de Belém", "tipo": "feriado local"},
+  {"data": "2026-02-16", "nome": "Carnaval (segunda)", "tipo": "feriado nacional"},
+  {"data": "2026-02-17", "nome": "Carnaval (terça)", "tipo": "feriado nacional"},
+  {"data": "2026-02-18", "nome": "Quarta-feira de Cinzas", "tipo": "feriado nacional"},
+  {"data": "2026-04-02", "nome": "Quinta-feira Santa", "tipo": "data comercial"},
+  {"data": "2026-04-03", "nome": "Sexta-feira Santa", "tipo": "feriado nacional"},
+  {"data": "2026-04-05", "nome": "Páscoa", "tipo": "data comercial"},
+  {"data": "2026-04-21", "nome": "Tiradentes", "tipo": "feriado nacional"},
+  {"data": "2026-05-01", "nome": "Dia do Trabalho", "tipo": "feriado nacional"},
+  {"data": "2026-05-10", "nome": "Dia das Mães", "tipo": "data comercial"},
+  {"data": "2026-06-04", "nome": "Corpus Christi", "tipo": "feriado nacional"},
+  {"data": "2026-06-12", "nome": "Dia dos Namorados", "tipo": "data comercial"},
+  {"data": "2026-08-09", "nome": "Dia dos Pais", "tipo": "data comercial"},
+  {"data": "2026-08-15", "nome": "Adesão do Pará", "tipo": "feriado local"},
+  {"data": "2026-09-07", "nome": "Independência do Brasil", "tipo": "feriado nacional"},
+  {"data": "2026-10-10", "nome": "Trasladação (véspera do Círio)", "tipo": "evento"},
+  {"data": "2026-10-11", "nome": "Círio de Nazaré", "tipo": "feriado local"},
+  {"data": "2026-10-12", "nome": "Nossa Senhora Aparecida", "tipo": "feriado nacional"},
+  {"data": "2026-11-02", "nome": "Finados", "tipo": "feriado nacional"},
+  {"data": "2026-11-15", "nome": "Proclamação da República", "tipo": "feriado nacional"},
+  {"data": "2026-11-20", "nome": "Consciência Negra", "tipo": "feriado nacional"},
+  {"data": "2026-11-27", "nome": "Black Friday", "tipo": "data comercial"},
+  {"data": "2026-12-08", "nome": "Nossa Senhora da Conceição", "tipo": "feriado local"},
+  {"data": "2026-12-24", "nome": "Véspera de Natal", "tipo": "data comercial"},
+  {"data": "2026-12-25", "nome": "Natal", "tipo": "feriado nacional"},
+  {"data": "2026-12-31", "nome": "Véspera de Ano Novo", "tipo": "data comercial"}
+ ]
+}

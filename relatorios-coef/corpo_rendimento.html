@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITULO}}</title>
+<style>{{CSS}}
+  .lin{display:flex;align-items:baseline;gap:12px;background:var(--surface);border:1px solid var(--hair);
+    border-radius:10px;padding:11px 15px;box-shadow:var(--shadow);margin-bottom:8px}
+  .lin.p{border-left:3px solid var(--bad)} .lin.a{border-left:3px solid var(--warn)} .lin.g{border-left:3px solid var(--good)}
+  .lin .n{font-weight:700;min-width:210px}
+  .lin .t{font-size:13px;color:var(--ink-2);flex:1}
+  .lin .v{font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;white-space:nowrap}
+  .st{font-size:11px;font-weight:700;white-space:nowrap}
+  .st.abaixo{color:var(--bad)} .st.acima{color:var(--warn)} .st.meio{color:var(--warn)} .st.dentro{color:var(--good)} .st.vazio{color:var(--muted);font-weight:500}
+  td.rd{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  h3.item{margin:26px 0 6px;font-size:16px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">Relatório Operacional de Suprimentos · Rendimento do processamento</div>
+    <h1 id="titulo"></h1>
+    <p class="sub" id="sub"></p>
+    <div class="meta-row" id="metarow"></div>
+    <div class="formula">
+      <code>Custo do rendimento = (in natura − processado ÷ rendimento padrão) × preço do in natura</code>
+      <span class="exp">A casa compra <b>in natura</b> e vende <b>processado</b>. Cada ponto de rendimento
+      perdido é in natura comprado a mais para pôr a mesma quantidade no balcão — custo que não aparece em
+      nota fiscal nenhuma. Positivo: gastou mais in natura do que o padrão pedia. Negativo: rendeu acima.</span>
+    </div>
+  </header>
+
+  <section id="panorama" style="margin-top:40px">
+    <div class="sec-head"><span class="sec-num">01</span><h2>O período em uma linha</h2></div>
+    <p class="lead" id="lead01"></p>
+    <div class="kpis" id="kpis"></div>
+    <div class="note" id="leitura"></div>
+  </section>
+
+  <section id="casas">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Quem processa abaixo do padrão</h2></div>
+    <p class="lead" id="lead02"></p>
+    <div class="tbl-wrap"><table id="tblCasas"></table></div>
+    <div class="note" id="notaCasas"></div>
+  </section>
+
+  <section id="meses">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Mês a mês: a queda é da casa ou da rede?</h2></div>
+    <p class="lead" id="lead03"></p>
+    <div id="blocoMeses"></div>
+    <div class="note" id="notaMeses"></div>
+  </section>
+
+  <section id="fora">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Processamentos fora da faixa</h2></div>
+    <p class="lead" id="lead04"></p>
+    <div id="listaFora"></div>
+  </section>
+
+  <section id="implausiveis">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Lançamentos a corrigir na origem</h2></div>
+    <p class="lead" id="lead05"></p>
+    <div class="tbl-wrap"><table id="tblImpl"></table></div>
+  </section>
+
+  <section id="acoes">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Indicativos e ações</h2></div>
+    <div id="listaAcoes"></div>
+  </section>
+
+  <section id="metodo">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Como este relatório é gerado</h2></div>
+    <ul class="clean" id="metodoList"></ul>
+    <div class="note" id="notaMetodo"></div>
+  </section>
+
+  <footer id="rodape"></footer>
+</div>
+
+<script>
+const D = {{DADOS}};
+const C = {{CFG}};
+const IT = D.itens, M = D.meses, R = D.registros;
+
+const nf=(v,d=1)=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}));
+const pct=(v,d=1)=>(v==null?'—':nf(v*100,d)+'%');
+const money=v=>(v==null?'—':(v<0?'− ':'')+'R$ '+Math.abs(v).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+const br=iso=>iso?iso.slice(8,10)+'/'+iso.slice(5,7):'—';
+const T=(id,h)=>{const e=document.getElementById(id);if(e)e.innerHTML=h;};
+const NC=C.nomesCasa;
+const achar=(lista,f)=>lista.find(x=>Object.entries(f).every(([k,v])=>x[k]===v));
+const PALAVRA={abaixo:'abaixo da faixa',acima:'acima da faixa',dentro:'dentro da faixa'};
+function stDe(rend,p){ if(rend==null) return 'vazio';
+  return rend<p.min?'abaixo':rend>p.max?'acima':'dentro'; }
+const faixa=p=>`${pct(p.min,0)} a ${pct(p.max,0)}`;
+const itensComDado=Object.keys(IT).filter(k=>achar(D.porItem,{item:k}));
+const impl=R.filter(r=>r.status==='implausivel');
+const DIAG=[];
+
+T('titulo',`Rendimento do processamento — ${C.de} a ${C.ate} / ${C.ano}`);
+T('sub',`Quanto do in natura comprado virou produto de balcão em cada casa — anel de lula, tentáculo de lula e `
+  +`lombo de atum —, contra a faixa da planilha de processamento. O que separa uma casa que precisa de `
+  +`treinamento de um lote ruim do fornecedor, e quanto isso custou.`);
+T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b>Processamentos:</b> ${R.length}</span>`
+  +`<span><b>Casas:</b> ${C.casas.join(' · ')}</span><span><b>Último lançamento:</b> ${br(C.ultimoDia)}</span>`);
+
+/* ---------------------------------------------------------------- 01 */
+(function(){
+  const tot=D.porItem.reduce((a,x)=>a+x.custo,0);
+  T('kpis',itensComDado.map(k=>{const a=achar(D.porItem,{item:k}),p=IT[k];
+      const st=stDe(a.rend,p);
+      return `<div class="kpi"><div class="lab">${p.nome}</div><div class="val num">${pct(a.rend)}</div>
+        <div class="foot">padrão ${pct(p.padrao,0)} · faixa ${faixa(p)} · <span class="st ${st}">${PALAVRA[st]}</span></div>
+        <div class="foot">${a.n} processamentos · ${nf(a.inNatura,0)} kg in natura · custo ${money(a.custo)}</div></div>`;}).join('')
+    +`<div class="kpi"><div class="lab">Custo do rendimento no período</div><div class="val num">${money(tot)}</div>
+      <div class="foot">${tot>0?'in natura comprado além do padrão':'rendimento acima do padrão, a favor do caixa'}</div></div>`);
+  T('lead01',`Rendimento ponderado de cada item no período — soma do processado dividida pela soma do in natura —, `
+    +`ao lado da faixa que a planilha da casa imprime como “Rendimento Padrão”.`);
+  const piores=D.porCasa.filter(x=>x.custo>0).sort((a,b)=>b.custo-a.custo).slice(0,3);
+  T('leitura',`<b>Leitura:</b> `+(piores.length
+    ?`o maior custo está em ${piores.map(x=>`<b>${IT[x.item].nome} na ${NC[x.casa]}</b> (${money(x.custo)}, rendimento ${pct(x.rend)})`).join(', ')}. `
+    :'nenhuma casa ficou abaixo do padrão no período. ')
+    +(impl.length?`${impl.length} lançamento(s) implausível(is) ficaram fora das contas e estão listados na seção 5.`:''));
+})();
+
+/* ---------------------------------------------------------------- 02 */
+(function(){
+  let h='<thead><tr>'+['Item','Casa','Processamentos','In natura','Rendimento','Situação','Custo do rendimento',
+    'A Projeção usa hoje'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  const alertaProj=[];
+  itensComDado.forEach(k=>{const p=IT[k];
+    C.casas.forEach(c=>{const a=achar(D.porCasa,{item:k,casa:c});
+      const pj=achar(D.projecao,{item:k,casa:c});
+      if(!a && !(pj&&pj.de)) return;
+      const st=a?stDe(a.rend,p):'vazio';
+      const stp=pj?stDe(pj.rend,p):'vazio';
+      if(pj&&pj.de&&stp!=='dentro') alertaProj.push(`${p.nome} na ${NC[c]}: ${pct(pj.rend)} (lançado em ${br(pj.de)})`);
+      h+=`<tr><td><b>${p.nome}</b></td><td>${NC[c]}</td>`
+        +`<td class="num-cell">${a?a.n:'—'}</td><td class="num-cell">${a?nf(a.inNatura,1)+' kg':'—'}</td>`
+        +`<td class="rd"><b>${a?pct(a.rend):'—'}</b></td>`
+        +`<td><span class="st ${st}">${st==='vazio'?'sem processamento':PALAVRA[st]}</span></td>`
+        +`<td class="num-cell ${a&&a.custo>0?'pos':'neg'}">${a?money(a.custo):'—'}${a&&a.semPreco?` <small>(${a.semPreco} sem preço)</small>`:''}</td>`
+        +`<td class="rd">${pj&&pj.de?pct(pj.rend)+` <small>de ${br(pj.de)}</small> <span class="st ${stp}">${stp==='dentro'?'':PALAVRA[stp]}</span>`:'<small>padrão da planilha</small>'}</td></tr>`;});});
+  T('tblCasas',h+'</tbody>');
+  T('lead02',`Uma linha por item e casa. <b>Custo do rendimento</b> é o in natura gasto além do que o padrão pediria `
+    +`para o mesmo processado, ao preço do in natura daquela casa no mês. A última coluna é o rendimento que a `
+    +`<b>Projeção de Compras</b> usa hoje para converter estoque e consumo do processado em in natura — ela pega o `
+    +`<b>último processamento lançado</b>, um número só.`);
+  T('notaCasas',alertaProj.length
+    ?`<b>A projeção está saindo de um dia fora da faixa:</b> ${alertaProj.join('; ')}. Um rendimento baixo no último `
+     +`processamento infla o pedido de in natura do próximo; um alto encolhe. Confira o lançamento antes de fechar o pedido.`
+    :`<b>A projeção está saindo de rendimentos dentro da faixa</b> em todas as casas — o último processamento de cada uma é um número razoável para converter o pedido.`);
+})();
+
+/* ---------------------------------------------------------------- 03 */
+(function(){
+  const diag=DIAG;
+  let h='';
+  itensComDado.forEach(k=>{const p=IT[k];
+    const ms=M.filter(m=>achar(D.porMes,{item:k,ym:m.ym}));
+    if(!ms.length) return;
+    let t='<thead><tr><th>Casa</th>'+ms.map(m=>`<th>${m.rotulo}</th>`).join('')+'</tr></thead><tbody>';
+    C.casas.forEach(c=>{
+      if(!ms.some(m=>achar(D.porCasaMes,{item:k,casa:c,ym:m.ym}))) return;
+      t+=`<tr><td>${NC[c]}</td>`+ms.map(m=>{const a=achar(D.porCasaMes,{item:k,casa:c,ym:m.ym});
+        if(!a) return '<td class="rd"><span class="st vazio">—</span></td>';
+        const st=stDe(a.rend,p);
+        const meio=st==='dentro'&&a.rend<p.padrao;
+        return `<td class="rd" title="${a.n} processamento(s)">${pct(a.rend)}<br><span class="st ${meio?'meio':st}">${st==='dentro'?(meio?'abaixo do padrão':'ok'):PALAVRA[st]}</span></td>`;}).join('')+'</tr>';});
+    t+='<tr class="total-row"><td>REDE</td>'+ms.map(m=>{const a=achar(D.porMes,{item:k,ym:m.ym});
+      return `<td class="rd">${pct(a.rend)}</td>`;}).join('')+'</tr></tbody>';
+    h+=`<h3 class="item">${p.nome} <small style="font-weight:500;color:var(--muted)">padrão ${pct(p.padrao,0)} · faixa ${faixa(p)}</small></h3>`
+      +`<div class="tbl-wrap"><table>${t}</table></div>`;
+    // diagnóstico: mês com a rede abaixo do padrão e 3 casas ou mais abaixo
+    // aponta para o insumo (lote, fornecedor); uma ou duas casas abaixo com a
+    // rede no padrão aponta para a operação da casa.
+    const mesesRede=[], casaSo=[];
+    ms.forEach(m=>{
+      const casasMes=C.casas.map(c=>achar(D.porCasaMes,{item:k,casa:c,ym:m.ym})).filter(a=>a&&a.n>=2);
+      const abaixo=casasMes.filter(a=>a.rend<p.padrao);
+      const rede=achar(D.porMes,{item:k,ym:m.ym});
+      if(casasMes.length>=3 && abaixo.length>=3 && rede.rend<p.padrao) mesesRede.push(m);
+      else abaixo.filter(a=>a.rend<p.min).forEach(a=>casaSo.push({m,a,rede}));
+    });
+    const redeItem=achar(D.porItem,{item:k});
+    if(mesesRede.length>=Math.max(3,Math.ceil(ms.length/2)))
+      // abaixo do padrão na maior parte dos meses: não é um lote ruim, é o
+      // produto que se compra (ou um padrão que não é realista para ele)
+      diag.push({t:'p',n:`${p.nome} · estrutural`,x:`rede abaixo do padrão de ${pct(p.padrao,0)} em <b>${mesesRede.length} de ${ms.length} meses</b> `
+        +`(período ${pct(redeItem.rend)}). Não é um lote: é o produto que se compra. Decisão: <b>cobrar especificação do fornecedor</b> `
+        +`(tamanho, glaciamento, peso drenado) ou <b>rever o padrão</b> da planilha para o que este produto entrega.`});
+    else mesesRede.forEach(m=>{const rede=achar(D.porMes,{item:k,ym:m.ym});
+      diag.push({t:'p',n:`${p.nome} · ${m.nome}`,x:`rede inteira abaixo do padrão (rede ${pct(rede.rend)}) — aponta para o <b>lote ou o fornecedor</b> do mês, não para uma casa.`});});
+    casaSo.forEach(({m,a,rede})=>diag.push({t:'a',n:`${p.nome} · ${m.nome}`,
+      x:`<b>${NC[a.casa]}</b> abaixo da faixa (${pct(a.rend)}) com a rede em ${pct(rede.rend)} — é da <b>operação da casa</b>.`}));
+  });
+  T('blocoMeses',h);
+  T('lead03',`Rendimento ponderado por casa e mês. Quando a rede inteira cai no mesmo mês, o problema veio com a `
+    +`matéria-prima; quando uma casa cai e as outras não, é processo — faca, descongelamento, pesagem, quem processou.`);
+  T('notaMeses',diag.length?'<b>Diagnóstico automático:</b><br>'+diag.map(d=>`<div class="lin ${d.t}"><span class="n">${d.n}</span><span class="t">${d.x}</span></div>`).join('')
+    :'<b>Diagnóstico automático:</b> nenhum mês com a rede inteira abaixo do padrão e nenhuma casa abaixo da faixa num mês com pelo menos dois processamentos.');
+})();
+
+/* ---------------------------------------------------------------- 04 */
+(function(){
+  const fora=R.filter(r=>r.status==='abaixo'||r.status==='acima')
+    .sort((a,b)=>(b.custo||0)-(a.custo||0));
+  T('lead04',fora.length
+    ?`${fora.length} processamento(s) fora da faixa, do mais caro para o mais barato. Abaixo da faixa custa in natura; `
+     +`<b>acima da faixa também pede conferência</b> — rendimento alto demais costuma ser pesagem do processado com `
+     +`gelo ou sem descontar a embalagem, e infla o estoque em in natura que a projeção enxerga.`
+    :'Nenhum processamento fora da faixa no período.');
+  T('listaFora',fora.slice(0,30).map(r=>{const p=IT[r.item];
+    return `<div class="lin ${r.status==='abaixo'?'p':'a'}"><span class="n">${br(r.data)} · ${NC[r.casa]}</span>`
+      +`<span class="t">${p.nome}: ${nf(r.inNatura,3)} kg in natura → ${nf(r.processado,3)} kg processado · `
+      +`<span class="st ${r.status}">${PALAVRA[r.status]} (${faixa(p)})</span></span>`
+      +`<span class="v">${pct(r.rend)} · ${money(r.custo)}</span></div>`;}).join('')
+    +(fora.length>30?`<p class="fonte">… e mais ${fora.length-30} de menor valor.</p>`:''));
+})();
+
+/* ---------------------------------------------------------------- 05 */
+(function(){
+  T('lead05',impl.length
+    ?`Rendimento <b>acima de 100%</b>, ou mais de ${nf((C.implAcima-1)*100,0)}% além da faixa, ou abaixo de `
+     +`${nf(C.implAbaixo*100,0)}% do mínimo: não existe processamento assim — é digitação. Estes lançamentos estão `
+     +`<b>fora de todas as médias e custos</b> deste relatório. Corrija na tela de lançamento do dia; a Projeção de `
+     +`Compras usa o último processamento e pode estar convertendo o pedido por um deles.`
+    :'Nenhum lançamento implausível no período: todas as linhas entraram nas contas.');
+  if(!impl.length){T('tblImpl','');return;}
+  let h='<thead><tr>'+['Data','Casa','Item','In natura lançado','Processado lançado','Rendimento'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  impl.forEach(r=>{h+=`<tr><td>${br(r.data)}/${r.data.slice(0,4)}</td><td>${NC[r.casa]}</td><td>${IT[r.item].nome}</td>`
+    +`<td class="num-cell">${nf(r.inNatura,3)} kg</td><td class="num-cell">${nf(r.processado,3)} kg</td>`
+    +`<td class="num-cell pos">${pct(r.rend)}</td></tr>`;});
+  T('tblImpl',h+'</tbody>');
+})();
+
+/* ---------------------------------------------------------------- 06 */
+(function(){
+  const a=[];
+  D.porCasa.filter(x=>x.custo>0&&x.rend<IT[x.item].min).sort((x,y)=>y.custo-x.custo).forEach(x=>
+    a.push({t:'p',n:`Treinar / acompanhar — ${NC[x.casa]}`,x:`${IT[x.item].nome} rende ${pct(x.rend)}, abaixo da faixa (${faixa(IT[x.item])}). Acompanhar o próximo processamento com o gerente.`,v:money(x.custo)}));
+  D.porCasa.filter(x=>x.custo>0&&x.rend>=IT[x.item].min).sort((x,y)=>y.custo-x.custo).slice(0,3).forEach(x=>
+    a.push({t:'a',n:`Acompanhar — ${NC[x.casa]}`,x:`${IT[x.item].nome} dentro da faixa, mas abaixo do padrão de ${pct(IT[x.item].padrao,0)} (${pct(x.rend)}).`,v:money(x.custo)}));
+  DIAG.filter(d=>d.n.endsWith('estrutural')).forEach(d=>a.unshift({t:'p',n:`Fornecedor / especificação — ${d.n.replace(' · estrutural','')}`,
+    x:d.x.replace(/^rede abaixo/,'A rede está abaixo'),v:money((achar(D.porItem,{item:Object.keys(IT).find(k=>IT[k].nome===d.n.replace(' · estrutural',''))})||{}).custo)}));
+  if(impl.length) a.push({t:'p',n:'Corrigir lançamentos',x:`${impl.length} processamento(s) implausível(is) na seção 5 — corrigir na origem, antes do próximo pedido.`,v:''});
+  a.push({t:'a',n:'Medir o filetamento do salmão',x:`O salmão é o maior insumo e não tem rendimento lançado dia a dia: a conversão usa uma calibração única `
+    +`(bandagem 67,16% × filetamento 80,11%). Lançar o filetamento como se lança a lula poria o salmão neste relatório.`,v:''});
+  T('listaAcoes',a.map(x=>`<div class="lin ${x.t}"><span class="n">${x.n}</span><span class="t">${x.x}</span><span class="v">${x.v}</span></div>`).join(''));
+})();
+
+/* ---------------------------------------------------------------- 07 */
+(function(){
+  T('metodoList',[
+    `<b>Fonte:</b> o bloco de processamento do lançamento diário — quanto in natura entrou para processar e quanto rendeu. Rendimento e perda não são digitados, saem dessas duas contas.`,
+    `<b>Rendimento ponderado:</b> soma do processado ÷ soma do in natura. Um processamento de 2 kg não pesa igual a um de 20 kg.`,
+    `<b>Faixa e padrão</b> são os da planilha de processamento da casa (anel de lula 60–80%, tentáculo 20–40%, lombo de atum 75–95%), lidos de <code>server.py</code> — o mesmo número da tela de lançamento.`,
+    `<b>Preço</b> do in natura é o custo unitário da casa no mês (<code>custos_mensais.json</code>); mês sem compra usa o mês mais próximo.`,
+    `<b>Implausível</b> (política, ajustável no script): acima de 100%, acima de ${nf(C.implAcima*100,0)}% do máximo da faixa, ou abaixo de ${nf(C.implAbaixo*100,0)}% do mínimo. Fica fora das contas e listado na seção 5.`,
+    `<b>Diagnóstico casa × rede:</b> mês em que três casas ou mais (com pelo menos dois processamentos cada) ficam abaixo do padrão e a rede também → matéria-prima; casa abaixo da faixa com a rede no padrão → operação.`,
+  ].map(x=>`<li>${x}</li>`).join(''));
+  T('notaMetodo',`<b>O que este relatório não mede:</b> o salmão (sem rendimento diário lançado) e o motivo da `
+    +`perda. Ele aponta onde e quando o rendimento caiu; a causa — fornecedor, descongelamento, corte, pesagem — `
+    +`se apura com a casa.`);
+  T('rodape',`Fonte: <b>CDE Web</b> · <code>dados/lancamentos.json</code> e <code>relatorios-coef/custos_mensais.json</code>. `
+    +`Gerado por <code>gerar_rendimento.py</code> em ${C.gerado} — uso interno da equipe de Suprimentos.`);
+})();
+
+document.querySelectorAll('section .sec-num').forEach((e,i)=>{e.textContent=String(i+1).padStart(2,'0');});
+</script>
+</body>
+</html>

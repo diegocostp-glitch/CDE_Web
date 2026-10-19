@@ -535,7 +535,14 @@ def gravar(novos):
             insumos = destino.setdefault("insumos", {})
             for ik, campos in lan["insumos"].items():
                 antigo = insumos.get(ik)
-                if isinstance(antigo, dict) and antigo.get(MARCA_PLANILHA) != "planilha":
+                # Registro so com dado de Movimentacoes (nota lancada antes de a
+                # planilha trazer o dia) nao e digitacao: a planilha escreve o
+                # lancamento e as notas, precos e kg vao junto, logo abaixo.
+                so_mov = isinstance(antigo, dict) and not any(
+                    antigo.get(k) is not None for k in
+                    ("inicial", "final", "entrada", "transferencia", "desperdicio", "uso"))
+                if (isinstance(antigo, dict) and antigo.get(MARCA_PLANILHA) != "planilha"
+                        and not so_mov):
                     continue                  # digitado na tela: preservado
                 marcado = dict(campos)
                 marcado[MARCA_PLANILHA] = "planilha"
@@ -544,6 +551,18 @@ def gravar(novos):
                 # apagaria o cadastro de precos do dia.
                 if isinstance(antigo, dict) and antigo.get("precos"):
                     marcado["precos"] = antigo["precos"]
+                # as notas fiscais que detalham esse preco, idem
+                if isinstance(antigo, dict) and antigo.get("notas"):
+                    marcado["notas"] = antigo["notas"]
+                # e os kg da nota do salmao, que a planilha tambem nao tem
+                if isinstance(antigo, dict) and antigo.get("kg"):
+                    marcado["kg"] = antigo["kg"]
+                # e a quantidade propria de Movimentacoes, independente desta
+                if isinstance(antigo, dict) and antigo.get("mov"):
+                    marcado["mov"] = antigo["mov"]
+                # fornecedor e NF informados em Movimentacoes
+                if isinstance(antigo, dict) and antigo.get("info"):
+                    marcado["info"] = antigo["info"]
                 insumos[ik] = marcado
                 tocados += 1
             if lan.get("processamento"):
@@ -553,6 +572,16 @@ def gravar(novos):
                 destino.setdefault("processamento", {}).update(lan["processamento"])
             if not destino.get("faturamento"):
                 destino["faturamento"] = lan["faturamento"]
+    # A libragem corrigida no sistema ficou (regra acima), mas o equivalente
+    # que veio no lote foi somado com o numero da PLANILHA. Onde houver faixa
+    # ou file corrigido, o equivalente e refeito com o que ficou gravado.
+    import server
+    for iso, dia in novos.items():
+        for casa in dia:
+            ins = ((atual.get(iso) or {}).get(casa) or {}).get("insumos") or {}
+            if any(isinstance(ins.get(k), dict) and ins[k].get(MARCA_PLANILHA) != "planilha"
+                   for k in list(FATOR_LIBRA) + ["salmao_file"]):
+                server.recalcular_equivalente(atual, iso, casa)
     tmp = DESTINO.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(atual, f, ensure_ascii=False, indent=1)

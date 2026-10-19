@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITULO}}</title>
+<style>{{CSS}}
+  .lin{display:flex;align-items:baseline;gap:12px;background:var(--surface);border:1px solid var(--hair);
+    border-radius:10px;padding:11px 15px;box-shadow:var(--shadow);margin-bottom:8px}
+  .lin.p{border-left:3px solid var(--bad)} .lin.a{border-left:3px solid var(--warn)} .lin.g{border-left:3px solid var(--good)}
+  .lin .n{font-weight:700;min-width:230px}
+  .lin .t{font-size:13px;color:var(--ink-2);flex:1}
+  .lin .v{font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;white-space:nowrap}
+  .sub-v{color:var(--bad);font-weight:700} .des-v{color:var(--ocean,var(--good));font-weight:700}
+  .mut{color:var(--muted)}
+  td.rd{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  td.forte{font-weight:700}
+  .acao{font-size:12px;font-weight:600}
+  #tblEventos th:nth-child(-n+3),#tblEventos td:nth-child(-n+3),#tblJanela th:first-child,#tblJanela td:first-child,
+  #tblJanela th:last-child,#tblJanela td:last-child,#tblInsumos th:first-child,#tblInsumos td:first-child,
+  #tblCasas th:first-child,#tblCasas td:first-child{text-align:left}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="kicker">Relatório Operacional de Suprimentos · Feriados e eventos</div>
+    <h1 id="titulo"></h1>
+    <p class="sub" id="sub"></p>
+    <div class="meta-row" id="metarow"></div>
+    <div class="formula">
+      <code>Fator do evento = consumo no dia do evento ÷ consumo num dia normal</code>
+      <span class="exp"><b>Dia normal</b> é o mesmo dia da semana nas quatro semanas anteriores, sem evento — domingo
+      se compara com domingo. Fator 1,30 quer dizer 30% acima do normal. É o número que vai na coluna
+      <b>Fator</b> da Projeção de Compras, ou o motivo para tirar o dia da média.</span>
+    </div>
+  </header>
+
+  <section style="margin-top:40px">
+    <div class="sec-head"><span class="sec-num">01</span><h2>O calendário em uma linha</h2></div>
+    <p class="lead" id="lead01"></p>
+    <div class="kpis" id="kpis"></div>
+    <div class="note" id="leitura"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>A projeção de hoje tem feriado na média?</h2></div>
+    <p class="lead" id="lead02"></p>
+    <div class="tbl-wrap"><table id="tblJanela"></table></div>
+    <div class="note" id="notaJanela"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>Próximos eventos: o que comprar diferente</h2></div>
+    <p class="lead" id="lead03"></p>
+    <div id="listaProx"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>Evento a evento</h2></div>
+    <p class="lead" id="lead04"></p>
+    <div class="tbl-wrap"><table id="tblEventos"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>Fator por insumo</h2></div>
+    <p class="lead" id="lead05"></p>
+    <div class="tbl-wrap"><table id="tblInsumos"></table></div>
+    <div class="note" id="notaInsumos"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>O evento não é igual nas quatro casas</h2></div>
+    <p class="lead" id="lead06"></p>
+    <div class="tbl-wrap"><table id="tblCasas"></table></div>
+    <div class="note" id="notaCasas"></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2>Dias fora do padrão sem evento cadastrado</h2></div>
+    <p class="lead" id="lead07"></p>
+    <div class="tbl-wrap"><table id="tblAtip"></table></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">08</span><h2>Como este relatório é gerado</h2></div>
+    <ul class="clean" id="metodoList"></ul>
+    <div class="note" id="notaDesc"></div>
+  </section>
+
+  <footer id="rodape"></footer>
+</div>
+
+<script>
+const D = {{DADOS}};
+const C = {{CFG}};
+const EV = D.eventos.filter(e=>!e.semDado), NOMES = D.nomes, UN = D.unidades, NC = C.nomesCasa;
+
+const nf=(v,d=1)=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}));
+const money=v=>(v==null?'—':'R$ '+v.toLocaleString('pt-BR',{maximumFractionDigits:0}));
+const br=iso=>iso?iso.slice(8,10)+'/'+iso.slice(5,7):'—';
+const T=(id,h)=>{const e=document.getElementById(id);if(e)e.innerHTML=h;};
+/* variação em palavra, não em símbolo */
+const varTxt=v=>v==null?'—':(Math.abs(v)<0.005?'igual ao normal':(v>0?'subiu ':'caiu ')+nf(Math.abs(v)*100,0)+'%');
+const varCls=v=>v==null?'mut':(v>=C.limiar?'sub-v':v<=-C.limiar?'des-v':'');
+const fator=f=>f==null?'—':nf(f,2);
+function acao(f){
+  if(f==null) return '<span class="mut">sem base de comparação</span>';
+  if(f>=1+C.limiar) return `<span class="acao sub-v">comprar a mais — fator ${fator(f)}</span>`;
+  if(f<=1-C.limiar) return `<span class="acao des-v">tirar o dia da média</span>`;
+  return '<span class="acao mut">sem ajuste</span>';
+}
+const itensOrdem=Object.keys(NOMES);
+const REG=D.regulares, LOTE=itensOrdem.filter(k=>!REG.includes(k));
+
+T('titulo',`Feriados e eventos — ${C.de} a ${C.ate} / ${C.ano}`);
+T('sub',`Quanto cada feriado, data comercial e evento de Belém mexeu no faturamento e no consumo das quatro casas, `
+  +`contra um dia normal — e o que isso muda na Projeção de Compras: qual dia tirar da média e qual fator usar `
+  +`no próximo.`);
+T('metarow',`<span><b>Período:</b> ${C.de} a ${C.ate} / ${C.ano}</span><span><b>Eventos com dado:</b> ${EV.length}</span>`
+  +`<span><b>Último lançamento:</b> ${br(C.ultimoDia)}</span><span><b>Calendário:</b> dados/eventos.json</span>`);
+
+/* ---------------------------------------------------------------- 01 */
+(function(){
+  if(!EV.length){T('lead01','Nenhum evento do calendário tem dado suficiente no período.');return;}
+  const alto=EV.filter(e=>e.consumo!=null).sort((a,b)=>b.consumo-a.consumo);
+  const sobe=alto.filter(e=>e.consumo>=1+C.limiar), desce=alto.filter(e=>e.consumo<=1-C.limiar);
+  T('kpis',[
+    {r:'Maior alta de consumo',v:alto.length?fator(alto[0].consumo):'—',c:alto.length?`${alto[0].nome} · ${br(alto[0].data)}`:''},
+    {r:'Maior queda de consumo',v:alto.length?fator(alto[alto.length-1].consumo):'—',c:alto.length?`${alto[alto.length-1].nome} · ${br(alto[alto.length-1].data)}`:''},
+    {r:'Eventos que pedem ajuste',v:String(sobe.length+desce.length),c:`${sobe.length} para comprar a mais · ${desce.length} para tirar da média`},
+    {r:'Dias atípicos sem evento',v:String(D.nAtipicos),c:`faturamento da rede ${nf(C.atipico*100,0)}% fora do normal`},
+  ].map(k=>`<div class="kpi"><div class="lab">${k.r}</div><div class="val num">${k.v}</div><div class="foot">${k.c}</div></div>`).join(''));
+  T('lead01',`O <b>fator de consumo</b> de um evento é a mediana dos fatores dos insumos de <b>giro diário</b> — `
+    +`${REG.map(k=>NOMES[k]).join(', ')} —, os que têm consumo lançado em praticamente todo dia. `
+    +`A política é de ±${nf(C.limiar*100,0)}%: dentro disso o evento não pede nada na compra.`);
+  T('leitura',`<b>Leitura:</b> `+(sobe.length?`pedem compra a mais ${sobe.map(e=>`<b>${e.nome}</b> (${fator(e.consumo)})`).join(', ')}. `:'nenhum evento pediu compra a mais. ')
+    +(desce.length?`Derrubam o consumo ${desce.map(e=>`<b>${e.nome}</b> (${fator(e.consumo)})`).join(', ')} — dentro da janela da média, rebaixam o pedido seguinte.`:''));
+})();
+
+/* ---------------------------------------------------------------- 02 */
+(function(){
+  const J=D.janela;
+  if(!J.eventos.length){
+    T('lead02',`A janela da média de hoje — ${br(J.de)} a ${br(J.ate)}, ${J.dias} dias — <b>não tem nenhum evento do calendário</b>. A média da Projeção é de dias normais.`);
+    T('tblJanela','');return;}
+  const nomesEv=J.eventos.map(d=>{const e=D.eventos.find(x=>x.data===d);return `${e?e.nome:''} (${br(d)})`;});
+  T('lead02',`A Projeção de Compras pede pela média dos últimos ${J.dias} dias — hoje, de ${br(J.de)} a ${br(J.ate)}. `
+    +`Dentro dela estão: <b>${nomesEv.join(', ')}</b>. A tabela compara a média da rede com e sem esses dias.`);
+  let h='<thead><tr>'+['Insumo','Média com os eventos','Média sem os eventos','A média com eventos','O que fazer na Projeção'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  const mexe=[];
+  J.itens.forEach(i=>{const forte=Math.abs(i.var)>=0.05;
+    if(forte) mexe.push(NOMES[i.item]);
+    h+=`<tr><td><b>${NOMES[i.item]}</b></td><td class="rd">${nf(i.com,2)} ${UN[i.item]}/dia</td><td class="rd">${nf(i.sem,2)} ${UN[i.item]}/dia</td>`
+      +`<td class="rd ${i.var>0?'sub-v':'des-v'}">${varTxt(i.var)}</td>`
+      +`<td>${forte?(i.var>0?'<span class="acao sub-v">desmarcar os dias do evento — a média está inflada</span>':'<span class="acao des-v">desmarcar os dias do evento — a média está rebaixada</span>'):'<span class="acao mut">diferença pequena, pode manter</span>'}</td></tr>`;});
+  T('tblJanela',h+'</tbody>');
+  T('notaJanela',mexe.length
+    ?`<b>Na Projeção de Compras:</b> em Média/dia, clique no botão de dias do item e desmarque ${J.eventos.map(br).join(', ')} — ou use `
+     +`“Usar estes dias em todos os itens da casa”. Itens em que a diferença passa de 5%: ${mexe.join(', ')}. Média e média sem os eventos são da rede somada; cada casa tem a sua na tela.`
+    :'Os eventos da janela quase não mexeram nas médias: o pedido pode sair pelos 14 dias normalmente.');
+})();
+
+/* ---------------------------------------------------------------- 03 */
+(function(){
+  const P=D.proximos;
+  T('lead03',P.length
+    ?`Eventos do calendário nos próximos ${C.horizonte} dias após o último lançamento. O fator de referência é a média dos eventos `
+     +`<b>do mesmo tipo</b> já vividos no período — enquanto não houver um ano anterior para comparar o mesmo evento com ele mesmo.`
+    :`Nenhum evento cadastrado nos próximos ${C.horizonte} dias.`);
+  T('listaProx',P.map(p=>{const f=p.consumoRef;
+    const tom=f==null?'a':f>=1+C.limiar?'p':f<=1-C.limiar?'g':'a';
+    const o=f==null?'sem evento do mesmo tipo vivido no período para servir de referência — acompanhar e cadastrar o resultado.'
+      :f>=1+C.limiar?`comprar para cobrir: fator <b>${fator(f)}</b> nos itens, no pedido que chega antes de ${br(p.data)}.`
+      :f<=1-C.limiar?`consumo costuma cair (${fator(f)}): não reforçar a compra, e tirar o dia da média depois.`
+      :`eventos deste tipo ficaram perto do normal (${fator(f)}): compra normal.`;
+    return `<div class="lin ${tom}"><span class="n">${br(p.data)} ${p.dow} · ${p.nome}</span>`
+      +`<span class="t">${p.tipo} · em ${p.diasAte} dias. ${o}${p.nRef?` <span class="mut">(${p.nRef} referência(s); faturamento ${varTxt(p.varFatRef)})</span>`:''}</span></div>`;}).join(''));
+})();
+
+/* ---------------------------------------------------------------- 04 */
+(function(){
+  T('lead04',`Cada evento vivido no período. Faturamento e consumo são da rede, somando só as casas que têm o dia e pelo `
+    +`menos ${C.minBase} dias normais para comparar.`);
+  let h='<thead><tr>'+['Data','Evento','Tipo','Casas','Faturamento','Consumo (fator)','Na Projeção'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  D.eventos.forEach(e=>{
+    if(e.semDado){h+=`<tr><td>${br(e.data)} ${e.dow}</td><td>${e.nome}</td><td>${e.tipo}</td><td colspan="4" class="mut">sem lançamento ou sem dias normais para comparar</td></tr>`;return;}
+    h+=`<tr><td>${br(e.data)} ${e.dow}</td><td><b>${e.nome}</b></td><td>${e.tipo}</td><td class="rd">${e.nCasas}</td>`
+      +`<td class="rd ${varCls(e.varFat)}">${varTxt(e.varFat)}</td><td class="rd forte ${varCls(e.consumo-1)}">${fator(e.consumo)}</td>`
+      +`<td>${acao(e.consumo)}</td></tr>`;});
+  T('tblEventos',h+'</tbody>');
+})();
+
+/* ---------------------------------------------------------------- 05 */
+(function(){
+  T('lead05',`Fator de cada insumo de giro diário em cada evento, na rede. O evento não mexe igual em tudo — `
+    +`é este número, e não o geral, que vai na coluna Fator do item.`);
+  let h='<thead><tr><th>Evento</th>'+REG.map(k=>`<th>${NOMES[k]}</th>`).join('')+'<th>Fator do evento</th></tr></thead><tbody>';
+  EV.forEach(e=>{h+=`<tr><td><b>${e.nome}</b> <span class="mut">${br(e.data)}</span></td>`
+    +REG.map(k=>{const f=(e.fatores||{})[k];return `<td class="rd ${f==null?'mut':varCls(f-1)}">${fator(f)}</td>`;}).join('')
+    +`<td class="rd forte ${varCls(e.consumo-1)}">${fator(e.consumo)}</td></tr>`;});
+  T('tblInsumos',h+'</tbody>');
+  const sens=REG.map(k=>{const fs=EV.map(e=>(e.fatores||{})[k]).filter(f=>f!=null);
+    return {k,amp:fs.length?Math.max(...fs.map(f=>Math.abs(f-1))):0};}).sort((a,b)=>b.amp-a.amp).slice(0,3);
+  T('notaInsumos',`<b>Mais sensíveis ao calendário:</b> ${sens.map(s=>`${NOMES[s.k]} (até ${nf(s.amp*100,0)}% fora do normal)`).join(', ')}. `
+    +`São os itens em que vale conferir o fator antes de cada evento.<br><br>`
+    +(LOTE.length?`<b>Fora desta tabela, de propósito:</b> ${LOTE.map(k=>`${NOMES[k]} (consumo em ${nf(D.giro[k]*100,0)}% dos dias)`).join(', ')}. `
+      +`Saem em lote — descongela ou processa a cada dois, três dias —, e o consumo de um dia mede o lote, não o evento. `
+      +`Para eles, use o <b>fator do evento</b> (a última coluna), ou acompanhe pela média da janela na seção 2.`:''));
+})();
+
+/* ---------------------------------------------------------------- 06 */
+(function(){
+  T('lead06',`Faturamento de cada casa no evento, contra o dia normal dela. Delivery e salão reagem diferente: o mesmo feriado `
+    +`que esvazia o salão pode encher o delivery.`);
+  let h='<thead><tr><th>Evento</th>'+C.casas.map(c=>`<th>${NC[c]}</th>`).join('')+'</tr></thead><tbody>';
+  const opostos=[];
+  EV.forEach(e=>{const vs=C.casas.map(c=>(e.casas[c]||{}).varFat);
+    const sobe=vs.filter(v=>v!=null&&v>=C.limiar).length, desce=vs.filter(v=>v!=null&&v<=-C.limiar).length;
+    if(sobe&&desce) opostos.push(e.nome);
+    h+=`<tr><td><b>${e.nome}</b> <span class="mut">${br(e.data)}</span></td>`+vs.map(v=>`<td class="rd ${varCls(v)}">${varTxt(v)}</td>`).join('')+'</tr>';});
+  T('tblCasas',h+'</tbody>');
+  T('notaCasas',opostos.length
+    ?`<b>Eventos em que as casas foram para lados opostos:</b> ${opostos.join(', ')}. Nesses, o fator da rede esconde o da casa — ajuste o pedido casa a casa.`
+    :'Em nenhum evento as casas foram para lados opostos: o fator da rede vale para as quatro.');
+})();
+
+/* ---------------------------------------------------------------- 07 */
+(function(){
+  const A=D.atipicos;
+  T('lead07',A.length
+    ?`${D.nAtipicos} dia(s) sem evento cadastrado em que o faturamento da rede ficou ${nf(C.atipico*100,0)}% ou mais fora do `
+     +`normal (em pelo menos três casas com base). Os ${A.length} maiores estão abaixo. Se houve motivo — jogo, show, `
+     +`chuva, falta de energia, problema no aplicativo —, <b>cadastre em dados/eventos.json</b>: dia explicado vira referência para a próxima compra.`
+    :'Nenhum dia sem evento ficou muito fora do normal: o calendário cadastrado explica os picos e vales do período.');
+  if(!A.length){T('tblAtip','');return;}
+  let h='<thead><tr>'+['Data','Dia','Faturamento da rede','Consumo (fator)','Casas'].map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  A.forEach(a=>{h+=`<tr><td>${br(a.data)}/${a.data.slice(0,4)}</td><td>${a.dow}</td><td class="rd ${varCls(a.varFat)}">${varTxt(a.varFat)}</td>`
+    +`<td class="rd">${fator(a.consumo)}</td><td class="rd">${a.nCasas}</td></tr>`;});
+  T('tblAtip',h+'</tbody>');
+})();
+
+/* ---------------------------------------------------------------- 08 */
+(function(){
+  T('metodoList',[
+    `<b>Dia normal</b> = média do mesmo dia da semana nas ${C.semanas} semanas anteriores, sem evento cadastrado. Com menos de ${C.minBase} dias normais, a casa fica fora da comparação daquele evento.`,
+    `<b>Fator</b> de um insumo = consumo da rede no evento ÷ consumo da rede num dia normal, somando só as casas com os dois lados. <b>Fator do evento</b> = mediana dos fatores dos insumos.`,
+    `<b>Política</b> (ajustável em <code>gerar_eventos.py</code>): ±${nf(C.limiar*100,0)}% pede ajuste na compra; ±${nf(C.atipico*100,0)}% sem evento pede cadastro.`,
+    `<b>Calendário</b> em <code>dados/eventos.json</code> — feriados nacionais, de Belém/PA, datas comerciais e eventos. Um evento pode valer só para algumas casas (campo <code>casas</code>).`,
+    `<b>Giro diário</b>: insumo com consumo lançado em pelo menos ${nf(C.regularMin*100,0)}% dos dias-casa do período. Só esses entram no fator do evento e na tabela da seção 5; os de lote ficam de fora porque um dia isolado mede o lote.`,
+    `<b>Lula e tentáculo</b> entram na forma processada, que é a contada. Para fator, a forma não muda a proporção.`,
+  ].map(x=>`<li>${x}</li>`).join(''));
+  const X=D.descartes;
+  T('notaDesc',X.length
+    ?`<b>Dados descartados (${X.length}):</b> ficam fora da comparação do dia, como nos demais relatórios — e aparecem aqui para serem corrigidos na origem.<br>`
+     +X.slice(0,40).map(x=>`${br(x.data)}/${x.data.slice(0,4)} · ${NC[x.casa]} · ${x.motivo}: <b>${x.motivo.startsWith('fatur')?'R$ '+nf(x.valor,2):nf(x.valor,3)}</b>`).join('<br>')
+     +(X.length>40?`<br>… e mais ${X.length-40}.`:'')
+    :'<b>Dados descartados:</b> nenhum — todo dia do período passou pelo piso de faturamento e não teve consumo negativo.');
+  T('rodape',`Fonte: <b>CDE Web</b> · <code>dados/lancamentos.json</code> e <code>dados/eventos.json</code>. `
+    +`Gerado por <code>gerar_eventos.py</code> em ${C.gerado} — uso interno da equipe de Suprimentos.`);
+})();
+
+document.querySelectorAll('section .sec-num').forEach((e,i)=>{e.textContent=String(i+1).padStart(2,'0');});
+</script>
+</body>
+</html>
