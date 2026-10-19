@@ -203,7 +203,7 @@ descobertos no caminho:
 | 0 | Menu e tema | `js/navegacao.js` | 185 | Vira o componente `Sidebar`; entra em todas as telas |
 | 1 | Conversão de Salmão | `js/conversao.js` | 275 | Cálculo puro, sem servidor; fatores no localStorage |
 | 2 | Parâmetros | `js/parametros.js` | 279 | Formulário simples; manda o conjunto inteiro ao salvar |
-| 3 | Movimentações | `js/movimentacoes.js` | 397 | Filtro de vários insumos e campo de preço (regras novas) |
+| 3 | Movimentações | `js/movimentacoes.js` | 963 | **Migrada** (seção 9). Filtro de vários insumos, valor total, notas fiscais, kg |
 | 4 | Qualidade (PCQS) | `js/qualidade.js` | 387 | Só a tela; `pcqs.js` e `pcqs-pdf.js` não migram |
 | 5 | Painel de Consumo | `js/painel.js` | 428 | Gráficos SVG e as três visões |
 | 6 | Botão de ações | `js/acoes.js` | 487 | Componente global, entra em todas as telas |
@@ -391,21 +391,42 @@ explicam o porquê de cada regra.
   agrupado como o Lançamento; a consulta só é refeita quando a escolha muda —
   meio segundo depois do último clique, ou na hora se o painel fechar antes;
   clicar fora fecha; um insumo mostra o nome, vários mostram a contagem.
-- **Preço unitário** (entrada e transferência):
-  - o cadastro guarda **até 10 casas**; o arredondamento é **só visual** —
-    depois de Tab/Enter o campo mostra 2 casas; com o foco volta a mostrar o
-    valor completo, para ajustar sem relançar; a dica mostra o valor gravado;
+- **Valor total da nota** (entrada e transferência) — desde outubro/2026 o campo
+  é o TOTAL impresso na nota, não mais o preço unitário:
+  - o unitário sai sozinho (total ÷ quantidade, dividido no servidor); o
+    cadastro guarda o unitário com **até 10 casas**, a coluna e o CSV mostram
+    até quatro; a dica do unitário mostra o valor gravado;
+  - o total vai ao centavo: depois de Tab/Enter o campo mostra 2 casas; com o
+    foco mostra o valor cheio **sem separador de milhar**;
   - grava ao sair do campo (e no Enter), não a cada tecla; sair sem mudar o
-    número **não grava**;
-  - o campo e o **valor total da linha** assentam na hora, sem esperar o
-    servidor (que regrava 3 MB no OneDrive); se a gravação falhar, os dois voltam
-    ao valor anterior;
+    número (diferença abaixo de meio centavo) **não grava**;
+  - o campo e o unitário assentam na hora, sem esperar o servidor (que regrava
+    3 MB no OneDrive); se a gravação falhar, os dois voltam ao valor anterior;
   - em branco apaga o cadastro;
-  - o placar é recalculado com o que está na tela, sem ir ao servidor (para não
-    tirar o foco do próximo campo).
+  - o pé das fichas de entrada e saída passa a contar os sem preço **desta
+    lista**, sem ir ao servidor (para não tirar o foco do próximo campo).
+- **Quantidade corrigível na linha**: o número SUBSTITUI o de Movimentações
+  (não soma) e não muda o lançamento diário, que aparece ao lado como
+  referência. Movimentações abaixo do lançamento → linha em vermelho e aviso.
+  Zero num movimento que só existe aqui o apaga. O placar se ajusta no lugar.
+- **Notas fiscais e transferências** (quadro acima do extrato): um movimento do
+  dia pode ser detalhado em várias notas (fornecedor, NF, quantidade, total, kg);
+  na entrada cada nota diz se veio de fornecedor ou de outra casa
+  (transferência), e trocar a origem limpa o parceiro. Sem nota, a primeira
+  linha nasce com a quantidade inteira. As notas não mexem no lançamento
+  diário; somando menos que ele, o quadro avisa antes de salvar. No extrato, o
+  movimento com notas vira uma linha **por nota**, com o lançamento diário numa
+  célula só (rowspan) para o grupo.
+- **Fornecedor e NF na linha**: o select (transferência) grava na troca, os
+  campos de texto ao sair; nota sem fornecedor/casa é recusada.
+- **Kg da nota** (libragens de salmão, `pesavel`): três casas, zero é recusado,
+  em branco apaga; o preço por kg é calculado (total ÷ kg). As duas colunas de
+  kg só aparecem quando a lista tem linha pesável.
+- **Excluir** só aparece quando Movimentações acrescentou algo ao lançamento
+  diário ou o movimento só existe aqui; pede confirmação.
 - **Desperdício não recebe preço**: o valor perdido vem do último preço pago
   pelo insumo até a data (da casa, ou da rede quando a casa ainda não comprou).
-- CSV leva o preço com até quatro casas.
+- CSV com ponto e vírgula, uma linha por nota, preço com até quatro casas.
 
 ### Botão de ações (todas as telas)
 - `POST /api/movimentacao`: entrada, saída e desperdício **somam** ao que já
@@ -538,8 +559,9 @@ Casos que precisam ser reproduzidos à mão, porque já deram erro em produção
 - Lançamento: digitar "14" e sair → "14,000"; final zerado num insumo com
   estoque → célula vermelha com o final esperado; linha do filé de produção ao
   salvar; dia com campo vazio continua vazio depois de salvar.
-- Movimentações: digitar 67,3429 e Enter → campo mostra 67,34, total usa
-  67,3429, clicar de novo mostra 67,3429; sair sem mudar não grava.
+- Movimentações: digitar o total 1020,5 e Enter → campo mostra 1.020,50 e o
+  unitário (total ÷ quantidade) aparece na hora; clicar de novo mostra 1020,50;
+  sair sem mudar não grava.
 - Faturamento "20.802,90" → R$ 20.802,90 (não R$ 20,80).
 
 ### Pronto quando
@@ -581,3 +603,31 @@ Casos que precisam ser reproduzidos à mão, porque já deram erro em produção
    servidor de teste na 8936 ao lado da produção na 8935) e com a sua
    aprovação. Remova o worktree com `git worktree remove`.
 5. Escreva no fim deste arquivo o que ficou pendente e o que foi testado à mão.
+
+---
+
+## 9. Registro da migração
+
+### Movimentações (19/10/2026)
+`js/app/telas/movimentacoes.js` + `componentes/FiltroInsumos.js`; rotas novas
+em `api.js` (`getNota`, `postNota`, `postKg`, `postMovimento*`) e formatos da
+tela em `formato.js` (`fmtQ`, `fmtPreco`, `fmtCentavos`, `fmtCheio`,
+`centavos`). `js/movimentacoes.js` removido.
+
+Verificado contra a tela antiga, as duas abertas lado a lado no servidor 8936
+com os mesmos cliques (65 checagens automáticas, dados restaurados depois):
+- screenshot idêntico byte a byte nos três temas;
+- células, títulos, classes e valores dos campos iguais na carga, nos filtros
+  (ficha do placar, casa, preço, datas, mês atual) e no filtro de insumos (meio
+  segundo, fechar antes consulta na hora, clicar fora, Esc, Limpar, ordem da
+  lista e não dos cliques);
+- valor total (assenta na hora, trava enquanto salva, foco mostra o valor
+  cheio, sair sem mudar não grava, em branco apaga), quantidade (alerta,
+  origem, placar ajustado no lugar = servidor), fornecedor/NF, kg (zero
+  recusado, três casas), quadro de notas (abrir pelo Editar, + Nota com foco,
+  trocar origem, soma e aviso, salvar, excluir) e CSV idêntico.
+
+**Única diferença de comportamento:** depois de corrigir a quantidade na
+linha, a tela antiga não redesenhava a célula de ações — o botão Excluir podia
+ficar sobrando até o F5. A React redesenha a linha inteira, então mostra o
+mesmo que a antiga mostrava depois de recarregar.

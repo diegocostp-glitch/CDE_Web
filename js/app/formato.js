@@ -39,6 +39,24 @@ export const fmt = (n, c = 2) => (n === null || n === undefined || !isFinite(n))
 export const fmtZero = (n, c = 2) => (!isFinite(n) ? 0 : n)
   .toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
 
+// Quantidade sem zeros sobrando: "215 Pct", "12,5 Kg", "0,375 Kg" (Movimentações).
+export const fmtQ = (n) => (n === null || n === undefined || !isFinite(n)) ? "—"
+  : n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+
+// Preço de Movimentações. O cadastro guarda o unitário com até dez casas (para
+// quantidade × preço voltar ao centavo digitado); a coluna e o CSV mostram até
+// quatro. O total vai ao centavo, que é como a nota o traz. Com o foco, o campo
+// mostra o valor cheio e sem separador de milhar, para editar sem tropeçar no
+// ponto. Nulo vira "" (campo vazio), não "—".
+export const fmtPreco = (n) => (n === null || n === undefined || !isFinite(n)) ? ""
+  : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+export const fmtCentavos = (n) => (n === null || n === undefined || !isFinite(n)) ? ""
+  : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const fmtCheio = (n) => (n === null || n === undefined || !isFinite(n)) ? ""
+  : n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 10,
+                                useGrouping: false });
+export const centavos = (n) => Math.round(n * 100) / 100;
+
 // Valor que vai DENTRO de um campo de quantidade, sempre em pt-BR e com três
 // casas (formato #,##0.000 da planilha da casa). Número cru do servidor nunca
 // vai direto ao campo: "0.184" voltaria como 184. Vazio continua vazio — vazio

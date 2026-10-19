@@ -56,6 +56,15 @@ export const getMovimentacoes = (filtros) => fetch("/api/movimentacoes" + qs(fil
   { cache: "no-store" });
 export const postPreco = (corpo) => postJSON("/api/preco", corpo);
 export const postMovimentacao = (corpo) => postJSON("/api/movimentacao", corpo);
+// correção da quantidade, kg da nota, fornecedor/NF e exclusão de uma linha do
+// extrato: { data, casa, insumo, tipo } identificam o movimento
+export const postMovimentoEditar = (corpo) => postJSON("/api/movimento/editar", corpo);
+export const postKg = (corpo) => postJSON("/api/kg", corpo);
+export const postMovimentoInfo = (corpo) => postJSON("/api/movimento/info", corpo);
+export const postMovimentoExcluir = (corpo) => postJSON("/api/movimento/excluir", corpo);
+// notas fiscais e transferências de um movimento: { data, casa, tipo, insumo }
+export const getNota = (q) => fetch("/api/nota" + qs(q), { cache: "no-store" });
+export const postNota = (corpo) => postJSON("/api/nota", corpo);
 
 // ------------------------------------------------------------ cadastros
 export const getBase = () => fetch("/api/base", { cache: "no-store" });
