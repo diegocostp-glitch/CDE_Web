@@ -19,8 +19,16 @@ let sujo = false;
 function rotuloRegra() {
   const r = (DADOS && DADOS.regra) || {};
   return `Calculado pela regra da casa: média diária dos últimos ${r.janela || 14}`
-    + ` dias × ${r.dias_uso || 7} dias de uso. É este número que vale quando o`
-    + ` mínimo fica em branco.`;
+    + ` dias × prazo de entrega do insumo (coluna Prazo) — o estoque que precisa`
+    + ` existir quando o pedido sai, para a casa não zerar antes de a mercadoria`
+    + ` chegar. Insumo sem prazo cadastrado usa ${r.dias_uso ?? 7} dia(s) de segurança.`
+    + ` Peixe, pacote e bisnaga arredondam para cima, inteiros.`;
+}
+
+function textoPrazo(l) {
+  if (l.origem === "sem_fornecedor") return "sem fornecedor";
+  if (l.cobertura == null) return "—";
+  return fmt(l.cobertura, 0) + " d" + (l.origem === "seguranca" ? " (segurança)" : "");
 }
 
 function estado(txt, classe) {
@@ -91,7 +99,7 @@ function desenharEstoque() {
   let grupo = null;
   const corpo = linhas.map((l) => {
     const cab = l.grupo !== grupo
-      ? `<tr class="linha-grupo"><td colspan="7">${esc(l.grupo)}</td></tr>` : "";
+      ? `<tr class="linha-grupo"><td colspan="8">${esc(l.grupo)}</td></tr>` : "";
     grupo = l.grupo;
     const mi = valorAtual(l, "minimo");
     const ma = valorAtual(l, "maximo");
@@ -100,6 +108,7 @@ function desenharEstoque() {
       <td class="fonte">${esc(l.casa_nome)}</td>
       <td class="calc fonte">${fmt(l.media_dia, 3)}</td>
       <td class="calc fonte">${l.dias == null ? "—" : l.dias}</td>
+      <td class="calc fonte">${textoPrazo(l)}</td>
       <td class="calc sugestao" title="${esc(rotuloRegra())}">${
         l.sugestao == null ? "—" : fmt(l.sugestao, 1)}</td>
       <td><input type="text" inputmode="decimal" data-campo="minimo"
@@ -114,8 +123,35 @@ function desenharEstoque() {
   $("#tabela-estoque").innerHTML = `<table class="tabela-param">
     <thead><tr>
       <th>Insumo</th><th>Casa</th><th>Média/dia</th><th>Dias</th>
-      <th>Calculado</th><th>Mínimo</th><th>Máximo</th>
+      <th>Prazo</th><th>Calculado</th><th>Mínimo</th><th>Máximo</th>
     </tr></thead><tbody>${corpo}</tbody></table>`;
+}
+
+// ------------------------------------------------------- prazo de entrega
+// Uma linha por insumo comprado. O padrão vale para as quatro casas; a
+// coluna da casa só se preenche quando ela recebe em outro prazo (o camarão
+// chega em 1 dia na cidade e em 2 na Cidade Nova). Padrão em branco = sem
+// fornecedor disponível: o insumo fica sem mínimo.
+const CASAS_PRAZO = ["SL", "DC", "DLU", "DLCN"];
+
+function desenharPrazos() {
+  const lista = DADOS.prazos || [];
+  if (!lista.length) {
+    $("#tabela-prazos").innerHTML = '<p class="vazio">Nenhum prazo cadastrado.</p>';
+    return;
+  }
+  const cel = (v) => v == null || v === "" ? "" : fmt(num(v), 0);
+  $("#tabela-prazos").innerHTML = `<table class="tabela-param">
+    <thead><tr><th>Insumo</th><th>Prazo padrão (dias)</th>${
+      CASAS_PRAZO.map((c) => `<th>${c}</th>`).join("")}</tr></thead>
+    <tbody>${lista.map((p, i) => `<tr data-i="${i}">
+      <td>${esc(p.insumo)}${p.padrao == null || p.padrao === ""
+        ? ' <span class="selo-mini">sem fornecedor</span>' : ""}</td>
+      <td><input type="text" inputmode="numeric" data-prazo="padrao" value="${cel(p.padrao)}"
+           placeholder="sem fornecedor"></td>
+      ${CASAS_PRAZO.map((c) => `<td><input type="text" inputmode="numeric" data-prazo="${c}"
+           value="${cel((p.casas || {})[c])}" placeholder="padrão"></td>`).join("")}
+    </tr>`).join("")}</tbody></table>`;
 }
 
 function desenharProjecao() {
@@ -147,6 +183,7 @@ function desenhar() {
       casas.map(([c, nome]) => `<option value="${esc(c)}">${esc(nome)}</option>`).join("");
   }
   desenharEstoque();
+  desenharPrazos();
   desenharProjecao();
 }
 
@@ -170,6 +207,12 @@ async function salvar() {
       dias_seguranca: num($("#p-seguranca").value),
       responsaveis: DADOS.projecao.responsaveis || [],
       fornecedores: DADOS.projecao.fornecedores || [],
+      prazo_entrega: (DADOS.prazos || []).map((p) => ({
+        chave: p.chave,
+        padrao: p.padrao === "" || p.padrao == null ? null : num(p.padrao),
+        casas: Object.fromEntries(Object.entries(p.casas || {})
+          .filter(([, v]) => v !== "" && v != null).map(([c, v]) => [c, num(v)])),
+      })),
     },
   };
 
@@ -212,6 +255,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const inp = e.target.closest("input[data-campo]");
     if (!inp || inp.value.trim() === "") return;
     inp.value = fmt(num(inp.value), 3);
+  });
+
+  $("#tabela-prazos").addEventListener("input", (e) => {
+    const inp = e.target.closest("input[data-prazo]");
+    if (!inp) return;
+    const p = DADOS.prazos[Number(inp.closest("tr").dataset.i)];
+    const v = inp.value.trim();
+    if (inp.dataset.prazo === "padrao") p.padrao = v;
+    else (p.casas = p.casas || {})[inp.dataset.prazo] = v;
+    marcarSujo();
   });
 
   ["#f-insumo", "#f-casa"].forEach((s) => {

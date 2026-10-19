@@ -34,6 +34,9 @@ backups/
 # dados. Versionar o produto ao lado da receita nao acrescenta nada e leva o
 # faturamento junto.
 relatorios-coef/saida/
+# Desde 16/10/2026 todo relatorio pronto mora em Relatórios/ (ver
+# relatorios-coef/organizacao.py) — a mesma protecao vale para a pasta nova.
+Relat*rios/
 # Preco negociado por insumo, casa e mes. Mesma natureza de dados/custos.json,
 # que ja esta ignorado acima.
 relatorios-coef/custos_mensais.json

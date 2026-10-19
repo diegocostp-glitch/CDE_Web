@@ -807,7 +807,7 @@ function topMovimentos() {
 function minimos() {
   const lista = VISTA.criticos || [];
   $("#nota-minimo").textContent = `${lista.length} item(ns) · Mínimo = média diária dos`
-    + ` últimos ${VISTA.janela_media_dias} dias × ${VISTA.dias_seguranca} dia(s) de uso`
+    + ` últimos ${VISTA.janela_media_dias} dias × prazo de entrega do insumo`
     + ` — ajustável em Parâmetros`;
   if (!lista.length) {
     $("#tabela-minimos").innerHTML =

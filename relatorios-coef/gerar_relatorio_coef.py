@@ -30,11 +30,12 @@ Uso:
 Padrões:
   - comparativo = mês anterior
   - fonte de dados = ./dados (ao lado do script) ou --dados <pasta>
-  - saída = ./saida (ou --saida <pasta>)
+  - saída = ../Relatórios (ou --saida <pasta>) — ver organizacao.py
   - PDF via Chrome/Edge headless (use --no-pdf para pular)
 """
 import argparse, json, os, sys, glob, subprocess, calendar, datetime, statistics
 from collections import defaultdict
+from organizacao import RAIZ_RELATORIOS
 
 # ----------------------------------------------------------------------------- config de insumos
 CASAS = ['SL', 'DC', 'DLU', 'DLCN']
@@ -498,11 +499,20 @@ def find_browser():
     return None
 
 def render_pdf(browser, html_path, pdf_path):
+    # Perfil próprio e descartável: com o Chrome do usuário aberto, o headless
+    # sem --user-data-dir entrega o trabalho à janela que já está rodando e sai
+    # sem gravar o PDF — o "(falhou)" aparecia só quando o navegador estava aberto.
+    import tempfile, shutil
+    perfil = tempfile.mkdtemp(prefix='cde-pdf-')
     url = 'file:///' + os.path.abspath(html_path).replace('\\', '/')
-    subprocess.run([browser, '--headless=new', '--disable-gpu', '--no-pdf-header-footer',
-                    '--run-all-compositor-stages-before-draw', '--virtual-time-budget=12000',
-                    f'--print-to-pdf={os.path.abspath(pdf_path)}', url],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+    try:
+        subprocess.run([browser, '--headless=new', '--disable-gpu', '--no-pdf-header-footer',
+                        f'--user-data-dir={perfil}', '--no-first-run',
+                        '--run-all-compositor-stages-before-draw', '--virtual-time-budget=12000',
+                        f'--print-to-pdf={os.path.abspath(pdf_path)}', url],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+    finally:
+        shutil.rmtree(perfil, ignore_errors=True)
     return os.path.exists(pdf_path)
 
 # ----------------------------------------------------------------------------- main
@@ -513,7 +523,7 @@ def main():
     ap.add_argument('--insumo', default='salmao_equivalente', help='chave do insumo (ex.: salmao_equivalente, camarao_m)')
     ap.add_argument('--comparativo', help='mês comparativo AAAA-MM (padrão: mês anterior)')
     ap.add_argument('--dados', default=os.path.normpath(os.path.join(here, '..', 'dados')), help='pasta dos JSONs do CDE Web')
-    ap.add_argument('--saida', default=os.path.join(here, 'saida'), help='pasta de saída')
+    ap.add_argument('--saida', default=RAIZ_RELATORIOS, help='pasta de saída')
     ap.add_argument('--template', default=os.path.join(here, 'modelo_coef.html'), help='template HTML')
     ap.add_argument('--custos-mensais', dest='custos_mensais',
                     help='JSON de custo por insumo/casa/mês (padrão: ./custos_mensais.json)')
@@ -617,10 +627,9 @@ def main():
                .replace('{{DATA}}', json.dumps(data, ensure_ascii=False, default=str))
                .replace('{{CONFIG}}', json.dumps(config, ensure_ascii=False)))
 
-    from organizacao import pasta_mensal
-    destino = pasta_mensal(args.saida, cur)      # saida/Relatório <Mês>/
-    base = f'Relatorio_{args.insumo}_{cur}'
-    html_path = os.path.join(destino, base + '.html')
+    from organizacao import arquivo_mensal
+    base = arquivo_mensal(args.saida, cur, args.insumo)
+    html_path = base + '.html'
     open(html_path, 'w', encoding='utf-8').write(html)
     print('HTML :', html_path)
 
@@ -629,7 +638,7 @@ def main():
         if not br:
             print('AVISO: Chrome/Edge não encontrado — PDF não gerado (use --no-pdf para silenciar).')
         else:
-            pdf_path = os.path.join(destino, base + '.pdf')
+            pdf_path = base + '.pdf'
             ok = render_pdf(br, html_path, pdf_path)
             print('PDF  :', pdf_path if ok else '(falhou)')
 

@@ -17,7 +17,9 @@ python gerar_relatorio_coef.py --mes 2026-08 --insumo salmao_equivalente
 
 - Lê os dados de `../dados/lancamentos.json`, as metas de `../dados/metas.json` e o
   custo unitário por casa de `../dados/custos.json`.
-- Gera `saida/Relatorio_<insumo>_<mes>.html` e `.pdf`.
+- Gera `../Relatórios/1. Consumo Mensal por Insumo/<AAAA-MM Mês>/Consumo <Mês> <Ano> - <Insumo>.html`
+  e `.pdf`. Pasta e nome de todos os relatórios saem de `organizacao.py`; o índice
+  das pastas está em `../Relatórios/LEIA-ME.md`.
 - PDF renderizado via Chrome/Edge headless (use `--no-pdf` para pular).
 
 ### Opções
@@ -28,7 +30,7 @@ python gerar_relatorio_coef.py --mes 2026-08 --insumo salmao_equivalente
 | `--insumo` | `salmao_equivalente` | chave do insumo |
 | `--comparativo` | mês anterior | mês de comparação `AAAA-MM` |
 | `--dados` | `../dados` | pasta dos JSONs |
-| `--saida` | `./saida` | pasta de saída |
+| `--saida` | `../Relatórios` | pasta de saída |
 | `--template` | `./modelo_coef.html` | template HTML |
 | `--piso` | `0.10` | piso de faturamento do dia, como fração da mediana da casa (`0` desliga) |
 | `--no-pdf` | — | não gerar PDF |

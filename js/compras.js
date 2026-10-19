@@ -5,10 +5,20 @@
 //   Dias a cobrir      = dias desejados − duração atual
 //   Pedido             = dias a cobrir × média diária × fator
 //
+// Os dias desejados são digitados por item na Senador Lemos (SL) e valem para
+// o mesmo item nas outras casas. Item sem número próprio segue o "Dias a cobrir
+// (padrão)" do topo. A média diária
+// sai, por padrão, dos últimos 14 dias; em semana atípica (feriado, evento) dá
+// para escolher, item a item, quais dias entram na média.
+//
 // O salmão é medido em peixes e pedido em quilos: a conversão (30 kg por caixa
 // ÷ 7 peixes por caixa) vive em dados/compras.json, à vista de quem precisar ajustar.
 // ============================================================================
-let PROJ = null, CASA = "SL", sujo = false;
+let PROJ = null, CASA = "SL", sujo = false, DIAS = 7;
+// Opções da lista de dias a cobrir. O padrão de Parâmetros ou o dia salvo no
+// pedido entra na lista mesmo que não esteja aqui.
+const OPCOES_DIAS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18, 21, 25, 28, 30, 35, 40, 45, 60];
+const DOW = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 // Casa mostrada no consolidado. "" = todas juntas. Fica no navegador porque é
 // preferência de leitura, não dado do pedido — e quem trabalha uma casa por vez
 // não quer reescolher a cada abertura da tela.
@@ -51,15 +61,20 @@ async function carregar() {
   if (sujo && !confirm("Há alterações não salvas. Recarregar mesmo assim?")) return;
   estado("Carregando…");
   try {
-    PROJ = await (await fetch(`/api/projecao?data=${$("#data").value}&dias=${$("#dias").value || 7}`)).json();
+    PROJ = await (await fetch(`/api/projecao?data=${$("#data").value}&dias=${DIAS}`)).json();
   } catch (e) {
     $("#tela").innerHTML = '<p class="vazio">Servidor fora do ar. Rode o Servidor.bat.</p>';
     return;
   }
   sujo = false; estado("");
   const cfg = PROJ.config;
+  // Cada data é um pedido: o que já foi salvo volta com os dias com que foi
+  // salvo; pedido novo começa no padrão de Parâmetros.
+  DIAS = PROJ.dias_salvo || cfg.dias_a_cobrir_padrao || 7;
+  montarDias();
   $("#janela-txt").textContent =
-    `Média diária dos últimos ${PROJ.janela_media_dias} dias · estoque do último lançamento`;
+    `Média diária dos últimos ${PROJ.janela_media_dias} dias, ou dos dias escolhidos no item` +
+    ` · estoque do último lançamento`;
   if (!$("#responsavel").options.length) {
     $("#responsavel").innerHTML = '<option value="">—</option>' +
       (cfg.responsaveis || []).map((r) => `<option>${r}</option>`).join("");
@@ -92,17 +107,52 @@ function desenharAbas() {
   $("#abas-casas").innerHTML = Object.entries(PROJ.casas).map(([ck, c]) =>
     `<button data-c="${ck}" class="${ck === CASA ? "ativa" : ""}" title="${c.nome}">${ck}</button>`).join("");
   document.querySelectorAll("#abas-casas button").forEach((b) => {
-    b.onclick = () => { CASA = b.dataset.c; desenharAbas(); desenhar(); };
+    b.onclick = () => { guardarLinhas(); CASA = b.dataset.c; desenharAbas(); desenhar(); };
   });
 }
 
+function montarDias() {
+  const lista = OPCOES_DIAS.includes(DIAS) ? OPCOES_DIAS
+    : OPCOES_DIAS.concat([DIAS]).sort((a, b) => a - b);
+  $("#dias").innerHTML = lista.map((d) =>
+    `<option value="${d}"${d === DIAS ? " selected" : ""}>${d} dia${d > 1 ? "s" : ""}</option>`).join("");
+}
+
+// ------------------------------------------------------------------ média
+// Dias escolhidos para a média: null = os da janela padrão. A conta é a mesma
+// do servidor (media_dos_dias): só dia com consumo lançado entra, e a média
+// divide pelos dias escolhidos que têm lançamento.
+const diasEscolhidos = (ins) => Array.isArray(ins.dias_media) ? ins.dias_media
+  : (ins.dias_media_padrao || []);
+
+function mediaDe(ins) {
+  if (!Array.isArray(ins.dias_media)) return { media: ins.media_diaria, n: ins.dias_com_uso };
+  const alvo = new Set(ins.dias_media);
+  const usos = (ins.historico || []).filter((h) => alvo.has(h.data)).map((h) => h.uso);
+  return { media: usos.length ? usos.reduce((a, b) => a + b, 0) / usos.length : 0, n: usos.length };
+}
+
+function rotuloDia(iso) {
+  const d = new Date(iso + "T12:00:00");
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${DOW[d.getDay()]}`;
+}
+
 // ------------------------------------------------------------------ cálculo
+// Dias a cobrir do item: o digitado na SL vale para as quatro casas; vazio,
+// vale o padrão do topo.
+const CASA_DIAS = "SL";
+function diasDe(chave) {
+  const sl = insumoDa(CASA_DIAS, chave);
+  const v = sl ? sl.dias_item : null;
+  return v !== null && v !== undefined && v !== "" ? num(v) : DIAS;
+}
+
 function calcular(ins, campos) {
-  const media = ins.media_diaria, fator = num(campos.fator) || 1;
+  const media = mediaDe(ins).media, fator = num(campos.fator) || 1;
   const disponivel = ins.estoque + num(campos.transito);
   const consumoDia = media * fator;
   const duracao = consumoDia > 0 ? disponivel / consumoDia : (disponivel > 0 ? Infinity : 0);
-  const cobrir = Math.max(0, num(campos.dias_cobrir) - (isFinite(duracao) ? duracao : 0));
+  const cobrir = Math.max(0, diasDe(ins.chave) - (isFinite(duracao) ? duracao : 0));
   const qtd = cobrir * consumoDia;
   // o peso da caixa varia; os peixes por caixa nao. Guardamos os dois e
   // derivamos o fator, em vez de esconder a conta num numero solto.
@@ -158,37 +208,83 @@ function desenhar() {
           <td>${i.nome} <span class="un">(${i.un})</span>${selo(i)}</td>
           <td class="calc" title="${dicaEstoque(i)}">${fmt(i.estoque, 3)}</td>
           <td><input data-c="transito" type="text" inputmode="decimal" value="${i.transito ?? ""}"></td>
-          <td class="calc" title="${i.dias_com_uso} dia(s) com consumo na janela">${fmt(i.media_diaria, 3)}</td>
+          <td class="calc media"></td>
           <td><input data-c="fator" type="text" inputmode="decimal" value="${i.fator ?? 1}" style="width:64px"></td>
           <td class="calc dur"></td>
-          <td><input data-c="dias_cobrir" type="text" inputmode="decimal" value="${i.dias_cobrir ?? ""}" style="width:74px"></td>
+          ${CASA === CASA_DIAS
+            ? `<td><input data-c="dias" type="text" inputmode="numeric" style="width:56px"
+                 value="${i.dias_item ?? ""}" placeholder="${DIAS}"
+                 title="Dias a cobrir deste item — vale também para as outras casas. Vazio: usa o padrão do topo"></td>`
+            : `<td class="calc cobrir" title="Digitado na ${PROJ.casas[CASA_DIAS].nome} (SL) — vale para as quatro casas"></td>`}
           <td class="calc ped"></td>
           <td><select data-c="fornecedor"><option value="">Selecione</option>${
             (PROJ.config.fornecedores || []).map((f) =>
               `<option${f === i.fornecedor ? " selected" : ""}>${f}</option>`).join("")}</select></td>
-        </tr>`).join("")}</tbody></table></div>
+        </tr>
+        <tr class="linha-dias" data-k="${i.chave}"${i._diasAbertos ? "" : " hidden"}>
+          <td colspan="${cab.length}">${blocoDias(i)}</td></tr>`).join("")}</tbody></table></div>
     </section>`;
-  $("#tela").addEventListener("input", (e) => {
-    if (!e.target.matches("input,select")) return;
-    sujo = true; estado("Não salvo", "erro"); recalcular();
-  });
-  $("#tela").addEventListener("change", (e) => {
-    if (e.target.matches("select")) { sujo = true; estado("Não salvo", "erro"); consolidar(); }
-  });
   recalcular();
+}
+
+// Os dias que formam a média do item: um quadradinho por dia, com o consumo
+// daquele dia ao lado ("10/10 sex — 19 Px"). Os dias da janela vêm marcados;
+// desmarcar o feriado tira o feriado da média, marcar um dia de 30 dias atrás
+// põe na conta um dia parecido com o que vem.
+const UN_INTEIRA = ["Px", "Pxs", "Pct", "Bng"];
+
+function blocoDias(ins) {
+  const hist = ins.historico || [];
+  if (!hist.length) return `<p class="fonte">Sem consumo lançado nos últimos ${PROJ.historico_dias} dias.</p>`;
+  const marcados = new Set(diasEscolhidos(ins));
+  const janela = new Set(ins.dias_media_padrao || []);
+  const m = mediaDe(ins);
+  // o equivalente de salmão sai fracionado (11,6 peixes): uma casa basta
+  const dec = UN_INTEIRA.includes(ins.un) ? 1 : 2;
+  return `<div class="dias-caixa">
+    <div class="dias-topo">
+      <span>Média de <strong>${m.n}</strong> dia(s): <strong>${fmt(m.media, 3)} ${ins.un}/dia</strong>
+        ${Array.isArray(ins.dias_media) ? '<span class="selo-mini aviso">dias escolhidos</span>'
+          : `<span class="selo-mini">últimos ${PROJ.janela_media_dias} dias</span>`}</span>
+      <span style="flex:1"></span>
+      <button type="button" class="botao-mini dias-acao" data-acao="padrao" data-k="${ins.chave}">Voltar aos últimos ${PROJ.janela_media_dias} dias</button>
+      <button type="button" class="botao-mini dias-acao" data-acao="nenhum" data-k="${ins.chave}">Desmarcar todos</button>
+      <button type="button" class="botao-mini dias-acao" data-acao="todos-itens" data-k="${ins.chave}"
+        title="Usa estes mesmos dias em todos os itens de ${PROJ.casas[CASA].nome}">Usar estes dias em todos os itens da casa</button>
+    </div>
+    <div class="dias-grade">${hist.slice().sort((a, b) => a.data.localeCompare(b.data)).map((h) => `
+      <label class="dia-chip${marcados.has(h.data) ? " marcado" : ""}${janela.has(h.data) ? " janela" : ""}${h.uso < 0 ? " neg" : ""}"${
+        h.uso < 0 ? ' title="Consumo negativo: divergência de contagem em dia de recebimento. Marcado, ele rebaixa a média."' : ""}>
+        <input type="checkbox" data-dia="${h.data}" data-k="${ins.chave}"${marcados.has(h.data) ? " checked" : ""}>
+        <span class="dia-data">${rotuloDia(h.data)}</span>
+        <span class="dia-uso">${fmt(h.uso, dec)} ${ins.un}</span>
+      </label>`).join("")}</div>
+  </div>`;
+}
+
+function redesenharDias(ins) {
+  const td = document.querySelector(`#tela tr.linha-dias[data-k="${ins.chave}"] td`);
+  if (td) td.innerHTML = blocoDias(ins);
 }
 
 function lerLinha(tr) {
   const v = (c) => { const el = tr.querySelector(`[data-c="${c}"]`); return el ? el.value : ""; };
-  return { transito: v("transito"), fator: v("fator"),
-           dias_cobrir: v("dias_cobrir"), fornecedor: v("fornecedor") };
+  return { transito: v("transito"), fator: v("fator"), fornecedor: v("fornecedor") };
 }
 
 function recalcular() {
   const casa = PROJ.casas[CASA];
-  document.querySelectorAll("#tela tbody tr").forEach((tr) => {
+  document.querySelectorAll("#tela tbody tr[data-k]:not(.linha-dias)").forEach((tr) => {
     const ins = casa.insumos.find((i) => i.chave === tr.dataset.k);
     const r = calcular(ins, lerLinha(tr));
+    const m = mediaDe(ins);
+    tr.querySelector(".media").innerHTML = `${fmt(m.media, 3)}
+      <button type="button" class="botao-mini abrir-dias${Array.isArray(ins.dias_media) ? " ajustado" : ""}"
+        data-k="${ins.chave}" title="Escolher os dias que formam a média">${m.n} dia${m.n === 1 ? "" : "s"}</button>`;
+    const tdC = tr.querySelector(".cobrir");
+    if (tdC) tdC.textContent = diasDe(ins.chave) + " d";
+    const inC = tr.querySelector('[data-c="dias"]');
+    if (inC) inC.placeholder = DIAS;
     const tdD = tr.querySelector(".dur"), tdP = tr.querySelector(".ped");
     tdD.textContent = r.duracao === Infinity ? "sem consumo" : fmt(r.duracao, 1) + " d";
     tdD.className = "calc dur" + (isFinite(r.duracao) && r.duracao < 3 ? " neg" : "");
@@ -250,8 +346,7 @@ function consolidar() {
     casa.insumos.forEach((ins) => {
       const tr = ck === CASA ? document.querySelector(`#tela tr[data-k="${ins.chave}"]`) : null;
       const campos = tr ? lerLinha(tr) : {
-        transito: ins.transito, fator: ins.fator,
-        dias_cobrir: ins.dias_cobrir, fornecedor: ins.fornecedor };
+        transito: ins.transito, fator: ins.fator, fornecedor: ins.fornecedor };
       const r = calcular(ins, campos);
       if (r.pedido <= 0.0005) return;
       const forn = campos.fornecedor || "Sem fornecedor";
@@ -476,22 +571,17 @@ async function editarOC(forn) {
 
 // ------------------------------------------------------------------ salvar
 async function salvar() {
-  document.querySelectorAll("#tela tbody tr").forEach((tr) => {
-    const ins = PROJ.casas[CASA].insumos.find((i) => i.chave === tr.dataset.k);
-    const c = lerLinha(tr);
-    ins.transito = c.transito === "" ? null : num(c.transito);
-    ins.fator = num(c.fator) || 1;
-    ins.dias_cobrir = c.dias_cobrir === "" ? null : num(c.dias_cobrir);
-    ins.fornecedor = c.fornecedor || null;
-  });
+  guardarLinhas();
   PROJ.casas[CASA].responsavel = $("#responsavel").value || null;
 
-  const corpo = { data: PROJ.data, casas: {} };
+  const corpo = { data: PROJ.data, dias_cobrir: DIAS, casas: {} };
   Object.entries(PROJ.casas).forEach(([ck, casa]) => {
     const insumos = {};
     casa.insumos.forEach((i) => {
       insumos[i.chave] = { transito: i.transito, fator: i.fator,
-                           dias_cobrir: i.dias_cobrir, fornecedor: i.fornecedor,
+                           dias_cobrir: diasDe(i.chave), fornecedor: i.fornecedor,
+                           dias_item: ck === CASA_DIAS ? (i.dias_item ?? null) : null,
+                           dias_media: Array.isArray(i.dias_media) ? i.dias_media : null,
                            qtd_manual: i.qtd_manual ?? null,
                            produto_oc: i.produto_oc ?? null,
                            split: i.split ?? null };
@@ -512,13 +602,85 @@ async function salvar() {
   } finally { $("#btn-salvar").disabled = false; }
 }
 
+// O que está digitado na casa à vista vai para o objeto do insumo. Precisa
+// acontecer antes de trocar de casa, senão o redesenho apaga o que foi digitado.
+function guardarLinhas() {
+  if (!PROJ) return;
+  document.querySelectorAll("#tela tbody tr[data-k]:not(.linha-dias)").forEach((tr) => {
+    const ins = PROJ.casas[CASA].insumos.find((i) => i.chave === tr.dataset.k);
+    const c = lerLinha(tr);
+    ins.transito = c.transito === "" ? null : num(c.transito);
+    ins.fator = num(c.fator) || 1;
+    ins.fornecedor = c.fornecedor || null;
+  });
+}
+
+function marcarSujo() { sujo = true; estado("Não salvo", "erro"); }
+
+// Eventos da tabela, ligados UMA vez: a tabela é redesenhada a cada troca de
+// casa, e o contêiner fica.
+function ligarTabela() {
+  const tela = $("#tela");
+  const insumo = (k) => PROJ.casas[CASA].insumos.find((i) => i.chave === k);
+  tela.addEventListener("input", (e) => {
+    if (!e.target.matches("input[data-c],select[data-c]")) return;
+    if (e.target.dataset.c === "dias") {
+      const ins = insumo(e.target.closest("tr").dataset.k);
+      const v = e.target.value.trim();
+      ins.dias_item = v === "" ? null : Math.min(60, Math.max(1, num(v) || 1));
+    }
+    marcarSujo(); recalcular();
+  });
+  tela.addEventListener("change", (e) => {
+    if (e.target.matches("select[data-c]")) { marcarSujo(); consolidar(); return; }
+    const cx = e.target.closest("input[data-dia]");
+    if (!cx) return;
+    const ins = insumo(cx.dataset.k);
+    const sel = new Set(diasEscolhidos(ins));
+    if (cx.checked) sel.add(cx.dataset.dia); else sel.delete(cx.dataset.dia);
+    ins.dias_media = [...sel].sort().reverse();
+    marcarSujo(); redesenharDias(ins); recalcular();
+  });
+  tela.addEventListener("click", (e) => {
+    const abrir = e.target.closest(".abrir-dias");
+    if (abrir) {
+      const ins = insumo(abrir.dataset.k);
+      ins._diasAbertos = !ins._diasAbertos;
+      const linha = tela.querySelector(`tr.linha-dias[data-k="${ins.chave}"]`);
+      if (linha) { linha.hidden = !ins._diasAbertos; if (ins._diasAbertos) redesenharDias(ins); }
+      return;
+    }
+    const b = e.target.closest(".dias-acao");
+    if (!b) return;
+    const casa = PROJ.casas[CASA];
+    const ins = insumo(b.dataset.k);
+    if (b.dataset.acao === "padrao") ins.dias_media = null;
+    else if (b.dataset.acao === "nenhum") ins.dias_media = [];
+    else if (b.dataset.acao === "todos-itens") {
+      // Mesmos dias de calendário para todos — feriado é feriado para a casa
+      // inteira. Dia sem consumo lançado num item simplesmente não conta nele.
+      const padrao = !Array.isArray(ins.dias_media);
+      const dias = diasEscolhidos(ins).slice();
+      guardarLinhas();
+      casa.insumos.forEach((o) => { o.dias_media = padrao ? null : dias.slice(); });
+      aviso(`Dias de ${ins.nome} aplicados aos ${casa.insumos.length} itens de ${casa.nome}.`, "bom");
+      marcarSujo(); desenhar(); return;
+    }
+    marcarSujo(); redesenharDias(ins); recalcular();
+  });
+}
+
 // ------------------------------------------------------------------ início
 (async function iniciar() {
   $("#data").value = hoje();
-  const cfg = await (await fetch("/api/projecao?data=" + hoje())).json().catch(() => null);
-  $("#dias").value = (cfg && cfg.config && cfg.config.dias_a_cobrir_padrao) || 7;
+  montarDias();
+  ligarTabela();
   $("#data").onchange = carregar;
-  $("#dias").onchange = carregar;
+  // Padrão do pedido: vale para os itens sem dias próprios digitados na SL.
+  $("#dias").onchange = () => {
+    DIAS = num($("#dias").value) || 7;
+    marcarSujo(); recalcular();
+  };
   $("#btn-salvar").onclick = salvar;
   window.addEventListener("beforeunload", (e) => { if (sujo) e.preventDefault(); });
   carregar();

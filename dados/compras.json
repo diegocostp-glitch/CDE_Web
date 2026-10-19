@@ -116,5 +116,23 @@
       "nota": "bandagem x filetamento: 0,6716 x 0,8011 — mesmos fatores do Conversor de Salmão"
     }
   ],
-  "_nota_salmao": "Partes em que o pedido de salmão pode ser projetado, com o rendimento de cada uma em kg por kg de peixe inteiro. A projeção calcula a necessidade em peixe inteiro; ao informar quilos de filé, o sistema divide pelo rendimento para saber quanto de inteiro aquilo consome. Os fatores são os mesmos do módulo Conversão de Salmão — se recalibrar lá, ajuste aqui."
+  "_nota_salmao": "Partes em que o pedido de salmão pode ser projetado, com o rendimento de cada uma em kg por kg de peixe inteiro. A projeção calcula a necessidade em peixe inteiro; ao informar quilos de filé, o sistema divide pelo rendimento para saber quanto de inteiro aquilo consome. Os fatores são os mesmos do módulo Conversão de Salmão — se recalibrar lá, ajuste aqui.",
+  "prazo_entrega": {
+    "_nota": "Dias entre o pedido e a entrega, por insumo. O estoque minimo de cada casa e o consumo medio diario (janela_media_dias) x este prazo. Numero = vale para as quatro casas; objeto = \"padrao\" mais excecao por casa. null = sem fornecedor disponivel: o insumo fica sem minimo. Insumo fora desta lista usa dias_seguranca. Lula e polvo: o prazo vale para o in natura, que e o que se compra; o processado segue dias_seguranca (ciclo de processamento).",
+    "salmao_equivalente": 10,
+    "camarao_g": 7,
+    "camarao_m": 7,
+    "camarao_p": 7,
+    "lula_in_natura": 10,
+    "polvo_in_natura": 10,
+    "patinho": 7,
+    "kani": 10,
+    "anchova": 10,
+    "nori": 21,
+    "cream_cheese": 7,
+    "arroz": 21,
+    "file_tilapia": 10,
+    "atum": null,
+    "atum_in_natura": null
+  }
 }

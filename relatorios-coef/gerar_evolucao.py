@@ -6,13 +6,19 @@ outra pergunta: "para onde a rede está andando". Mesma metodologia, mesma
 identidade visual (o CSS é lido do modelo_coef.html, para não existirem dois
 desenhos divergindo com o tempo), eixo diferente — meses no lugar de casas.
 
+Os dois arquivos trazem filtro de CASA: o mesmo relatorio se refaz para uma
+casa so, com as outras ao fundo para comparacao. Com --insumo todos sai o
+PAINEL do periodo — todos os insumos num HTML so, com filtro de insumo e casa.
+
 Uso:
     python gerar_evolucao.py --de 2026-01 --ate 2026-08 --insumo salmao_equivalente
+    python gerar_evolucao.py --de 2026-01 --ate 2026-09 --insumo todos
 """
 import argparse, json, os, re, sys, datetime
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
+from organizacao import RAIZ_RELATORIOS   # noqa: E402
 from gerar_relatorio_coef import (        # noqa: E402
     INSUMOS, CASAS, NOMES_CASA, MESES, MES_ABR, EM_KG, EQUIVALENTES, PROCESSAVEIS,
     cfg_insumo, piso_faturamento, rendimentos, rendimento_de, series, totals,
@@ -82,6 +88,41 @@ def montar(lanc, metas, custos, mensais, insumo, lista, piso, rends):
     return dados
 
 
+def pacote(lanc, metas, custos, mensais, insumo, lista, piso, rends):
+    """{'D': dados, 'C': cfg} de um insumo, ou None se nao houve consumo."""
+    ins = cfg_insumo(insumo)
+    dados = montar(lanc, metas, custos, mensais, insumo, lista, piso, rends)
+    # Mes de consumo ZERO fica de fora da serie. Ele existe no arquivo (o dia e
+    # lancado com uso 0), mas coeficiente zero nao e eficiencia — e o item fora
+    # do cardapio. Mantido, o atum aparecia "melhorando 100%" ao parar de ser
+    # usado, que e a leitura oposta da verdadeira.
+    sem_consumo = [m['ym'] for m in dados['meses'] if m['fat'] > 0 and m['cons'] <= 0]
+    fica = [i for i, m in enumerate(dados['meses']) if m['fat'] > 0 and m['cons'] > 0]
+    dados['meses'] = [dados['meses'][i] for i in fica]
+    # as series das casas andam junto com as do grupo: o grafico e o filtro de
+    # casa leem a posicao i de uma como o mesmo mes da outra
+    dados['casas'] = {c: [v[i] for i in fica] for c, v in dados['casas'].items()}
+    if not dados['meses']:
+        return None
+    cfg = {
+        'insumoNome': ins['nome'], 'unidade': ins['unidade'],
+        'de': dados['meses'][0]['nome'], 'ate': dados['meses'][-1]['nome'],
+        'ano': lista[0][:4], 'chave': insumo,
+        'casas': CASAS, 'nomesCasa': NOMES_CASA,
+        'semCusto': [m['ym'] for m in dados['meses'] if not m['temCusto']],
+        'custoHerdado': [m['ym'] for m in dados['meses'] if m.get('custoHerdado')],
+        'semConsumo': sem_consumo,
+    }
+    return {'D': dados, 'C': cfg}
+
+
+def html_de(pacotes, titulo, modelo):
+    corpo = open(os.path.join(AQUI, 'corpo_evolucao.html'), encoding='utf-8').read()
+    return (corpo.replace('{{CSS}}', css_do_modelo(modelo))
+                 .replace('{{TITULO}}', titulo)
+                 .replace('{{PACOTE}}', json.dumps(pacotes, ensure_ascii=False)))
+
+
 def css_do_modelo(caminho):
     """O desenho mora no modelo mensal; aqui só se lê. Dois arquivos de estilo
     divergiriam no primeiro ajuste que alguém fizesse em um só."""
@@ -94,15 +135,15 @@ def main():
     ap = argparse.ArgumentParser(description='Relatório de evolução do grupo (CDE Web).')
     ap.add_argument('--de', required=True, help='primeiro mês, AAAA-MM')
     ap.add_argument('--ate', required=True, help='último mês, AAAA-MM')
-    ap.add_argument('--insumo', default='salmao_equivalente')
+    ap.add_argument('--insumo', default='salmao_equivalente',
+                    help='chave do insumo, ou "todos" para o painel do periodo')
     ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', 'dados')))
-    ap.add_argument('--saida', default=os.path.join(AQUI, 'saida'))
+    ap.add_argument('--saida', default=RAIZ_RELATORIOS)
     ap.add_argument('--modelo', default=os.path.join(AQUI, 'modelo_coef.html'))
     ap.add_argument('--piso', type=float, default=0.10)
     ap.add_argument('--no-pdf', action='store_true')
     args = ap.parse_args()
 
-    ins = cfg_insumo(args.insumo)
     lanc = json.load(open(os.path.join(args.dados, 'lancamentos.json'), encoding='utf-8'))
     mp = os.path.join(args.dados, 'metas.json')
     metas = {k: v for k, v in (json.load(open(mp, encoding='utf-8')) if os.path.exists(mp) else {}).items()
@@ -117,42 +158,43 @@ def main():
     lista = meses_entre(args.de, args.ate)
     piso = piso_faturamento(lanc, args.piso) if args.piso > 0 else {}
     rends = rendimentos(lanc)
-    dados = montar(lanc, metas, custos, mensais, args.insumo, lista, piso, rends)
-    # Mes de consumo ZERO fica de fora da serie. Ele existe no arquivo (o dia e
-    # lancado com uso 0), mas coeficiente zero nao e eficiencia — e o item fora
-    # do cardapio. Mantido, o atum aparecia "melhorando 100%" ao parar de ser
-    # usado, que e a leitura oposta da verdadeira.
-    sem_consumo = [m['ym'] for m in dados['meses'] if m['fat'] > 0 and m['cons'] <= 0]
-    dados['meses'] = [m for m in dados['meses'] if m['fat'] > 0 and m['cons'] > 0]
-    if not dados['meses']:
+    from organizacao import arquivo_evolucao, NOME_INSUMO, arquivo_painel, MES_NOME
+    if args.insumo == 'todos':
+        # painel do periodo: um HTML com todos os insumos, filtro de insumo e
+        # de casa. Sem PDF — papel nao tem filtro; o PDF de cada insumo sai
+        # rodando este script com o insumo.
+        pacotes = {}
+        for chave in NOME_INSUMO:
+            pk = pacote(lanc, metas, custos, mensais, chave, lista, piso, rends)
+            if pk:
+                pacotes[chave] = pk
+            else:
+                print('Sem consumo no período, fora do painel:', chave)
+        if not pacotes:
+            sys.exit('ERRO: nenhum insumo com consumo no período pedido.')
+        titulo = 'Evolução por casa — %s a %s / %s' % (
+            MES_NOME[int(lista[0][5:7])], MES_NOME[int(lista[-1][5:7])], args.de[:4])
+        hp = arquivo_painel(args.saida, args.de, args.ate) + '.html'
+        open(hp, 'w', encoding='utf-8').write(html_de(pacotes, titulo, args.modelo))
+        print('HTML :', hp, '(%d insumos)' % len(pacotes))
+        return
+
+    pk = pacote(lanc, metas, custos, mensais, args.insumo, lista, piso, rends)
+    if not pk:
         sys.exit('ERRO: nenhum mês com consumo no período pedido.')
+    dados, cfg = pk['D'], pk['C']
+    sem_consumo = cfg['semConsumo']
+    html = html_de({args.insumo: pk}, 'Evolução do grupo — %s — %s a %s / %s'
+                   % (cfg['insumoNome'], cfg['de'], cfg['ate'], cfg['ano']), args.modelo)
 
-    cfg = {
-        'insumoNome': ins['nome'], 'unidade': ins['unidade'],
-        'de': dados['meses'][0]['nome'], 'ate': dados['meses'][-1]['nome'],
-        'ano': args.de[:4], 'chave': args.insumo,
-        'casas': CASAS, 'nomesCasa': NOMES_CASA,
-        'semCusto': [m['ym'] for m in dados['meses'] if not m['temCusto']],
-        'custoHerdado': [m['ym'] for m in dados['meses'] if m.get('custoHerdado')],
-        'semConsumo': sem_consumo,
-    }
-    corpo = open(os.path.join(AQUI, 'corpo_evolucao.html'), encoding='utf-8').read()
-    html = (corpo.replace('{{CSS}}', css_do_modelo(args.modelo))
-                 .replace('{{TITULO}}', 'Evolução do grupo — %s — %s a %s / %s'
-                          % (ins['nome'], cfg['de'], cfg['ate'], cfg['ano']))
-                 .replace('{{DADOS}}', json.dumps(dados, ensure_ascii=False))
-                 .replace('{{CFG}}', json.dumps(cfg, ensure_ascii=False)))
-
-    from organizacao import pasta_evolucao
-    destino = pasta_evolucao(args.saida, args.insumo)   # saida/Evolução/<insumo>/
-    base = 'Evolucao_%s_%s_a_%s' % (args.insumo, args.de, args.ate)
-    hp = os.path.join(destino, base + '.html')
+    base = arquivo_evolucao(args.saida, args.insumo, args.de, args.ate)
+    hp = base + '.html'
     open(hp, 'w', encoding='utf-8').write(html)
     print('HTML :', hp)
     if not args.no_pdf:
         br = find_browser()
         if br:
-            pp = os.path.join(destino, base + '.pdf')
+            pp = base + '.pdf'
             print('PDF  :', pp if render_pdf(br, hp, pp) else '(falhou)')
         else:
             print('AVISO: Chrome/Edge não encontrado — PDF não gerado.')

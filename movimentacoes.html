@@ -21,8 +21,10 @@
          campo para salvar; o preço unitário é calculado sozinho (total ÷ quantidade).
          Quando o dia chegou em mais de uma nota, lance cada uma no quadro de notas
          fiscais e transferências: o preço da linha vira a média delas. A quantidade
-         também pode ser corrigida na própria linha, inclusive a que veio da planilha:
-         ela passa a "Editado" e a sincronização não a desfaz. Desperdício não recebe preço — não se paga para jogar fora, e o
+         também pode ser corrigida na própria linha. O que se corrige ou lança aqui
+         fica em Movimentações e não muda o lançamento diário, que aparece ao lado
+         como referência; quando Movimentações fica abaixo dele, a linha acende em
+         vermelho. Desperdício não recebe preço — não se paga para jogar fora, e o
          produto perdido já foi pago na linha da chegada dele —, mas é
          valorizado pelo último preço pago por aquele insumo até a data da perda —
          da própria casa, ou da rede quando a casa ainda não o tinha comprado. Esse valor fica na coluna de valor em tom apagado e tem
@@ -87,8 +89,7 @@
     <div class="nf-pe">
       <button class="botao" id="nf-mais" type="button">+ Nota</button>
       <span class="nf-soma" id="nf-soma"></span>
-      <label class="nf-ajuste" id="nf-ajuste" hidden>
-        <input type="checkbox" id="nf-ajustar"> <span id="nf-ajuste-txt"></span></label>
+      <span class="nf-ajuste" id="nf-ajuste" hidden></span>
       <span style="flex:1"></span>
       <button class="botao primario" id="nf-salvar" type="button">Salvar notas</button>
     </div>
