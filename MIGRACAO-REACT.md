@@ -212,7 +212,7 @@ descobertos no caminho:
 | 9 | Cadastros | `js/cadastros.js` | 735 | **Migrada** (seção 9). Gravação com debounce, busca, vínculos |
 | 10 | Visão Geral | `js/overview.js` | 1002 | **Migrada** (seção 9). Recorte por casa (VISTA), rosca, gráficos dinâmicos |
 | 11 | Ordens de Compras | `js/ordens.js` | 737 | **Migrada** (seção 9) — **falta o teste de mesa** antes de a branch entrar na `main` |
-| 12 | Importar OC | `js/importar.js` | 584 | **Idem** — depende de arquivo real (planilha e PDF) |
+| 12 | Importar OC | `js/importar.js` | 584 | **Migrada** (seção 9) — **falta o teste de mesa** com arquivo real (planilha e PDF) |
 
 `js/comum.js` (248 linhas, peças das telas de compras) se desfaz em
 `formato.js` + `api.js` à medida que Cadastros, Ordens, Importar, Parâmetros e
@@ -925,3 +925,40 @@ gerar pelo menos uma OC real pela tela nova no servidor de teste e conferir o
 PDF contra um gerado pela tela antiga (mesmo fornecedor e itens). A cópia de
 teste numera no seu próprio `Registro_OCs.json`, então isso não consome número
 real.
+
+### Importar OC (20/10/2026)
+`js/app/telas/importar.js`; a leitura das abas da planilha, o enriquecimento
+pela base (`js/app/base.js`) e a normalização da forma de pagamento foram
+portados sem mudança. `js/importar.js` removido. A página **continua
+carregando o `comum.js`**: o leitor de PDF (`importar-pdf.js`, que não migra)
+usa `chave`, `limpaNome` e `formatarCNPJ` de lá. O PDF de saída continua no
+`oc-pdf.js`.
+
+Forma: como na tela antiga, o que se digita no cartão vai direto para o objeto
+lido (sobrevive a recolher o cartão) e só o subtotal e o total do cartão mudam
+na hora; abrir, recolher, trocar o cadastro, tirar item e trocar a unidade
+redesenham placar, selos e cartões.
+
+Verificado com a base do Gerador de OCs, lado a lado no servidor 8936
+(20 checagens), com uma planilha de solicitação montada no teste (metadados,
+cabeçalho, item do catálogo com caixa diferente, linha-molde "Colocar Nome…",
+item fora do catálogo, "Total"; uma aba de fornecedor sem cadastro; a aba
+"Base" ignorada) e o leitor de PDF substituído pelo mesmo resultado nas duas
+telas (o pdf.js trava no Chrome headless): placar, cartões, preço do catálogo,
+digitação, cadastro escolhido, tirar item, trocar unidade, "Ver PDF" (mesmos
+dados para o `montarPDF`), lote .zip (mesmas chamadas reservar → lote fora os
+números, mesmo nome do .zip, mesma pergunta e aviso), "Enviar para Ordens"
+(mesmo POST /api/ordens/lote), PDF lido (unidade casada pelo CNPJ, recado,
+alerta do fornecedor sem cadastro, pagamento "PIX" → Pix), Cancelar.
+Screenshots iguais nos três temas (planilha lida + cartão aberto), fora o
+ruído das quinas. Ordens e registro de numeração restaurados.
+
+Diferença de comportamento (mínima): ao ler um arquivo sem nenhuma aba com
+itens, a tela antiga avisava e deixava na tela os cartões da leitura anterior;
+a nova avisa e limpa o resultado — os cartões velhos não correspondiam mais ao
+arquivo escolhido.
+
+**Teste de mesa pendente (seção 4):** importar uma planilha real de
+solicitação da equipe e um PDF real de OC ("ORDEM DE COMPRA (GERÊNTE E
+SUPERVISOR)") nas duas telas e conferir os cartões — o leitor de PDF não foi
+exercitado com arquivo real nesta verificação.
