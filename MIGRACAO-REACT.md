@@ -209,7 +209,7 @@ descobertos no caminho:
 | 6 | Botão de ações | `js/acoes.js` | 487 | **Migrado** (seção 9). Componente global, entra em todas as telas |
 | 7 | Projeção de Compras | `js/compras.js` | 687 | **Migrada** (seção 9). Recálculo por tecla, consolidado, split do salmão |
 | 8 | Lançamento Diário | `js/app.js` | 674 | **Migrada** (seção 9). **A tela mais sensível**: alertas, processamento, sincronização |
-| 9 | Cadastros | `js/cadastros.js` | 728 | Gravação com debounce, busca, vínculos |
+| 9 | Cadastros | `js/cadastros.js` | 735 | **Migrada** (seção 9). Gravação com debounce, busca, vínculos |
 | 10 | Visão Geral | `js/overview.js` | 996 | Recorte por casa (VISTA), rosca, gráficos dinâmicos |
 | 11 | Ordens de Compras | `js/ordens.js` | 737 | **Peça teste de mesa antes de aposentar o antigo** |
 | 12 | Importar OC | `js/importar.js` | 584 | **Idem** — depende de arquivo real (planilha e PDF) |
@@ -787,3 +787,40 @@ MANTIDOS de propósito, e ficam aqui para decidir depois da migração:
    tela antiga só o reavalia quando há final digitado.
 3. "Sincronizar" com alteração pendente pergunta duas vezes (ao começar e ao
    recarregar o dia).
+
+### Cadastros (20/10/2026)
+`js/app/telas/cadastros.js`, e `js/app/base.js` com o que era do `comum.js`
+para a base de cadastros (carregar, gravar as quatro abas, produtos e
+observação do fornecedor) — Ordens e Importar vão usar o mesmo módulo.
+`js/cadastros.js` removido; `comum.js` continua para Ordens, Importar e
+Parâmetros.
+
+Forma: as células das tabelas continuam não controladas e gravam no "change"
+nativo (ao sair, ou Enter); o registro é alterado no lugar e a fila de 700 ms
+manda a base inteira, como antes.
+
+Verificado contra a tela antiga, lado a lado no servidor 8936 (39 checagens,
+comparando a tela inteira e o corpo de cada POST): busca letra a letra sem
+perder o foco, várias palavras em qualquer ordem, detalhe, e-mail e
+observação fixa (mesmo POST /api/base), CNPJ inválido (marca, aviso e
+gravação), cadastrar fornecedor (com CNPJ válido e recusado), remover (mesma
+pergunta, mesmo POST), produtos (busca, filtro por fornecedor, preço, vínculo
+— mesmo POST /api/vinculos —, produto novo com vínculo gravando a base antes
+do vínculo, remover), unidades (cadastrar, detalhe, renomear com o aviso da
+numeração, remover), exportar, importar (mescla; produto de fornecedor não
+cadastrado ignorado) e recarregar. Screenshots iguais nas três abas e nos
+três temas, fora o ruído de pintura dos elementos fixos (o print da antiga às
+vezes sai sem os ícones do rodapé do menu; geometria medida igual). Planilha
+de cadastros e dados da cópia de teste restaurados.
+
+**Diferenças de comportamento (conscientes):**
+1. Na tela antiga, cada linha guardava a chave do registro num atributo que
+   só se atualizava ao redesenhar. Depois de renomear o apelido de um
+   fornecedor (ou a chave de uma unidade, ou o nome/fornecedor de um produto),
+   editar OUTRO campo da mesma linha se perdia em silêncio até a tela ser
+   redesenhada. Na nova a linha aponta sempre para o registro, e a edição
+   grava. Conferido no teste: a antiga perde a razão social editada depois
+   do rename; a nova grava.
+2. As marcas que dependem do valor ("CNPJ inválido" na dica, preço em branco
+   em vermelho, a contagem "Sem preço na seleção") acompanham a edição na
+   hora; na antiga, só ao redesenhar a tabela (busca, troca de aba).
