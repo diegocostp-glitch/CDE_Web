@@ -13,7 +13,7 @@ import { Sidebar, VoltarAoTopo } from "./componentes/Sidebar.js";
 import { AvisoFlutuante } from "./componentes/Aviso.js";
 import { AcoesRapidas } from "./componentes/AcoesRapidas.js";
 
-export function Layout({ atual, children }) {
+export function Layout({ atual, acoes = true, children }) {
   return html`
     <div class="app-layout">
       <${Sidebar} atual=${atual} />
@@ -21,11 +21,12 @@ export function Layout({ atual, children }) {
     </div>
     <${AvisoFlutuante} />
     <${VoltarAoTopo} />
-    <${AcoesRapidas} />`;
+    ${acoes ? html`<${AcoesRapidas} />` : null}`;
 }
 
-export function montarTela(atual, Tela) {
+// opcoes.acoes = false: a tela não leva o botão de ações (Parâmetros nunca teve)
+export function montarTela(atual, Tela, opcoes = {}) {
   aplicarTema(temaSalvo());
   const raiz = document.getElementById("raiz");
-  createRoot(raiz).render(html`<${Layout} atual=${atual}><${Tela} /></${Layout}>`);
+  createRoot(raiz).render(html`<${Layout} atual=${atual} acoes=${opcoes.acoes !== false}><${Tela} /></${Layout}>`);
 }

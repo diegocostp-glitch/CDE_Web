@@ -202,7 +202,7 @@ descobertos no caminho:
 |---|---|---|---|---|
 | 0 | Menu e tema | `js/navegacao.js` | 185 | Vira o componente `Sidebar`; entra em todas as telas |
 | 1 | Conversão de Salmão | `js/conversao.js` | 275 | Cálculo puro, sem servidor; fatores no localStorage |
-| 2 | Parâmetros | `js/parametros.js` | 279 | Formulário simples; manda o conjunto inteiro ao salvar |
+| 2 | Parâmetros | `js/parametros.js` | 332 | **Migrada** (seção 9). Formulário simples; manda o conjunto inteiro ao salvar |
 | 3 | Movimentações | `js/movimentacoes.js` | 963 | **Migrada** (seção 9). Filtro de vários insumos, valor total, notas fiscais, kg |
 | 4 | Qualidade (PCQS) | `js/qualidade.js` | 387 | **Migrada** (seção 9). Só a tela; `pcqs.js` e `pcqs-pdf.js` não migram |
 | 5 | Painel de Consumo | `js/painel.js` | 428 | **Migrada** (seção 9). Gráficos SVG e as três visões |
@@ -848,3 +848,41 @@ idênticos byte a byte nos três temas, na tela inicial e com todas as seções
 abertas.
 
 Sem diferença de comportamento.
+
+### Parâmetros (20/10/2026)
+`js/app/telas/parametros.js`. `js/parametros.js` removido. A tela nunca teve
+o botão de ações: `montarTela(..., { acoes: false })` mantém assim (opção nova
+do `montar.js`). Continuam como antes: o digitado guardado por (insumo, casa);
+a contagem "N de M com mínimo definido" e os campos refeitos só ao filtrar,
+preencher com a sugestão ou salvar; três casas ao sair do campo; o selo "sem
+fornecedor" do prazo só no redesenho; salvar manda o conjunto inteiro e
+mostra a mensagem do servidor quando ele recusa.
+
+Verificado contra a tela antiga, lado a lado no servidor 8936 (25
+checagens): carga, filtros de insumo e casa, mínimo e máximo digitados (com o
+foco e ao sair), mínimo apagado, contagem refeita no redesenho, preencher com
+a sugestão (e de novo, sem nada a preencher), prazos, janela e dias a cobrir,
+responsável adicionado/repetido/removido, fornecedor por Enter, salvar
+recusado (máximo abaixo do mínimo — mesmo POST, mesma mensagem) e aceito
+(mesmo POST, tela refeita com a resposta, "Salvo" some em 2,5 s), as três
+seções recolhíveis. Screenshots idênticos byte a byte nos três temas. Dados
+restaurados.
+
+Sem diferença de comportamento.
+
+### Achados de ambiente durante a migração
+- **Logo do menu na cópia de teste.** `centurion_menu.png` e `centurion_aba.png`
+  estão no `.gitignore` (`centurion*.png`) e só existem na pasta de produção;
+  um worktree novo nasce sem elas e o menu mostra a imagem quebrada. Na cópia
+  de teste foram copiadas da produção à mão, como os `dados/`. Decidir se
+  entram no git (são 53 KB) ou se o passo de montar a cópia (seção 1.1) passa
+  a incluí-las.
+- **Sincronização na cópia de teste.** O caminho das planilhas é relativo
+  (`../../../Documentos 2026/CDE - Controle Diário de Estoque`); na cópia cai em
+  `C:\Users\Documentos 2026`, que não existe, e o botão mostra "Não consegui
+  ler as planilhas: Failed to fetch". Igual na tela antiga — é o servidor.
+- **Pendência no `server.py` (fora da migração):** quando a pasta das planilhas
+  não existe, o `importar_diario` encerra com `SystemExit`, que o servidor não
+  trata (só `Exception`): a requisição morre sem resposta e a tela diz "Failed
+  to fetch" em vez de "pasta das planilhas não encontrada". Na produção o
+  mesmo aconteceria se a pasta fosse renomeada ou o OneDrive não a tivesse.
