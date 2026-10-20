@@ -208,7 +208,7 @@ descobertos no caminho:
 | 5 | Painel de Consumo | `js/painel.js` | 428 | **Migrada** (seção 9). Gráficos SVG e as três visões |
 | 6 | Botão de ações | `js/acoes.js` | 487 | **Migrado** (seção 9). Componente global, entra em todas as telas |
 | 7 | Projeção de Compras | `js/compras.js` | 687 | **Migrada** (seção 9). Recálculo por tecla, consolidado, split do salmão |
-| 8 | Lançamento Diário | `js/app.js` | 674 | **A tela mais sensível**: alertas, processamento, sincronização |
+| 8 | Lançamento Diário | `js/app.js` | 674 | **Migrada** (seção 9). **A tela mais sensível**: alertas, processamento, sincronização |
 | 9 | Cadastros | `js/cadastros.js` | 728 | Gravação com debounce, busca, vínculos |
 | 10 | Visão Geral | `js/overview.js` | 996 | Recorte por casa (VISTA), rosca, gráficos dinâmicos |
 | 11 | Ordens de Compras | `js/ordens.js` | 737 | **Peça teste de mesa antes de aposentar o antigo** |
@@ -750,3 +750,40 @@ Sem diferença de comportamento.
 Nota de verificação: o `checar_telas.py` às vezes estoura os 90 s numa tela
 qualquer (Cadastros numa rodada, Parâmetros em outra, nenhuma delas mexida);
 rodado de novo, passa. É o Chrome sem tela travando, não erro de página.
+
+### Lançamento Diário (20/10/2026)
+`js/app/telas/lancamento.js`. `js/app.js` removido.
+
+Mesma forma da Projeção: o dia é um objeto só (a resposta de `/api/dia`) e,
+na casa à vista, vale o que está digitado (o "rascunho") — uso, coeficiente,
+linha do salmão equivalente (com o filé convertido) e processamento saem dele
+a cada tecla, e ele só vai ao objeto ao salvar.
+
+Verificado contra a tela antiga, lado a lado no servidor 8936, comparando a
+tela inteira (38 checagens): carga, data, ◀ ▶ Hoje, as quatro abas com a
+contagem do que falta; digitação letra a letra (o foco não sai), "14" → "14,000"
+ao sair, vazio continua vazio; contagem suspeita (mesmo alerta e mesma dica),
+contagem maior que o disponível; libragens + filé → linha equivalente;
+faturamento "20.802,90" e coeficientes; processamento (rendeu mais do que
+entrou, fora da faixa); salvar (corpo do POST /api/dia idêntico, 7.962 bytes);
+data trocada com alteração pendente (mesma pergunta; cancelar não recarrega);
+painel de período (mês atual ao abrir, atalhos, clicar fora, Esc). Screenshots
+idênticos nos três temas, no dia de hoje e no 17/10 com alerta aceso e perda
+negativa (o mono da tela antiga varia entre duas execuções dela mesma; o da
+nova não). Dados restaurados.
+
+Não testado por completo: a sincronização com SUCESSO. A cópia de teste não
+alcança as planilhas das casas (o caminho relativo cai em
+C:\Users\Documentos 2026, que não existe) e o servidor fecha a requisição sem
+resposta; só o caminho de erro ("Não consegui ler as planilhas…") foi
+comparado, e saiu igual. Conferir à mão no uso em paralelo, com as planilhas.
+
+Sem diferença de comportamento. Três comportamentos da tela antiga foram
+MANTIDOS de propósito, e ficam aqui para decidir depois da migração:
+1. **Trocar de aba descarta o que foi digitado e não salvo** naquela casa (a
+   tabela é refeita do que veio do servidor; só a casa à vista vai ao salvar),
+   e a tela continua marcada como "Não salvo". É perda de digitação.
+2. O alerta de contagem suspeita não apaga quando o final é esvaziado — a
+   tela antiga só o reavalia quando há final digitado.
+3. "Sincronizar" com alteração pendente pergunta duas vezes (ao começar e ao
+   recarregar o dia).
