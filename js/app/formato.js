@@ -39,6 +39,10 @@ export const fmt = (n, c = 2) => (n === null || n === undefined || !isFinite(n))
 export const fmtZero = (n, c = 2) => (!isFinite(n) ? 0 : n)
   .toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
 
+// Variação em porcentagem com sinal, uma casa no máximo: "+12,5%", "-3%".
+export const pct = (n) => n === null || n === undefined ? "—"
+  : (n >= 0 ? "+" : "") + (n * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "%";
+
 // Quantidade sem zeros sobrando: "215 Pct", "12,5 Kg", "0,375 Kg" (Movimentações).
 export const fmtQ = (n) => (n === null || n === undefined || !isFinite(n)) ? "—"
   : n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });

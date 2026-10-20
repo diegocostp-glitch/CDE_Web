@@ -205,7 +205,7 @@ descobertos no caminho:
 | 2 | Parâmetros | `js/parametros.js` | 279 | Formulário simples; manda o conjunto inteiro ao salvar |
 | 3 | Movimentações | `js/movimentacoes.js` | 963 | **Migrada** (seção 9). Filtro de vários insumos, valor total, notas fiscais, kg |
 | 4 | Qualidade (PCQS) | `js/qualidade.js` | 387 | **Migrada** (seção 9). Só a tela; `pcqs.js` e `pcqs-pdf.js` não migram |
-| 5 | Painel de Consumo | `js/painel.js` | 428 | Gráficos SVG e as três visões |
+| 5 | Painel de Consumo | `js/painel.js` | 428 | **Migrada** (seção 9). Gráficos SVG e as três visões |
 | 6 | Botão de ações | `js/acoes.js` | 487 | Componente global, entra em todas as telas |
 | 7 | Projeção de Compras | `js/compras.js` | 525 | Recálculo por tecla, consolidado, split do salmão |
 | 8 | Lançamento Diário | `js/app.js` | 674 | **A tela mais sensível**: alertas, processamento, sincronização |
@@ -662,3 +662,27 @@ fórmula que mostra "CERTO"/"ERRO", ao lado da loja em D4. A leitura juntou as
 duas: a loja do teste saiu "CERTO DELIVERY CIDADE NOVA" (os gerentes ainda
 casaram pela casa). Igual na tela antiga e na nova — conferir com um PCQS real
 preenchido antes de mexer.
+
+### Painel de Consumo (19/10/2026)
+`js/app/telas/painel.js`; `pct` foi para o `formato.js`. Os ids de degradê
+dos gráficos deixam de vir de um contador global e saem de quem o gráfico
+mostra (insumo, casa, visão) — continuam únicos na tela. `js/painel.js`
+removido.
+
+Verificado contra a tela antiga, lado a lado no servidor 8936, comparando a
+árvore inteira com TODOS os atributos (caminhos e pontos dos SVG, cores,
+títulos, estilos) — 29 checagens: carga, as três visões (tabela, visão geral,
+impacto R$), as cinco fichas e o clique de volta, loja/insumo/situação (e a
+lista que fica vazia), sino (abrir, clicar fora, alerta que limpa os filtros e
+abre o detalhe), detalhe pela linha, pela célula do mapa e pela barra,
+"Quantas" e "Dia da Semana", troca de série guardando o "Quantas", Fechar, e
+troca de período mantendo a loja escolhida.
+
+Screenshot idêntico nos três temas na carga e na visão geral. Com o detalhe
+aberto, a área da tela também é idêntica; o print da tela antiga às vezes sai
+sem os ícones fixos do rodapé do menu e do botão de ações (pintura do Chrome
+sem tela em página mais alta que a janela — posição, tamanho e opacidade
+medidos iguais nas duas). A rolagem até o detalhe é a mesma chamada
+(`scrollIntoView` suave, "nearest", duas vezes ao trocar o "Quantas").
+
+Sem diferença de comportamento.
