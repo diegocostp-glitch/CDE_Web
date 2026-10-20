@@ -211,7 +211,7 @@ descobertos no caminho:
 | 8 | Lançamento Diário | `js/app.js` | 674 | **Migrada** (seção 9). **A tela mais sensível**: alertas, processamento, sincronização |
 | 9 | Cadastros | `js/cadastros.js` | 735 | **Migrada** (seção 9). Gravação com debounce, busca, vínculos |
 | 10 | Visão Geral | `js/overview.js` | 1002 | **Migrada** (seção 9). Recorte por casa (VISTA), rosca, gráficos dinâmicos |
-| 11 | Ordens de Compras | `js/ordens.js` | 737 | **Peça teste de mesa antes de aposentar o antigo** |
+| 11 | Ordens de Compras | `js/ordens.js` | 737 | **Migrada** (seção 9) — **falta o teste de mesa** antes de a branch entrar na `main` |
 | 12 | Importar OC | `js/importar.js` | 584 | **Idem** — depende de arquivo real (planilha e PDF) |
 
 `js/comum.js` (248 linhas, peças das telas de compras) se desfaz em
@@ -886,3 +886,42 @@ Sem diferença de comportamento.
   trata (só `Exception`): a requisição morre sem resposta e a tela diz "Failed
   to fetch" em vez de "pasta das planilhas não encontrada". Na produção o
   mesmo aconteceria se a pasta fosse renomeada ou o OneDrive não a tivesse.
+
+### Ordens de Compras (20/10/2026)
+`js/app/telas/ordens.js`; consultas da base e numeração de OC (antes no
+`comum.js`) foram para `js/app/base.js` (`fornecedorPorChave`,
+`unidadePorChave`, `casarFornecedor`, `casarUnidade`, `pendenciasDaOC`,
+`proximoNumeroOC`, `reservarNumerosOC`). `js/ordens.js` removido; a tela não
+carrega mais o `comum.js` (o `oc-pdf.js` e o `header-img.js` não dependem
+dele). O PDF continua no `oc-pdf.js`, sem alteração.
+
+Forma: como na tela antiga, os campos de cada ordem e do catálogo da nova
+ordem são lidos do formulário ao salvar, gerar ou ver o PDF, e os mesmos
+redesenhos refazem os cartões a partir do servidor (o que não foi salvo se
+perde ao trocar o fornecedor do cadastro, ao filtrar ou ao recarregar — como
+antes). Fechar e reabrir o painel de nova ordem refaz o catálogo (perde as
+quantidades); incluir ou tirar item fora do catálogo devolve os campos de item
+extra ao padrão e a busca ao vazio — tudo como antes.
+
+Verificado com a base do Gerador de OCs (`Base_SushiBoulevard.xlsx` e
+`Registro_OCs.json` da cópia de teste idênticos aos do Gerador real),
+lado a lado no servidor 8936 (31 checagens + verificação do link `?f=`):
+filtros, ordem aberta com subtotais e total, item do catálogo (Enter) e fora
+dele, remover, "Ver PDF" com os mesmos dados para o `montarPDF`, salvar (mesmo
+POST /api/ordem), trocar e tirar o cadastro (selo, nota, trava "vincular o
+fornecedor"), gerar a OC (mesma sequência reservar → ordem, mesmo PDF fora o
+número; números seguidos no registro), ordem gerada (dados recolhidos,
+Reabrir), excluir (mesma pergunta), nova ordem completa (fornecedor, marcar
+→ 1,000, quantidade marca a linha, busca que não esconde o pedido, item fora
+do catálogo, fechar e reabrir, criar — mesmo POST /api/ordem/nova, a ordem
+criada já abre), links `?f=Fornecedor` e `?nova`. Screenshots iguais nos três
+temas (lista; ordem aberta + nova ordem com catálogo), fora o ruído das
+quinas de cartão. Ordens, registro de numeração e planilha restaurados.
+
+Sem diferença de comportamento.
+
+**Teste de mesa pendente (seção 4):** antes de a branch entrar na `main`,
+gerar pelo menos uma OC real pela tela nova no servidor de teste e conferir o
+PDF contra um gerado pela tela antiga (mesmo fornecedor e itens). A cópia de
+teste numera no seu próprio `Registro_OCs.json`, então isso não consome número
+real.
