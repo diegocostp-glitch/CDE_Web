@@ -204,7 +204,7 @@ descobertos no caminho:
 | 1 | Conversão de Salmão | `js/conversao.js` | 275 | Cálculo puro, sem servidor; fatores no localStorage |
 | 2 | Parâmetros | `js/parametros.js` | 279 | Formulário simples; manda o conjunto inteiro ao salvar |
 | 3 | Movimentações | `js/movimentacoes.js` | 963 | **Migrada** (seção 9). Filtro de vários insumos, valor total, notas fiscais, kg |
-| 4 | Qualidade (PCQS) | `js/qualidade.js` | 387 | Só a tela; `pcqs.js` e `pcqs-pdf.js` não migram |
+| 4 | Qualidade (PCQS) | `js/qualidade.js` | 387 | **Migrada** (seção 9). Só a tela; `pcqs.js` e `pcqs-pdf.js` não migram |
 | 5 | Painel de Consumo | `js/painel.js` | 428 | Gráficos SVG e as três visões |
 | 6 | Botão de ações | `js/acoes.js` | 487 | Componente global, entra em todas as telas |
 | 7 | Projeção de Compras | `js/compras.js` | 525 | Recálculo por tecla, consolidado, split do salmão |
@@ -631,3 +631,34 @@ com os mesmos cliques (65 checagens automáticas, dados restaurados depois):
 linha, a tela antiga não redesenhava a célula de ações — o botão Excluir podia
 ficar sobrando até o F5. A React redesenha a linha inteira, então mostra o
 mesmo que a antiga mostrava depois de recarregar.
+
+### Qualidade do Salmão (19/10/2026)
+`js/app/telas/qualidade.js`. `pcqs.js`, `pcqs-pdf.js` e `header-img.js`
+continuam como estão, carregados por `<script>` antes do módulo (são globais
+de script clássico — o módulo os enxerga pelo nome, não por `window.`). A tela
+não carrega mais `comum.js` nem `navegacao.js`. `js/qualidade.js` removido.
+
+Não havia PCQS preenchido para testar: os de 2026 na pasta de Controle de
+Qualidade são todos o modelo em branco. O teste preencheu uma cópia do modelo
+com 4 caixas inventadas (peso abaixo da etiqueta, odor ruim reprovado,
+validade curta, peixes e libragem divergentes) e, à parte, uma versão com duas
+abas (dois recebimentos). Verificado contra a tela antiga, lado a lado no
+servidor 8936 (39 checagens automáticas):
+- screenshot idêntico nos três temas, antes e depois da leitura, com uma e com
+  duas conferências (só os 7 pixels de quina que já variam entre duas
+  execuções da tela antiga);
+- árvore inteira da tela igual (textos, classes, campos) depois de ler, de
+  trocar a loja (gerentes acompanham; foco não sai do campo), de digitar um
+  gerente à mão (a loja para de mandar), de mudar custo, peso, tolerância
+  digitada aos poucos ("0", "0,", "0,8"), validade mínima e observação;
+- seletor de conferências: cada uma guarda as próprias edições ao ir e voltar;
+- PDF idêntico byte a byte (fora a data de criação), mesmo nome de arquivo;
+  prévia abre numa aba; Cancelar e Ler outro arquivo limpam o campo.
+
+Sem diferença de comportamento.
+
+**Pendência fora da migração (pcqs.js):** no modelo, a célula C4 é uma
+fórmula que mostra "CERTO"/"ERRO", ao lado da loja em D4. A leitura juntou as
+duas: a loja do teste saiu "CERTO DELIVERY CIDADE NOVA" (os gerentes ainda
+casaram pela casa). Igual na tela antiga e na nova — conferir com um PCQS real
+preenchido antes de mexer.
