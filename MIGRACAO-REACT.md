@@ -210,7 +210,7 @@ descobertos no caminho:
 | 7 | Projeção de Compras | `js/compras.js` | 687 | **Migrada** (seção 9). Recálculo por tecla, consolidado, split do salmão |
 | 8 | Lançamento Diário | `js/app.js` | 674 | **Migrada** (seção 9). **A tela mais sensível**: alertas, processamento, sincronização |
 | 9 | Cadastros | `js/cadastros.js` | 735 | **Migrada** (seção 9). Gravação com debounce, busca, vínculos |
-| 10 | Visão Geral | `js/overview.js` | 996 | Recorte por casa (VISTA), rosca, gráficos dinâmicos |
+| 10 | Visão Geral | `js/overview.js` | 1002 | **Migrada** (seção 9). Recorte por casa (VISTA), rosca, gráficos dinâmicos |
 | 11 | Ordens de Compras | `js/ordens.js` | 737 | **Peça teste de mesa antes de aposentar o antigo** |
 | 12 | Importar OC | `js/importar.js` | 584 | **Idem** — depende de arquivo real (planilha e PDF) |
 
@@ -824,3 +824,27 @@ de cadastros e dados da cópia de teste restaurados.
 2. As marcas que dependem do valor ("CNPJ inválido" na dica, preço em branco
    em vermelho, a contagem "Sem preço na seleção") acompanham a edição na
    hora; na antiga, só ao redesenhar a tabela (busca, troca de aba).
+
+### Visão Geral (20/10/2026)
+`js/app/telas/overview.js`. `js/overview.js` removido.
+
+A VISTA continua sendo montada do dado do servidor e da casa escolhida, sem
+ir ao servidor na troca de casa. Os gráficos dinâmicos seguem a regra de NÃO
+redesenhar no mousemove: o gráfico é desenhado uma vez e o destaque (faixa,
+guia, halo, ponto, rótulo em negrito, leitura) se move direto nos atributos,
+como antes; ele renasce só quando os números mudam (mês ou casa). Os ids de
+degradê saem de quem o gráfico mostra, não de um contador global.
+
+Verificado contra a tela antiga, lado a lado no servidor 8936, comparando a
+tela inteira com todos os atributos (33 checagens): as quatro casas e todas,
+três meses, casa guardada ao trocar de mês, mouse no gomo da rosca e na linha
+da tabela (gomo aceso, outros apagados, miolo trocado), mouse em três
+posições dos dois gráficos e a volta ao mês mais recente, abrir e fechar as
+seis seções (estado guardado em `cde_overview_dobras_v1` e lido ao
+recarregar), o link "Histórico completo" que não dobra a seção, filtro de casa
+do estoque, cartões-atalho por clique e por Enter (abre, rola e pisca). Duas
+seções acionadas em menos de 1,4 s piscam juntas, como antes. Screenshots
+idênticos byte a byte nos três temas, na tela inicial e com todas as seções
+abertas.
+
+Sem diferença de comportamento.
