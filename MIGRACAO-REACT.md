@@ -206,7 +206,7 @@ descobertos no caminho:
 | 3 | Movimentações | `js/movimentacoes.js` | 963 | **Migrada** (seção 9). Filtro de vários insumos, valor total, notas fiscais, kg |
 | 4 | Qualidade (PCQS) | `js/qualidade.js` | 387 | **Migrada** (seção 9). Só a tela; `pcqs.js` e `pcqs-pdf.js` não migram |
 | 5 | Painel de Consumo | `js/painel.js` | 428 | **Migrada** (seção 9). Gráficos SVG e as três visões |
-| 6 | Botão de ações | `js/acoes.js` | 487 | Componente global, entra em todas as telas |
+| 6 | Botão de ações | `js/acoes.js` | 487 | **Migrado** (seção 9). Componente global, entra em todas as telas |
 | 7 | Projeção de Compras | `js/compras.js` | 525 | Recálculo por tecla, consolidado, split do salmão |
 | 8 | Lançamento Diário | `js/app.js` | 674 | **A tela mais sensível**: alertas, processamento, sincronização |
 | 9 | Cadastros | `js/cadastros.js` | 728 | Gravação com debounce, busca, vínculos |
@@ -686,3 +686,34 @@ medidos iguais nas duas). A rolagem até o detalhe é a mesma chamada
 (`scrollIntoView` suave, "nearest", duas vezes ao trocar o "Quantas").
 
 Sem diferença de comportamento.
+
+### Botão de ações (19/10/2026)
+`componentes/AcoesRapidas.js` (já existia, sem estar ligado) entra no `Layout`
+do `montar.js` para as telas React. As telas que ainda não são React
+(Lançamento, Visão Geral, Projeção, Cadastros, Ordens, Importar) carregam
+`js/app/acoes.js`, que monta o mesmo componente num contêiner no fim da
+página — e passam a carregar React (os 144 KB locais de `js/vendor/`). Esse
+módulo sai quando a última delas migrar. Parâmetros não tinha o botão e
+continua sem. `js/acoes.js` removido.
+
+Verificado na Visão Geral com o botão antigo contra o novo, lado a lado (30
+checagens, comparando botão e painel inteiros): nasce fechado (display none),
+abre no menu com o foco na primeira opção, Esc e Fechar; Movimentação
+(quantidade vazia → erro e foco; contagem final gravada → mesmo POST, mesma
+mensagem, foco de volta); Ordem (erro sem fornecedor, catálogo do fornecedor
+no datalist, preço do catálogo, incluir por botão e por Enter, item avulso,
+remover, prévia do PDF, criar → mesmo POST, lista zerada, link para Ordens);
+Conversão (foco no preço, cálculo, calibração antiga sem o bloco do bandado);
+reabrir mantém a tela e a conversa. Screenshots de Conversão e Movimentações
+idênticos aos de antes da troca, nos três temas. Dados e Registro_OCs.json da
+cópia de teste restaurados depois.
+
+Uma correção feita durante a verificação: a Conversão do atalho relia os
+fatores a cada desenho (inclusive ao reabrir o painel); voltou a ler só ao
+abrir e a cada tecla, como o acoes.js.
+
+Diferença de comportamento (consciente, já registrada no componente): o
+atalho de Conversão não procura mais o campo por `#cv-preco`; na tela de
+Conversão, que tem o próprio `#cv-preco`, o atalho do acoes.js lia o campo
+errado. Conferido: na tela de Conversão os dois campos agora calculam cada um
+o seu.

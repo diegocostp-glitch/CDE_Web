@@ -338,10 +338,12 @@ function TelaOrdem({ dizer }) {
 // ------------------------------------------------------------------ conversão
 function TelaSalmao() {
   const [bruto, setBruto] = useState("");
+  // Os fatores são lidos ao abrir e a cada tecla, como no acoes.js — não a
+  // cada desenho: reabrir o painel não troca o número que já está na tela.
+  const [f, setF] = useState(fatores);
   const campo = useRef();
   useEffect(() => { campo.current && campo.current.focus(); }, []);
   const preco = num(bruto);
-  const f = fatores();
   let saida;
   if (preco <= 0) {
     saida = html`<p class="acao-nota">Informe o valor por quilo do peixe inteiro eviscerado.</p>`;
@@ -367,7 +369,7 @@ function TelaSalmao() {
     <div class="acao-grade">
       <label class="campo campo-largo"><span>Preço pago por quilo do inteiro</span>
         <input id="cv-preco" ref=${campo} inputMode="decimal" placeholder="R$ 0,00"
-          value=${bruto} onInput=${(e) => setBruto(e.target.value)} onChange=${() => {}} /></label>
+          value=${bruto} onInput=${(e) => { setBruto(e.target.value); setF(fatores()); }} onChange=${() => {}} /></label>
     </div>
     <div id="cv-saida">${saida}</div>
     <p class="acao-nota">Mesmos fatores da tela de Conversão de Salmão — se você recalibrou lá,
