@@ -207,7 +207,7 @@ descobertos no caminho:
 | 4 | Qualidade (PCQS) | `js/qualidade.js` | 387 | **Migrada** (seção 9). Só a tela; `pcqs.js` e `pcqs-pdf.js` não migram |
 | 5 | Painel de Consumo | `js/painel.js` | 428 | **Migrada** (seção 9). Gráficos SVG e as três visões |
 | 6 | Botão de ações | `js/acoes.js` | 487 | **Migrado** (seção 9). Componente global, entra em todas as telas |
-| 7 | Projeção de Compras | `js/compras.js` | 525 | Recálculo por tecla, consolidado, split do salmão |
+| 7 | Projeção de Compras | `js/compras.js` | 687 | **Migrada** (seção 9). Recálculo por tecla, consolidado, split do salmão |
 | 8 | Lançamento Diário | `js/app.js` | 674 | **A tela mais sensível**: alertas, processamento, sincronização |
 | 9 | Cadastros | `js/cadastros.js` | 728 | Gravação com debounce, busca, vínculos |
 | 10 | Visão Geral | `js/overview.js` | 996 | Recorte por casa (VISTA), rosca, gráficos dinâmicos |
@@ -717,3 +717,36 @@ atalho de Conversão não procura mais o campo por `#cv-preco`; na tela de
 Conversão, que tem o próprio `#cv-preco`, o atalho do acoes.js lia o campo
 errado. Conferido: na tela de Conversão os dois campos agora calculam cada um
 o seu.
+
+### Projeção de Compras (20/10/2026)
+`js/app/telas/compras.js`. `js/compras.js` removido.
+
+Decisão de forma: o pedido continua sendo UM objeto (a resposta de
+`/api/projecao`) alterado aos poucos, como na tela antiga, e na casa à vista
+trânsito, fator e fornecedor valem como estão digitados (o "rascunho"), indo
+ao objeto só ao trocar de casa, aplicar dias a todos os itens ou salvar. Assim
+ficam iguais regras que dependiam disso: "1.500" digitado vira 1500 depois da
+troca de casa; o consolidado das outras casas sai do que já foi guardado; o
+responsável vai para a casa à vista no momento de salvar. O React só
+redesenha. As partes da tela declaradas dentro do componente são funções de
+desenho, não componentes — senão cada tecla recriaria os campos.
+
+Verificado contra a tela antiga, lado a lado no servidor 8936, comparando a
+tela inteira com todos os atributos (31 checagens): trânsito e fator digitados
+letra a letra (o foco não sai do campo), fornecedor, dias padrão, dias do item
+na SL (limite de 60), bloco de dias da média (abrir, marcar, desmarcar,
+desmarcar todos, voltar ao padrão, aplicar a todos os itens), troca de casa e
+volta, consolidado por casa e de todas, quantidade ajustada com a mesma
+pergunta de confirmação (aceitar, cancelar, mesmo número sem pergunta),
+repartição do salmão (abrir, quilos, produto), salvar (corpo do POST
+/api/pedido idêntico byte a byte, 10.779 bytes) e troca de data com alteração
+pendente (cancelar não recarrega; confirmar recarrega). Não testado: troca do
+produto da OC — nenhum item da SL tem mais de um produto no catálogo do
+fornecedor nos dados de teste. Screenshot idêntico nos três temas. Dados da
+cópia de teste restaurados.
+
+Sem diferença de comportamento.
+
+Nota de verificação: o `checar_telas.py` às vezes estoura os 90 s numa tela
+qualquer (Cadastros numa rodada, Parâmetros em outra, nenhuma delas mexida);
+rodado de novo, passa. É o Chrome sem tela travando, não erro de página.
