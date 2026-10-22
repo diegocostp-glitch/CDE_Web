@@ -183,3 +183,70 @@ async function marcarPendentes() {
     if (seta) seta.outerHTML = '<span class="sb-badge">' + r.pendentes + "</span>";
   } catch (e) { /* servidor fora do ar: segue sem selo */ }
 }
+
+// Enter numa célula de tabela confirma o valor e desce para a mesma coluna da
+// linha de baixo, como numa planilha; o Tab segue o padrão do navegador (para
+// a frente). Vale em todas as telas, porque este arquivo é carregado em todas.
+//
+// Fica na window, e não no document, para rodar DEPOIS dos ouvintes de cada
+// tela: tela que já trata o Enter do seu jeito (incluir item na OC, a
+// Projeção com o consolidado) chama preventDefault e este aqui sai fora.
+//
+// A coluna é a posição da célula. Acabando a tabela, segue para a próxima que
+// tenha o mesmo título naquela coluna — o Lançamento tem uma tabela por grupo
+// de insumo, e o Enter no último camarão deve ir para o primeiro peixe.
+const ENTER_TIPOS = ["", "text", "number", "tel", "email"];
+
+function celulaEditavel(td) {
+  return td && [...td.querySelectorAll("input")].find((el) =>
+    ENTER_TIPOS.includes(el.getAttribute("type") || "") &&
+    !el.disabled && !el.readOnly && el.offsetParent);
+}
+
+function tituloColuna(tabela, indice) {
+  const cab = tabela.tHead && tabela.tHead.rows[0];
+  const th = cab && cab.cells[indice];
+  return th ? th.textContent.trim() : null;
+}
+
+function proximaNaColuna(td) {
+  const tabela = td.closest("table"), indice = td.cellIndex;
+  const linhaAtual = td.parentElement;
+  const procura = (tab, depoisDe) => {
+    let passou = !depoisDe;
+    for (const tr of tab.tBodies.length ? [...tab.tBodies].flatMap((b) => [...b.rows]) : [...tab.rows]) {
+      if (!passou) { passou = tr === depoisDe; continue; }
+      const alvo = celulaEditavel(tr.cells[indice]);
+      if (alvo) return alvo;
+    }
+    return null;
+  };
+  const achou = procura(tabela, linhaAtual);
+  if (achou) return achou;
+  const titulo = tituloColuna(tabela, indice);
+  if (!titulo) return null;
+  const tabelas = [...document.querySelectorAll("table")];
+  for (const tab of tabelas.slice(tabelas.indexOf(tabela) + 1)) {
+    if (tituloColuna(tab, indice) !== titulo) continue;
+    const alvo = procura(tab, null);
+    if (alvo) return alvo;
+  }
+  return null;
+}
+
+window.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+  const el = e.target;
+  if (!el.matches || !el.matches("td input") || !ENTER_TIPOS.includes(el.getAttribute("type") || "")) return;
+  // Confirmar pode redesenhar a tabela (a tela troca o innerHTML no change):
+  // a célula é guardada pela posição e achada de novo depois do blur.
+  const td = el.closest("td"), tr = td.parentElement;
+  const pos = [[...document.querySelectorAll("table")].indexOf(td.closest("table")),
+               tr.rowIndex, td.cellIndex];
+  e.preventDefault();
+  el.blur();                                  // confirma: dispara o change/focusout da tela
+  const tab = document.querySelectorAll("table")[pos[0]];
+  const tdDepois = tab && tab.rows[pos[1]] && tab.rows[pos[1]].cells[pos[2]];
+  const prox = tdDepois && proximaNaColuna(tdDepois);
+  if (prox) { prox.focus(); prox.select(); }
+});

@@ -1248,13 +1248,18 @@ table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
 .botao-mini.dias-acao { font-size:10.5px; padding:2px 8px; border-radius:20px;
   border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--card) }
 .botao-mini.dias-acao:hover { border-color:var(--laranja); color:var(--laranja); background:var(--card) }
-.dias-grade { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px }
-.dia-chip { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:8px;
+.dias-grade { display:grid; grid-template-columns:repeat(7, minmax(84px, 1fr)); gap:6px; max-width:860px }
+.dia-cab { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--tinta-3);
+  text-align:center; padding-bottom:2px }
+.dia-vazio { min-height:46px }
+.dia-vazio.sem-uso { border:1px dashed var(--borda); border-radius:8px; padding:5px 8px;
+  font-size:11.5px; color:var(--tinta-3); opacity:.6 }
+.dia-chip { display:flex; flex-direction:column; gap:3px; padding:5px 8px; border-radius:8px; min-height:46px;
   border:1px solid var(--borda); background:var(--card); font-size:11.5px; color:var(--tinta-3);
   cursor:pointer; user-select:none }
+.dia-chip .dia-linha { display:flex; align-items:center; gap:6px }
 .dia-chip input { margin:0; accent-color:var(--laranja) }
-.dia-chip .dia-data { min-width:64px }
-.dia-chip .dia-uso { margin-left:auto; font-variant-numeric:tabular-nums }
+.dia-chip .dia-uso { text-align:right; font-variant-numeric:tabular-nums }
 .dia-chip.janela { border-style:dashed }
 .dia-chip.marcado { border:1px solid var(--tinta-2); color:var(--tinta) }
 .dia-chip.marcado .dia-uso { font-weight:600 }

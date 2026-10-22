@@ -1,7 +1,7 @@
 // ============================================================================
 // Projeção de Compras — o modelo do PCPOE, sem os vínculos externos.
 //
-//   Duração do estoque = (estoque + trânsito) ÷ (média diária × fator)
+//   Duração do estoque = (estoque + trânsito entrada − trânsito saída) ÷ (média diária × fator)
 //   Dias a cobrir      = dias desejados − duração atual
 //   Pedido             = dias a cobrir × média diária × fator
 //
@@ -132,11 +132,6 @@ function mediaDe(ins) {
   return { media: usos.length ? usos.reduce((a, b) => a + b, 0) / usos.length : 0, n: usos.length };
 }
 
-function rotuloDia(iso) {
-  const d = new Date(iso + "T12:00:00");
-  return `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${DOW[d.getDay()]}`;
-}
-
 // ------------------------------------------------------------------ cálculo
 // Dias a cobrir do item: o digitado na SL vale para as quatro casas; vazio,
 // vale o padrão do topo.
@@ -147,9 +142,16 @@ function diasDe(chave) {
   return v !== null && v !== undefined && v !== "" ? num(v) : DIAS;
 }
 
+// Trânsito de salmão é digitado em peixes da libragem que chega (ou sai, numa
+// transferência entre casas); a projeção conta em equivalente 08/10. Os fatores
+// vêm do servidor (FATOR_LIBRA). Sem libragem, o número já é da linha.
+const fatorLibra = (tam) => ((PROJ.libragens || []).find((l) => l.chave === tam) || {}).fator || 1;
+const transitoEq = (qtd, tam) => num(qtd) * fatorLibra(tam);
+
 function calcular(ins, campos) {
   const media = mediaDe(ins).media, fator = num(campos.fator) || 1;
-  const disponivel = ins.estoque + num(campos.transito);
+  const disponivel = ins.estoque + transitoEq(campos.transito, campos.transito_tam)
+    - transitoEq(campos.transito_saida, campos.transito_saida_tam);
   const consumoDia = media * fator;
   const duracao = consumoDia > 0 ? disponivel / consumoDia : (disponivel > 0 ? Infinity : 0);
   const cobrir = Math.max(0, diasDe(ins.chave) - (isFinite(duracao) ? duracao : 0));
@@ -196,7 +198,7 @@ function dicaEstoque(i) {
 
 function desenhar() {
   const casa = PROJ.casas[CASA];
-  const cab = ["Insumo", "Estoque", "Trânsito", "Média/dia", "Fator", "Duração",
+  const cab = ["Insumo", "Estoque", "Trânsito entrada", "Trânsito saída", "Média/dia", "Fator", "Duração",
                "Dias a cobrir", "Pedido", "Fornecedor"];
   $("#tela").innerHTML =
     `<section class="cartao">
@@ -207,7 +209,8 @@ function desenhar() {
         <tr data-k="${i.chave}">
           <td>${i.nome} <span class="un">(${i.un})</span>${selo(i)}</td>
           <td class="calc" title="${dicaEstoque(i)}">${fmt(i.estoque, 3)}</td>
-          <td><input data-c="transito" type="text" inputmode="decimal" value="${i.transito ?? ""}"></td>
+          ${celTransito(i, "transito", "Pedido ou transferência que ainda vai chegar")}
+          ${celTransito(i, "transito_saida", "Transferência para outra casa que ainda vai sair")}
           <td class="calc media"></td>
           <td><input data-c="fator" type="text" inputmode="decimal" value="${i.fator ?? 1}" style="width:64px"></td>
           <td class="calc dur"></td>
@@ -227,8 +230,20 @@ function desenhar() {
   recalcular();
 }
 
-// Os dias que formam a média do item: um quadradinho por dia, com o consumo
-// daquele dia ao lado ("10/10 sex — 19 Px"). Os dias da janela vêm marcados;
+// Célula de trânsito. No salmão vem com a libragem ao lado e, embaixo, quanto
+// aquilo dá em equivalente 08/10 (preenchido no recalcular).
+function celTransito(i, campo, dica) {
+  const input = `<input data-c="${campo}" type="text" inputmode="decimal" value="${i[campo] ?? ""}" title="${dica}"`;
+  if (i.chave !== CHAVE_SALMAO || !(PROJ.libragens || []).length) return `<td>${input}></td>`;
+  const tam = i[campo + "_tam"] || PROJ.libragens[0].chave;
+  return `<td>${input} style="width:56px">
+    <select data-c="${campo}_tam" title="Libragem que está ${campo === "transito" ? "chegando" : "saindo"}">${
+      PROJ.libragens.map((l) => `<option value="${l.chave}"${l.chave === tam ? " selected" : ""}>${l.nome}</option>`).join("")}</select>
+    <span class="msg-conv eq-${campo}"></span></td>`;
+}
+
+// Os dias que formam a média do item, num calendário de segunda a domingo:
+// cada dia com o consumo embaixo ("10/10 — 19 Px"). Os dias da janela vêm marcados;
 // desmarcar o feriado tira o feriado da média, marcar um dia de 30 dias atrás
 // põe na conta um dia parecido com o que vem.
 const UN_INTEIRA = ["Px", "Pxs", "Pct", "Bng"];
@@ -252,14 +267,39 @@ function blocoDias(ins) {
       <button type="button" class="botao-mini dias-acao" data-acao="todos-itens" data-k="${ins.chave}"
         title="Usa estes mesmos dias em todos os itens de ${PROJ.casas[CASA].nome}">Usar estes dias em todos os itens da casa</button>
     </div>
-    <div class="dias-grade">${hist.slice().sort((a, b) => a.data.localeCompare(b.data)).map((h) => `
-      <label class="dia-chip${marcados.has(h.data) ? " marcado" : ""}${janela.has(h.data) ? " janela" : ""}${h.uso < 0 ? " neg" : ""}"${
-        h.uso < 0 ? ' title="Consumo negativo: divergência de contagem em dia de recebimento. Marcado, ele rebaixa a média."' : ""}>
-        <input type="checkbox" data-dia="${h.data}" data-k="${ins.chave}"${marcados.has(h.data) ? " checked" : ""}>
-        <span class="dia-data">${rotuloDia(h.data)}</span>
-        <span class="dia-uso">${fmt(h.uso, dec)} ${ins.un}</span>
-      </label>`).join("")}</div>
+    <div class="dias-grade">
+      ${DOW.slice(1).concat(DOW[0]).map((d) => `<div class="dia-cab">${d}</div>`).join("")}
+      ${semanasDe(hist).map((dia) => {
+        if (!dia) return '<div class="dia-vazio"></div>';
+        const h = hist.find((x) => x.data === dia);
+        if (!h) return `<div class="dia-vazio sem-uso" title="Sem consumo lançado"><span class="dia-data">${diaMes(dia)}</span></div>`;
+        return `<label class="dia-chip${marcados.has(h.data) ? " marcado" : ""}${janela.has(h.data) ? " janela" : ""}${h.uso < 0 ? " neg" : ""}"${
+          h.uso < 0 ? ' title="Consumo negativo: divergência de contagem em dia de recebimento. Marcado, ele rebaixa a média."' : ""}>
+          <span class="dia-linha"><input type="checkbox" data-dia="${h.data}" data-k="${ins.chave}"${marcados.has(h.data) ? " checked" : ""}>
+          <span class="dia-data">${diaMes(h.data)}</span></span>
+          <span class="dia-uso">${fmt(h.uso, dec)} ${ins.un}</span>
+        </label>`;
+      }).join("")}</div>
   </div>`;
+}
+
+// Calendário com a semana começando na segunda: da segunda da semana do dia
+// mais antigo ao domingo da semana do mais recente. Cada posição é a data ISO,
+// ou null antes do primeiro e depois do último dia do histórico.
+const diaMes = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+function semanasDe(hist) {
+  const datas = hist.map((h) => h.data).sort();
+  const ini = datas[0], fim = datas[datas.length - 1];
+  const d = new Date(ini + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7);
+  const out = [];
+  while (true) {
+    const iso = d.toISOString().slice(0, 10);
+    if (iso > fim && out.length % 7 === 0) break;
+    out.push(iso < ini || iso > fim ? null : iso);
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
 }
 
 function redesenharDias(ins) {
@@ -269,15 +309,24 @@ function redesenharDias(ins) {
 
 function lerLinha(tr) {
   const v = (c) => { const el = tr.querySelector(`[data-c="${c}"]`); return el ? el.value : ""; };
-  return { transito: v("transito"), fator: v("fator"), fornecedor: v("fornecedor") };
+  return { transito: v("transito"), transito_tam: v("transito_tam") || null,
+           transito_saida: v("transito_saida"), transito_saida_tam: v("transito_saida_tam") || null,
+           fator: v("fator"), fornecedor: v("fornecedor") };
 }
 
 function recalcular() {
   const casa = PROJ.casas[CASA];
   document.querySelectorAll("#tela tbody tr[data-k]:not(.linha-dias)").forEach((tr) => {
     const ins = casa.insumos.find((i) => i.chave === tr.dataset.k);
-    const r = calcular(ins, lerLinha(tr));
+    const campos = lerLinha(tr);
+    const r = calcular(ins, campos);
     const m = mediaDe(ins);
+    ["transito", "transito_saida"].forEach((c) => {
+      const el = tr.querySelector(".eq-" + c);
+      if (!el) return;
+      const q = num(campos[c]), f = fatorLibra(campos[c + "_tam"]);
+      el.textContent = q && f !== 1 ? `= ${fmt(q * f, 2)} ${ins.un} eq. (× ${fmt(f, 2)})` : "";
+    });
     tr.querySelector(".media").innerHTML = `${fmt(m.media, 3)}
       <button type="button" class="botao-mini abrir-dias${Array.isArray(ins.dias_media) ? " ajustado" : ""}"
         data-k="${ins.chave}" title="Escolher os dias que formam a média">${m.n} dia${m.n === 1 ? "" : "s"}</button>`;
@@ -346,7 +395,9 @@ function consolidar() {
     casa.insumos.forEach((ins) => {
       const tr = ck === CASA ? document.querySelector(`#tela tr[data-k="${ins.chave}"]`) : null;
       const campos = tr ? lerLinha(tr) : {
-        transito: ins.transito, fator: ins.fator, fornecedor: ins.fornecedor };
+        transito: ins.transito, transito_tam: ins.transito_tam,
+        transito_saida: ins.transito_saida, transito_saida_tam: ins.transito_saida_tam,
+        fator: ins.fator, fornecedor: ins.fornecedor };
       const r = calcular(ins, campos);
       if (r.pedido <= 0.0005) return;
       const forn = campos.fornecedor || "Sem fornecedor";
@@ -578,7 +629,10 @@ async function salvar() {
   Object.entries(PROJ.casas).forEach(([ck, casa]) => {
     const insumos = {};
     casa.insumos.forEach((i) => {
-      insumos[i.chave] = { transito: i.transito, fator: i.fator,
+      insumos[i.chave] = { transito: i.transito, transito_tam: i.transito_tam ?? null,
+                           transito_saida: i.transito_saida,
+                           transito_saida_tam: i.transito_saida_tam ?? null,
+                           fator: i.fator,
                            dias_cobrir: diasDe(i.chave), fornecedor: i.fornecedor,
                            dias_item: ck === CASA_DIAS ? (i.dias_item ?? null) : null,
                            dias_media: Array.isArray(i.dias_media) ? i.dias_media : null,
@@ -610,6 +664,9 @@ function guardarLinhas() {
     const ins = PROJ.casas[CASA].insumos.find((i) => i.chave === tr.dataset.k);
     const c = lerLinha(tr);
     ins.transito = c.transito === "" ? null : num(c.transito);
+    ins.transito_saida = c.transito_saida === "" ? null : num(c.transito_saida);
+    ins.transito_tam = c.transito_tam;
+    ins.transito_saida_tam = c.transito_saida_tam;
     ins.fator = num(c.fator) || 1;
     ins.fornecedor = c.fornecedor || null;
   });
@@ -670,11 +727,34 @@ function ligarTabela() {
   });
 }
 
+// Enter desce para o campo de baixo. A tabela da casa usa o comportamento
+// geral (js/navegacao.js); aqui ficam os dois casos que ele não cobre: a
+// quantidade do consolidado, que segue de um fornecedor para o outro mesmo
+// com colunas diferentes, e a repartição do salmão, que não é uma coluna de
+// tabela. A lista é lida de novo depois do blur porque confirmar a quantidade
+// redesenha o consolidado — o campo de baixo é achado pela posição.
+const COLUNAS_ENTER = (el) =>
+  el.matches(".qtd-resumo") ? ".qtd-resumo"
+  : el.matches(".parte-qtd") ? ".parte-qtd" : null;
+
+function enterDesce(e) {
+  if (e.key !== "Enter" || e.shiftKey || !e.target.matches("input")) return;
+  const seletor = COLUNAS_ENTER(e.target);
+  if (!seletor) return;
+  e.preventDefault();
+  const visiveis = () => [...document.querySelectorAll(seletor)].filter((el) => el.offsetParent);
+  const pos = visiveis().indexOf(e.target);
+  e.target.blur();
+  const prox = visiveis()[pos + 1];
+  if (prox) { prox.focus(); prox.select(); }
+}
+
 // ------------------------------------------------------------------ início
 (async function iniciar() {
   $("#data").value = hoje();
   montarDias();
   ligarTabela();
+  document.addEventListener("keydown", enterDesce);
   $("#data").onchange = carregar;
   // Padrão do pedido: vale para os itens sem dias próprios digitados na SL.
   $("#dias").onchange = () => {

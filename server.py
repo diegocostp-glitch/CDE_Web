@@ -1527,7 +1527,11 @@ def projetar(data_iso, dias_cobrir):
     fora = {"data": data_iso, "dias_cobrir": dias_cobrir,
             "dias_salvo": salvos.get("_dias_cobrir"),
             "janela_media_dias": janela, "historico_dias": HISTORICO_ESCOLHA_DIAS,
-            "casas": {}, "config": cfg}
+            "casas": {}, "config": cfg,
+            # libragens de salmao para o transito: tamanho -> fator do equivalente
+            "libragens": [{"chave": i["chave"], "nome": i["nome"].replace("Salmão ", ""),
+                           "fator": FATOR_LIBRA[i["chave"]]}
+                          for i in INSUMOS if i["chave"] in FATOR_LIBRA]}
 
     # Dias a cobrir por item: digitados na Senador Lemos e copiados para as
     # outras casas. Item sem numero proprio segue o padrao do pedido.
@@ -1587,7 +1591,13 @@ def projetar(data_iso, dias_cobrir):
                 "media_diaria": round(media, 4), "dias_com_uso": n_dias,
                 "historico": [{"data": iso, "uso": round(u, 3)} for iso, u in historico],
                 "dias_media": escolha, "dias_media_padrao": padrao_dias,
-                "transito": g.get("transito"), "fator": g.get("fator", 1),
+                # transito de entrada (pedido que vai chegar, transferencia
+                # recebida) e de saida (transferencia para outra casa); no
+                # salmao, cada um com a libragem em que foi digitado
+                "transito": g.get("transito"), "transito_tam": g.get("transito_tam"),
+                "transito_saida": g.get("transito_saida"),
+                "transito_saida_tam": g.get("transito_saida_tam"),
+                "fator": g.get("fator", 1),
                 "dias_cobrir": dias_item(dias_sl, ik, dias_cobrir),
                 "dias_item": dias_sl.get(ik),
                 "fornecedor": g.get("fornecedor"),
@@ -1945,6 +1955,16 @@ def salvar_ordens(todas):
     trocar(tmp, ARQ_ORDENS)
 
 
+def transito_equivalente(qtd, tamanho):
+    """Transito digitado -> unidade da linha.
+
+    No salmao a carga chega (ou sai, numa transferencia entre casas) numa
+    libragem so, contada em peixes daquele tamanho; a projecao conta em
+    equivalente 08/10. Sem tamanho, o numero ja esta na unidade da linha.
+    """
+    return numero(qtd) * FATOR_LIBRA.get(tamanho or "", 1.0)
+
+
 def calcular_linha(ins, campos):
     """Mesma conta da tela de Projecao — mantida em paralelo de proposito.
 
@@ -1953,7 +1973,9 @@ def calcular_linha(ins, campos):
     divergirem, o numero que vale e este.
     """
     fator = numero(campos.get("fator")) or 1
-    disponivel = ins["estoque"] + numero(campos.get("transito"))
+    disponivel = (ins["estoque"]
+                  + transito_equivalente(campos.get("transito"), campos.get("transito_tam"))
+                  - transito_equivalente(campos.get("transito_saida"), campos.get("transito_saida_tam")))
     consumo_dia = ins["media_diaria"] * fator
     if consumo_dia > 0:
         duracao = disponivel / consumo_dia
