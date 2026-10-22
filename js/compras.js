@@ -324,8 +324,13 @@ function recalcular() {
     ["transito", "transito_saida"].forEach((c) => {
       const el = tr.querySelector(".eq-" + c);
       if (!el) return;
+      // Sempre visível: sem quantidade, mostra o fator da libragem escolhida;
+      // com quantidade, quanto ela dá em equivalente 08/10.
       const q = num(campos[c]), f = fatorLibra(campos[c + "_tam"]);
-      el.textContent = q && f !== 1 ? `= ${fmt(q * f, 2)} ${ins.un} eq. (× ${fmt(f, 2)})` : "";
+      const tam = ((PROJ.libragens || []).find((l) => l.chave === campos[c + "_tam"]) || {}).nome || "08/10";
+      el.textContent = q
+        ? `${fmt(q, Number.isInteger(q) ? 0 : 2)} px ${tam} = ${fmt(q * f, 2)} ${ins.un} eq. 08/10`
+        : `1 px ${tam} = ${fmt(f, 2)} ${ins.un} eq. 08/10`;
     });
     tr.querySelector(".media").innerHTML = `${fmt(m.media, 3)}
       <button type="button" class="botao-mini abrir-dias${Array.isArray(ins.dias_media) ? " ajustado" : ""}"
