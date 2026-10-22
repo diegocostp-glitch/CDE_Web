@@ -243,7 +243,7 @@ function celTransito(i, campo, dica) {
 }
 
 // Os dias que formam a média do item, num calendário de segunda a domingo:
-// cada dia com o consumo embaixo ("10/10 — 19 Px"). Os dias da janela vêm marcados;
+// cada dia numa linha só, data, consumo e a caixa ("10/10  19 Px  ☐"). Os dias da janela vêm marcados;
 // desmarcar o feriado tira o feriado da média, marcar um dia de 30 dias atrás
 // põe na conta um dia parecido com o que vem.
 const UN_INTEIRA = ["Px", "Pxs", "Pct", "Bng"];
@@ -275,9 +275,9 @@ function blocoDias(ins) {
         if (!h) return `<div class="dia-vazio sem-uso" title="Sem consumo lançado"><span class="dia-data">${diaMes(dia)}</span></div>`;
         return `<label class="dia-chip${marcados.has(h.data) ? " marcado" : ""}${janela.has(h.data) ? " janela" : ""}${h.uso < 0 ? " neg" : ""}"${
           h.uso < 0 ? ' title="Consumo negativo: divergência de contagem em dia de recebimento. Marcado, ele rebaixa a média."' : ""}>
-          <span class="dia-linha"><input type="checkbox" data-dia="${h.data}" data-k="${ins.chave}"${marcados.has(h.data) ? " checked" : ""}>
-          <span class="dia-data">${diaMes(h.data)}</span></span>
+          <span class="dia-data">${diaMes(h.data)}</span>
           <span class="dia-uso">${fmt(h.uso, dec)} ${ins.un}</span>
+          <input type="checkbox" data-dia="${h.data}" data-k="${ins.chave}"${marcados.has(h.data) ? " checked" : ""}>
         </label>`;
       }).join("")}</div>
   </div>`;
