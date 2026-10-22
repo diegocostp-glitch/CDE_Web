@@ -1601,6 +1601,9 @@ def projetar(data_iso, dias_cobrir):
                 "dias_cobrir": dias_item(dias_sl, ik, dias_cobrir),
                 "dias_item": dias_sl.get(ik),
                 "fornecedor": g.get("fornecedor"),
+                # fornecedores que vendem este item (compras.json); sem a
+                # lista, a tela oferece todos
+                "fornecedores": ins.get("fornecedores"),
                 "qtd_manual": g.get("qtd_manual"),
                 # conciliacao com o catalogo de compras: qual produto este item
                 # vira na OC e, no salmao, como a quantidade se reparte entre
@@ -1623,7 +1626,10 @@ def projetar(data_iso, dias_cobrir):
         for p in produtos_vinculados(ins["chave"])] for ins in cfg["insumos"]}
     # nome curto usado na Projecao -> apelido do cadastro ("Nippobraz" -> "NIPPOBRAZ")
     fora["fornecedor_cadastro"] = {}
-    for nome in cfg.get("fornecedores", []):
+    todos = list(cfg.get("fornecedores", []))
+    for ins in cfg["insumos"]:
+        todos += [n for n in ins.get("fornecedores") or [] if n not in todos]
+    for nome in todos:
         cad = casar_fornecedor(nome)
         fora["fornecedor_cadastro"][nome] = cad["chave"] if cad else None
     return fora

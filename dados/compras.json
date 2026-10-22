@@ -11,22 +11,39 @@
         "kg_por_caixa": 30,
         "peixes_por_caixa": 7,
         "un_pedido": "Kg"
-      }
+      },
+      "fornecedores": [
+        "Iglu",
+        "Frumar",
+        "Bom Peixe",
+        "Damm",
+        "Nippobraz",
+        "Mar e Rio"
+      ]
     },
     {
       "chave": "camarao_g",
       "nome": "Camarão (G)",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Amasa"
+      ]
     },
     {
       "chave": "camarao_m",
       "nome": "Camarão (M)",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Amasa"
+      ]
     },
     {
       "chave": "camarao_p",
       "nome": "Camarão (P)",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Amasa"
+      ]
     },
     {
       "chave": "atum",
@@ -36,42 +53,92 @@
     {
       "chave": "file_tilapia",
       "nome": "Peixe Branco",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Iglu",
+        "Frumar",
+        "Bom Peixe",
+        "Damm",
+        "Nippobraz",
+        "Mar e Rio",
+        "Ecil"
+      ]
     },
     {
       "chave": "lula",
       "nome": "Lula",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Iglu",
+        "Frumar",
+        "Bom Peixe",
+        "Damm",
+        "Nippobraz",
+        "Mar e Rio",
+        "Ecil"
+      ]
     },
     {
       "chave": "kani",
       "nome": "Kani",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Iglu",
+        "Frumar",
+        "Bom Peixe",
+        "Damm",
+        "Nippobraz",
+        "Mar e Rio",
+        "Ecil"
+      ]
     },
     {
       "chave": "nori",
       "nome": "Nori",
-      "un": "Pct"
+      "un": "Pct",
+      "fornecedores": [
+        "Taichi",
+        "Nippobraz"
+      ]
     },
     {
       "chave": "polvo",
       "nome": "Polvo",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Iglu",
+        "Frumar",
+        "Bom Peixe",
+        "Damm",
+        "Nippobraz",
+        "Mar e Rio",
+        "Ecil"
+      ]
     },
     {
       "chave": "anchova",
       "nome": "Anchova",
-      "un": "Kg"
+      "un": "Kg",
+      "fornecedores": [
+        "Damm"
+      ]
     },
     {
       "chave": "cream_cheese",
       "nome": "Cream Cheese",
-      "un": "Bng"
+      "un": "Bng",
+      "fornecedores": [
+        "Olinda"
+      ]
     },
     {
       "chave": "arroz",
       "nome": "Arroz p Sushi",
-      "un": "Pct"
+      "un": "Pct",
+      "fornecedores": [
+        "Krolow",
+        "Nippobraz"
+      ]
     }
   ],
   "fornecedores": [
@@ -87,7 +154,8 @@
     "Yakumi",
     "Amasa",
     "Olinda",
-    "Krolow"
+    "Krolow",
+    "Bom Peixe"
   ],
   "responsaveis": [
     "EDSON MAUÉS",
@@ -134,5 +202,6 @@
     "file_tilapia": 10,
     "atum": null,
     "atum_in_natura": null
-  }
+  },
+  "_nota_fornecedores": "fornecedores dentro de cada insumo: os que aparecem na lista da Projecao para aquele item. Item sem a lista mostra todos os fornecedores. A lista geral (fornecedores) continua sendo a editada em Parametros."
 }

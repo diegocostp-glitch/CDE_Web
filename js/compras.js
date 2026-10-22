@@ -221,13 +221,23 @@ function desenhar() {
             : `<td class="calc cobrir" title="Digitado na ${PROJ.casas[CASA_DIAS].nome} (SL) — vale para as quatro casas"></td>`}
           <td class="calc ped"></td>
           <td><select data-c="fornecedor"><option value="">Selecione</option>${
-            (PROJ.config.fornecedores || []).map((f) =>
+            fornecedoresDe(i).map((f) =>
               `<option${f === i.fornecedor ? " selected" : ""}>${f}</option>`).join("")}</select></td>
         </tr>
         <tr class="linha-dias" data-k="${i.chave}"${i._diasAbertos ? "" : " hidden"}>
           <td colspan="${cab.length}">${blocoDias(i)}</td></tr>`).join("")}</tbody></table></div>
     </section>`;
   recalcular();
+}
+
+// Fornecedores da lista do item: os vinculados a ele em compras.json, ou todos
+// quando o item não tem lista. O já escolhido num pedido salvo continua na
+// lista mesmo fora do vínculo, para o pedido antigo não perder o fornecedor.
+function fornecedoresDe(i) {
+  const lista = (i.fornecedores && i.fornecedores.length) ? i.fornecedores.slice()
+    : (PROJ.config.fornecedores || []).slice();
+  if (i.fornecedor && !lista.includes(i.fornecedor)) lista.push(i.fornecedor);
+  return lista;
 }
 
 // Célula de trânsito. No salmão vem com a libragem ao lado e, embaixo, quanto
