@@ -25,6 +25,9 @@ FATURAMENTO = (RAIZ / ".." / ".." / ".." / "Documentos 2026" /
 
 # fatores de conversao para peixe-equivalente 08/10 (confirmados pela area)
 FATOR_LIBRA = {"salmao_0810": 1.00, "salmao_1012": 1.25, "salmao_1214": 1.48, "salmao_1416": 1.67}
+# Movimentos de libragem que guardam o peso em kg: a entrada (kg da nota
+# fiscal) e a transferencia (kg das pecas que foram para a outra casa).
+TIPOS_COM_KG = ("entrada", "transferencia")
 
 CASAS = [
     {"chave": "SL",   "nome": "Senador Lemos"},
@@ -3088,8 +3091,8 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                         "precificavel": precificavel,
                         "notas": (campos.get("notas") or {}).get(t) or [],
                         # salmao e faturado em kg: a entrada da libragem guarda
-                        # os kg da nota, para o relatorio mensal
-                        "pesavel": ik in FATOR_LIBRA and t == "entrada",
+                        # os kg da nota, e a transferencia os kg enviados
+                        "pesavel": ik in FATOR_LIBRA and t in TIPOS_COM_KG,
                         "kg": (campos.get("kg") or {}).get(t),
                         "origem": "Movimentações" if propria
                                   else "Planilha" if da_planilha(campos)
@@ -3376,7 +3379,7 @@ def ler_notas(data_iso, casa, insumo, tipo):
             "valor_total": round(qtd * numero(preco), 2) if preco is not None else None,
             "origem": "Planilha" if da_planilha(campos) else ("Digitado" if lancado else None),
             "notas": (campos.get("notas") or {}).get(tipo) or [],
-            "pesavel": insumo in FATOR_LIBRA and tipo == "entrada",
+            "pesavel": insumo in FATOR_LIBRA and tipo in TIPOS_COM_KG,
             "kg": (campos.get("kg") or {}).get(tipo),
             "info": (campos.get("info") or {}).get(tipo) or {}}
 
@@ -3428,7 +3431,7 @@ def _gravar_notas_sem_trava(corpo):
         kg = numero(ln.get("kg"))
         if kg < 0:
             raise ValueError("kg da nota nao pode ser negativo")
-        if kg > 0 and insumo in FATOR_LIBRA and tipo == "entrada":
+        if kg > 0 and insumo in FATOR_LIBRA and tipo in TIPOS_COM_KG:
             linha["kg"] = round(kg, 3)
         linhas.append(linha)
 
@@ -3694,7 +3697,8 @@ def gravar_preco(corpo):
 
 
 def _gravar_kg_sem_trava(corpo):
-    """Grava os kg da nota fiscal na entrada de uma libragem de salmao.
+    """Grava os kg da entrada (nota fiscal) ou da transferencia de uma libragem
+    de salmao.
 
     O salmao e contado em pecas por faixa, mas faturado em kg: o relatorio
     mensal precisa dos dois. O preco por kg nao e gravado — sai do valor
@@ -3706,8 +3710,8 @@ def _gravar_kg_sem_trava(corpo):
     casa = (corpo.get("casa") or "").strip()
     insumo = (corpo.get("insumo") or "").strip()
     tipo = (corpo.get("tipo") or "entrada").strip()
-    if insumo not in FATOR_LIBRA or tipo != "entrada":
-        raise ValueError("kg da NF existe so na entrada das libragens de salmao")
+    if insumo not in FATOR_LIBRA or tipo not in TIPOS_COM_KG:
+        raise ValueError("kg existe so na entrada e na transferencia das libragens de salmao")
     bruto = corpo.get("kg")
     apagar = bruto in (None, "")
     kg = numero(bruto)
@@ -3717,9 +3721,9 @@ def _gravar_kg_sem_trava(corpo):
     campos = ((((dados.get(data_iso) or {}).get(casa) or {})
                .get("insumos") or {}).get(insumo))
     if not isinstance(campos, dict) or qtd_movimentacoes(campos, tipo) <= 0.0005:
-        raise ValueError("nao ha entrada de %s em %s" % (insumo, data_iso))
+        raise ValueError("nao ha %s de %s em %s" % (tipo, insumo, data_iso))
     if (campos.get("notas") or {}).get(tipo):
-        raise ValueError("esta entrada esta detalhada por notas — informe os kg nas notas")
+        raise ValueError("este movimento esta detalhado por notas — informe os kg nas notas")
     kgs = campos.get("kg") or {}
     if apagar:
         kgs.pop(tipo, None)

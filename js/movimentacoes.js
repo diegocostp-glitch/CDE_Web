@@ -276,7 +276,7 @@ function desenharTabela() {
         ${!temKg ? "" : !m.pesavel ? "<td></td><td></td>"
           : `<td class="calc"><input class="kg" type="text" inputmode="decimal" placeholder="—"
                     value="${m.kg ? fmtQ(m.kg) : ""}"
-                    title="Kg faturados na nota fiscal. Em branco apaga."> <span class="un">kg</span></td>
+                    title="${m.tipo === "transferencia" ? "Kg enviados para a outra casa" : "Kg faturados na nota fiscal"}. Em branco apaga."> <span class="un">kg</span></td>
              <td class="calc preco-kg" title="Calculado: valor total ÷ kg da nota">${precoKgTexto(m)}</td>`}
         <td class="fonte origem" title="${TITULO_ORIGEM[m.origem] || ""}">${esc(m.origem)}</td>
         <td class="acoes">${m.precificavel ? `<button type="button" class="botao-mini abrir-nota"
@@ -820,7 +820,7 @@ function desenharNota(focarUltima) {
     <thead><tr>${ehEntrada ? "<th>Origem</th>" : ""}
       <th>${tipo === "transferencia" ? "Casa de destino" : "Fornecedor / casa de origem"}</th>
       <th>Nº da nota</th><th>Quantidade (${un})</th><th>Valor total (R$)</th>
-      <th>Preço unit.</th>${NOTA.pesavel ? "<th>Quantidade Kg NF</th><th>Preço Unit. Kg</th>" : ""}
+      <th>Preço unit.</th>${NOTA.pesavel ? `<th>Quantidade Kg${tipo === "transferencia" ? "" : " NF"}</th><th>Preço Unit. Kg</th>` : ""}
       <th></th></tr></thead>
     <tbody>${NOTA.linhas.map((l, i) => `
       <tr data-i="${i}">
