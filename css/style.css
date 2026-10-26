@@ -1228,6 +1228,18 @@ table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
 .tabela-extrato :is(input.info-parceiro, input.info-nf, select.info-parceiro):focus {
   background:var(--campo); border-color:var(--laranja); outline:none }
 .tabela-extrato td.acoes { white-space:nowrap }
+/* O extrato passa da largura do cartão (14 colunas), e a coluna de ações — a
+   última — ficava fora da tela: o Editar sumia. Ela fica presa na borda
+   direita, e o extrato rola dentro do próprio cartão, para a barra horizontal
+   estar à vista e não só depois da última das centenas de linhas. */
+.rolagem:has(> .tabela-extrato) { max-height:calc(100vh - 120px); overflow:auto }
+.tabela-extrato th:last-child, .tabela-extrato td.acoes { position:sticky; right:0;
+  background:var(--card); box-shadow:inset 1px 0 0 var(--linha-tabela) }
+.tabela-extrato th:last-child { z-index:3 }
+.tabela-extrato td.acoes { z-index:1 }
+.tabela-extrato tbody tr:hover td.acoes { background:var(--hover) }
+.tabela-extrato tr.alerta-qtd td.acoes {
+  background:linear-gradient(var(--ruim-bg), var(--ruim-bg)), var(--card) }
 .tabela-extrato .botao-mini.abrir-nota + .botao-mini.excluir { margin-left:4px }
 .botao-mini.excluir { font-size:10.5px; padding:2px 8px; border-radius:20px;
   border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--campo) }
