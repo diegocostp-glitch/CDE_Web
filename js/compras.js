@@ -519,7 +519,7 @@ function somaSalmao(itens) {
 
 function resumoSalmao(itens, rotulo) {
   const t = somaSalmao(itens);
-  return `<strong>${rotulo}:</strong> ${fmt(t.kg, 1)} kg · ` +
+  return `<strong>${rotulo}:</strong> ${fmt(t.kg, 3)} kg · ` +
     (t.custo > 0 ? "R$ " + fmt(t.custo) : "sem preço") +
     (t.semPreco ? ` (${t.semPreco} linha(s) sem preço fora da soma)` : "");
 }
@@ -529,7 +529,7 @@ function linhaTotalSalmao(itens) {
   return `<tr class="linha-total">
       <td><strong>Total Salmão</strong></td>
       <td>${t.casas} casa(s)</td>
-      <td class="calc"><strong>${fmt(t.kg, 1)}</strong></td>
+      <td class="calc"><strong>${fmt(t.kg, 3)}</strong></td>
       <td class="un">${itens[0].un}</td>
       <td>${t.semPreco ? `<span class="fonte">${t.semPreco} linha(s) sem preço fora da soma</span>` : ""}</td>
       <td class="calc"><strong>${t.custo > 0 ? "R$ " + fmt(t.custo) : "—"}</strong></td>
@@ -579,8 +579,8 @@ function linhaConsolidada(i, forn) {
       ${CONS_CASA ? "" : `<td>${i.casa}</td>`}
       <td><input class="qtd-resumo${i.ajustado ? " ajustada" : ""}" type="text"
              inputmode="decimal" data-casa="${i.casa}" data-k="${i.chave}"
-             data-calc="${i.calculado}" value="${fmt(i.qtd, 1)}"
-             title="${i.ajustado ? "Ajustado à mão — o cálculo dava " + fmt(i.calculado, 1) : "Quantidade projetada pelo cálculo"}"></td>
+             data-calc="${i.calculado}" value="${fmt(i.qtd, 3)}"
+             title="${i.ajustado ? "Ajustado à mão — o cálculo dava " + fmt(i.calculado, 3) : "Quantidade projetada pelo cálculo"}"></td>
       <td class="un">${i.un}</td>
       <td>${seletor}${decidida
           ? `<span class="msg-conv">${oc.gerada ? `OC ${escapa(oc.numero_oc || "")} gerada` : "Na OC"}: ` +
@@ -589,8 +589,10 @@ function linhaConsolidada(i, forn) {
         : !escolhido ? ""
         : emb === null
           ? `<span class="msg-conv" title="Defina em compras.json → embalagens quanto vem nesta unidade">Sem conversão para ${escapa(escolhido.un)}</span>`
-          : escolhido.fraciona ? ""
-          : `<span class="msg-conv">${fmt(emb, quebrada ? 3 : 0)} × ${escapa(escolhido.un)}` +
+          // o que vai para a OC na unidade do fornecedor: "Projetado: 3 × CAIXA C/10 KG"
+          : `<span class="msg-conv">Projetado: ${escolhido.fraciona
+              ? `${fmt(emb, 3)} ${escapa(escolhido.un)}`
+              : `${fmt(emb, quebrada ? 3 : 0)} × ${escapa(escolhido.un)}`}` +
             `${quebrada ? " — embalagem quebrada, decida na OC" : ""}</span>`}</td>
       <td class="calc">${qtdFinal !== null && precoFinal > 0 ? "R$ " + fmt(custo) : "—"}</td>
       <td class="calc">${[
@@ -598,7 +600,7 @@ function linhaConsolidada(i, forn) {
           decidida && emb !== null && Math.abs(emb - oc.qtd) > 0.0005
             ? `<span class="selo-mini" title="Quantidade calculada pela Projeção, antes da decisão na OC">${fmt(emb, 3)} ${escapa(unFinal)} calc.</span>` : "",
           i.ajustado
-            ? `<span class="selo-mini" title="Quantidade alterada à mão">${fmt(i.calculado, 1)} ${i.un} calc.</span>` : "",
+            ? `<span class="selo-mini" title="Quantidade alterada à mão">${fmt(i.calculado, 3)} ${i.un} calc.</span>` : "",
         ].filter(Boolean).join(" ") || "—"}</td>
     </tr>` + (ehSalmao ? blocoPartes(i, ins, forn, colunas, repartido) : "");
 }
@@ -635,7 +637,7 @@ function blocoPartes(i, ins, forn, colunas, repartido) {
   return `<tr class="linha-partes"${aberto ? "" : " hidden"} data-casa="${i.casa}">
     <td colspan="${colunas}">
       <div class="partes-caixa">
-        <div class="fonte">Necessidade projetada: <strong>${fmt(i.qtd, 1)} kg</strong> de peixe inteiro.
+        <div class="fonte">Necessidade projetada: <strong>${fmt(i.qtd, 3)} kg</strong> de peixe inteiro.
           Informe quanto quer pedir de cada tipo — o que sobrar continua indo como peixe inteiro.</div>
         ${linhas}
         <div class="partes-resumo${falta < -0.05 ? " neg" : ""}">${resumoPartes(i.qtd, repartido)}</div>
@@ -689,18 +691,18 @@ function ligarConciliacao() {
 function confirmarQtd(el) {
   const novo = num(el.value), antes = num(el.dataset.antes);
   const calc = num(el.dataset.calc);
-  if (Math.abs(novo - antes) < 0.0005) { el.value = fmt(antes, 1); return; }
+  if (Math.abs(novo - antes) < 0.0005) { el.value = fmt(antes, 3); return; }
 
   const ins = PROJ.casas[el.dataset.casa].insumos.find((i) => i.chave === el.dataset.k);
   const dif = calc > 0 ? ((novo - calc) / calc) * 100 : 0;
   const msg = `Alterar a quantidade de ${ins.nome} (${el.dataset.casa})?
 
 ` +
-    `De ${fmt(antes, 1)} para ${fmt(novo, 1)}
+    `De ${fmt(antes, 3)} para ${fmt(novo, 3)}
 ` +
-    `O cálculo projetou ${fmt(calc, 1)}` +
+    `O cálculo projetou ${fmt(calc, 3)}` +
     (calc > 0 ? ` — a alteração fica ${dif > 0 ? "+" : ""}${fmt(dif, 1)}% em relação ao projetado.` : ".");
-  if (!confirm(msg)) { el.value = fmt(antes, 1); return; }
+  if (!confirm(msg)) { el.value = fmt(antes, 3); return; }
 
   // guardado no insumo: vale para a ordem de compra e sobrevive ao recálculo
   ins.qtd_manual = novo;
