@@ -58,7 +58,12 @@ function estado(t, c) { const e = $("#estado"); e.textContent = t || ""; e.class
 
 // ------------------------------------------------------------------ carregar
 async function carregar() {
-  if (sujo && !confirm("Há alterações não salvas. Recarregar mesmo assim?")) return;
+  // o pedido da data anterior grava antes de a tela trocar de data
+  if (PROJ) await salvarAgora();
+  if (sujo && !confirm("O pedido de " + brDate(PROJ.data) + " não foi salvo. Trocar de data mesmo assim?")) {
+    $("#data").value = PROJ.data;
+    return;
+  }
   estado("Carregando…");
   try {
     PROJ = await (await fetch(`/api/projecao?data=${$("#data").value}&dias=${DIAS}`)).json();
@@ -574,7 +579,7 @@ function ligarConciliacao() {
   document.querySelectorAll(".prod-oc").forEach((sel) => {
     sel.onchange = () => {
       insumoDa(sel.dataset.casa, sel.dataset.k).produto_oc = sel.value || null;
-      sujo = true; estado("Não salvo", "erro");
+      marcarSujo();
       consolidar();
     };
   });
@@ -594,7 +599,7 @@ function ligarConciliacao() {
       if (el.classList.contains("parte-qtd")) atual.qtd = el.value === "" ? null : num(el.value);
       else atual.produto = el.value || null;
       ins.split[el.dataset.parte] = atual;
-      sujo = true; estado("Não salvo", "erro");
+      marcarSujo();
       consolidar();
     };
   });
@@ -620,23 +625,51 @@ function confirmarQtd(el) {
 
   // guardado no insumo: vale para a ordem de compra e sobrevive ao recálculo
   ins.qtd_manual = novo;
-  sujo = true; estado("Não salvo", "erro");
+  marcarSujo();
   recalcular();
 }
 
 // Leva para a tela de Ordens de Compras já na ordem deste fornecedor. Salva
 // antes, senão a ordem ainda não existe do outro lado.
 async function editarOC(forn) {
-  if (sujo) {
-    if (!confirm("As alterações precisam ser salvas antes de abrir a ordem. Salvar agora?")) return;
-    await salvar();
-    if (sujo) return;                        // salvar falhou: não navega
-  }
+  await salvarAgora();
+  if (sujo) return;                          // salvar falhou: não navega
   window.location = "ordens.html?f=" + encodeURIComponent(forn);
 }
 
 // ------------------------------------------------------------------ salvar
-async function salvar() {
+// Não há botão: toda alteração grava sozinha, um instante depois da última
+// tecla, para não mandar um pedido ao servidor a cada dígito. Gravação que
+// chega com outra em andamento espera a vez e sai em seguida com o estado
+// novo; a versão diz se algo mudou enquanto a anterior estava no ar.
+const ESPERA_SALVAR = 800;
+let _tSalvar = null, _salvando = null, _deNovo = false, _versao = 0;
+
+function agendarSalvar() {
+  clearTimeout(_tSalvar);
+  _tSalvar = setTimeout(salvar, ESPERA_SALVAR);
+}
+
+// Grava já o que estiver pendente — antes de trocar de data, abrir a ordem
+// ou sair da tela.
+async function salvarAgora() {
+  clearTimeout(_tSalvar);
+  // a gravação no ar pode ter levado o estado velho e emendar outra: espera
+  // a fila inteira antes de ver se ainda falta algo
+  while (_salvando) await _salvando;
+  if (sujo) await salvar();
+}
+
+function salvar() {
+  if (_salvando) { _deNovo = true; return _salvando; }
+  _salvando = gravar().finally(() => {
+    _salvando = null;
+    if (_deNovo) { _deNovo = false; salvar(); }
+  });
+  return _salvando;
+}
+
+async function gravar() {
   guardarLinhas();
   PROJ.casas[CASA].responsavel = $("#responsavel").value || null;
 
@@ -658,18 +691,21 @@ async function salvar() {
     corpo.casas[ck] = { responsavel: casa.responsavel, insumos: insumos };
   });
 
-  $("#btn-salvar").disabled = true; estado("Salvando…");
+  const versao = _versao;
+  estado("Salvando…");
   try {
-    const r = await (await fetch("/api/pedido", { method: "POST",
+    const r = await (await fetch("/api/pedido", { method: "POST", keepalive: true,
       headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) })).json();
     if (!r.ok) throw new Error(r.erro || "erro no servidor");
-    sujo = false; estado("Salvo", "ok");
-    aviso("Pedido de " + brDate(PROJ.data) + " salvo.", "bom");
+    if (versao === _versao) { sujo = false; estado("Salvo " + horaAgora(), "ok"); }
   } catch (e) {
-    estado("Falha ao salvar", "erro");
-    aviso("Não consegui salvar: " + e.message, "mau");
-  } finally { $("#btn-salvar").disabled = false; }
+    // fica sujo: a próxima alteração tenta de novo, e sair da tela ainda avisa
+    estado("Não salvo", "erro");
+    aviso("Não consegui salvar o pedido: " + e.message, "mau");
+  }
 }
+
+const horaAgora = () => new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 // O que está digitado na casa à vista vai para o objeto do insumo. Precisa
 // acontecer antes de trocar de casa, senão o redesenho apaga o que foi digitado.
@@ -687,7 +723,7 @@ function guardarLinhas() {
   });
 }
 
-function marcarSujo() { sujo = true; estado("Não salvo", "erro"); }
+function marcarSujo() { sujo = true; _versao++; estado("Salvando…"); agendarSalvar(); }
 
 // Eventos da tabela, ligados UMA vez: a tabela é redesenhada a cada troca de
 // casa, e o contêiner fica.
@@ -785,7 +821,17 @@ function enterDesce(e) {
     DIAS = num($("#dias").value) || 7;
     marcarSujo(); recalcular();
   };
-  $("#btn-salvar").onclick = salvar;
-  window.addEventListener("beforeunload", (e) => { if (sujo) e.preventDefault(); });
+  $("#responsavel").onchange = () => {
+    PROJ.casas[CASA].responsavel = $("#responsavel").value || null;
+    marcarSujo();
+  };
+  // Saindo com gravação pendente: dispara já (keepalive leva a requisição
+  // mesmo com a página fechando) e ainda pede confirmação, porque não dá para
+  // saber aqui se ela chegou.
+  window.addEventListener("beforeunload", (e) => {
+    if (!sujo) return;
+    salvarAgora();
+    e.preventDefault();
+  });
   carregar();
 })();

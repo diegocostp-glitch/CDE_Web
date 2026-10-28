@@ -390,6 +390,11 @@ vínculos externos que quebravam quando o arquivo de origem estava fechado.</p>
 dia</strong>: em vez de você decidir a quantidade, ela calcula e já deixa a ordem montada em
 <a href="#ordens">Ordens de Compras</a>. Não é obrigatória — qualquer compra pode ser feita
 direto em Nova ordem. Use a Projeção quando quiser a quantidade vinda do consumo real.</p>
+<p>Não há botão de salvar: cada alteração — trânsito, fator, dias, fornecedor, responsável,
+quantidade ajustada — grava sozinha menos de um segundo depois, e as ordens em rascunho
+acompanham. O canto superior direito mostra <strong>Salvando…</strong> e depois
+<strong>Salvo</strong> com a hora. Se aparecer <strong>Não salvo</strong>, o servidor não
+respondeu: a próxima alteração tenta de novo.</p>
 
 <h3>O modelo</h3>
 <p class="formula">Duração do estoque = (Estoque + Trânsito entrada − Trânsito saída) ÷ (Média diária × Fator)</p>
@@ -589,7 +594,7 @@ estágio separadamente.</p>
     <tr><td>Todo dia</td><td>Lançar contagem das 4 casas</td><td>Lançamento Diário</td></tr>
     <tr><td>Todo dia</td><td>Olhar o que está crítico</td><td>Painel de Consumo</td></tr>
     <tr><td>Qualquer compra</td><td>Montar a ordem pelo catálogo e emitir</td><td>Ordens de Compras</td></tr>
-    <tr><td>No dia da compra de insumo</td><td>Conferir trânsito e dias a cobrir, salvar o pedido</td><td>Projeção de Compras</td></tr>
+    <tr><td>No dia da compra de insumo</td><td>Conferir trânsito e dias a cobrir (grava sozinho)</td><td>Projeção de Compras</td></tr>
     <tr><td>Pedido pronto de fora</td><td>Ler a planilha ou o PDF e mandar para a fila</td><td>Importar OC</td></tr>
     <tr><td>Fornecedor ou preço novo</td><td>Cadastrar antes de emitir a OC</td><td>Cadastros</td></tr>
     <tr><td>Ao negociar salmão</td><td>Conferir o custo real do filé</td><td>Conversão de Salmão</td></tr>
