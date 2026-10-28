@@ -77,9 +77,14 @@ async function carregar() {
   // salvo; pedido novo começa no padrão de Parâmetros.
   DIAS = PROJ.dias_salvo || cfg.dias_a_cobrir_padrao || 7;
   montarDias();
-  $("#janela-txt").textContent =
-    `Média diária dos últimos ${PROJ.janela_media_dias} dias, ou dos dias escolhidos no item` +
-    ` · estoque do último lançamento`;
+  // Pedido de dia passado vem com estoque e média de quando foi feito: o aviso
+  // diz de quando, para ninguém achar que é o estoque de hoje.
+  const em = PROJ.congelado_em;
+  $("#janela-txt").textContent = em
+    ? `Estoque e média congelados em ${brDate(em.slice(0, 10))} às ${em.slice(11, 16)}` +
+      ` · lançamento corrigido depois não muda este pedido`
+    : `Média diária dos últimos ${PROJ.janela_media_dias} dias, ou dos dias escolhidos no item` +
+      ` · estoque do último lançamento`;
   if (!$("#responsavel").options.length) {
     $("#responsavel").innerHTML = '<option value="">—</option>' +
       (cfg.responsaveis || []).map((r) => `<option>${r}</option>`).join("");

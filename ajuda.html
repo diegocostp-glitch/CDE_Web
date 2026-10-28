@@ -395,6 +395,14 @@ quantidade ajustada — grava sozinha menos de um segundo depois, e as ordens em
 acompanham. O canto superior direito mostra <strong>Salvando…</strong> e depois
 <strong>Salvo</strong> com a hora. Se aparecer <strong>Não salvo</strong>, o servidor não
 respondeu: a próxima alteração tenta de novo.</p>
+<h3>Pedido de dia passado não muda sozinho</h3>
+<p>Cada data é um pedido. Até o dia do pedido, estoque e média seguem os lançamentos e cada
+gravação tira uma fotografia deles. Passado o dia, a tela mostra essa fotografia —
+<strong>Estoque e média congelados em …</strong> no topo —, e corrigir depois uma contagem
+antiga não muda o pedido daquele dia. Trânsito, fator, dias e fornecedor continuam
+editáveis; escolher outros dias para a média usa o consumo como estava na fotografia.
+O congelamento vale só para esta tela: Painel, Lançamento e relatórios seguem os
+lançamentos corrigidos.</p>
 
 <h3>O modelo</h3>
 <p class="formula">Duração do estoque = (Estoque + Trânsito entrada − Trânsito saída) ÷ (Média diária × Fator)</p>

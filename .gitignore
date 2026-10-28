@@ -17,6 +17,8 @@ dados/lancamentos.json
 dados/pedidos.json
 # copia do pedido por responsavel: mesma estrutura do pedidos.json
 dados/pedidos-*.json
+# estoque e media congelados de cada pedido da Projecao (um arquivo por data)
+dados/projecao-congelada/
 dados/ordens.json
 dados/custos.json
 dados/*.tmp

@@ -1514,6 +1514,97 @@ def dias_item(dias_sl, ik, padrao):
     return numero(v) if v not in (None, "") else padrao
 
 
+def base_do_item(ik, ck, estoque, usos, historicos, inicio_janela, dados_lanc, data_iso):
+    """Estoque, media da janela e historico de um item numa casa, como os
+    lancamentos estao agora. E o que se congela com o pedido."""
+    est, quando = estoque.get((ik, ck), (0.0, ""))
+    lista = usos.get((ik, ck), [])
+    # Mesma semantica do AVERAGEIFS do PCPOE: divide pelos dias que tem
+    # registro na janela, nao pelos 14 corridos. Dividir por 14 fixo
+    # rebaixaria a media sempre que faltasse lancamento, e o pedido sairia menor.
+    media = sum(lista) / len(lista) if lista else 0.0
+    historico = historicos.get((ik, ck), [])
+    padrao_dias = [iso for iso, _u in historico if iso >= inicio_janela]
+    # Lula, tentaculo e atum: o que a casa CONTA e o processado, mas o
+    # que ela COMPRA e o in natura. Antes a conversao usava um
+    # rendimento medio fixo (70%, 30%, 85%); agora usa o rendimento do
+    # ultimo processamento realmente informado. O estoque em in natura
+    # que ainda nao passou pelo processamento entra somado, sem divisao.
+    proc = None
+    if ik in PROC_POR_CHAVE:
+        par = PROC_POR_CHAVE[ik]
+        rend, rend_de = rendimento_atual(dados_lanc, ik, ck, data_iso)
+        est_cru, quando_cru = estoque.get((par["in_natura"], ck), (0.0, ""))
+        est_proc = est
+        est = est_cru + (est_proc / rend if rend else 0.0)
+        media = media / rend if rend else media
+        historico = [(iso, u / rend if rend else u) for iso, u in historico]
+        quando = max(x for x in (quando, quando_cru) if x is not None) or quando
+        proc = {
+            "rendimento": rend, "rendimento_de": rend_de,
+            "rendimento_padrao": par["rendimento_padrao"],
+            "medido": rend_de is not None,
+            "estoque_processado": round(est_proc, 3),
+            "estoque_in_natura": round(est_cru, 3),
+            "nome": par["nome"],
+        }
+    return {"estoque": est, "estoque_de": quando, "media": media,
+            "dias_com_uso": len(lista), "dias_media_padrao": padrao_dias,
+            "historico": [[iso, round(u, 4)] for iso, u in historico],
+            "processamento": proc}
+
+
+# ------------------------------------------------------ projecao congelada
+# O pedido guarda o que foi digitado; estoque e media eram recalculados dos
+# lancamentos toda vez que a data abria. Corrigir uma contagem antiga mudava o
+# pedido de dias atras. Agora cada pedido leva uma fotografia do estoque, da
+# media e do historico de consumo de cada item, tirada a cada gravacao feita
+# ate o dia do pedido. Depois desse dia ela nao muda mais — so a tela de
+# Projecao le daqui; Painel, Lancamento e relatorios seguem os lancamentos.
+# Um arquivo por data, fora do pedidos.json: o historico de 60 dias dos 14
+# itens das quatro casas pesa ~100 KB, e o pedidos.json e reescrito a cada
+# gravacao automatica da tela.
+PASTA_CONGELADA = DADOS / "projecao-congelada"
+
+
+def data_de_hoje():
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+def ler_congelado(data_iso):
+    arq = PASTA_CONGELADA / (data_iso + ".json")
+    if not arq.exists():
+        return None
+    with open(arq, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def congelar(data_iso):
+    """Fotografa estoque e media do pedido. Ate o dia do pedido, cada gravacao
+    atualiza a foto (o lancamento da vespera pode chegar depois do primeiro
+    rascunho); passado o dia, so grava se ainda nao existir."""
+    arq = PASTA_CONGELADA / (data_iso + ".json")
+    if data_iso < data_de_hoje() and arq.exists():
+        return
+    cfg = ler_compras()
+    janela = cfg.get("janela_media_dias", 14)
+    estoque, usos = estoque_e_media(data_iso, janela)
+    historicos = usos_por_dia(data_iso, max(HISTORICO_ESCOLHA_DIAS, janela))
+    inicio_janela = (datetime.strptime(data_iso, "%Y-%m-%d")
+                     - timedelta(days=janela)).strftime("%Y-%m-%d")
+    dados_lanc = carregar()
+    foto = {"_em": datetime.now().isoformat(timespec="seconds"), "_janela": janela}
+    for c in CASAS:
+        foto[c["chave"]] = {ins["chave"]: base_do_item(
+            ins["chave"], c["chave"], estoque, usos, historicos, inicio_janela,
+            dados_lanc, data_iso) for ins in cfg["insumos"]}
+    PASTA_CONGELADA.mkdir(parents=True, exist_ok=True)
+    tmp = arq.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(foto, f, ensure_ascii=False, separators=(",", ":"))
+    trocar(tmp, arq)
+
+
 def projetar(data_iso, dias_cobrir):
     cfg = ler_compras()
     janela = cfg.get("janela_media_dias", 14)
@@ -1541,59 +1632,39 @@ def projetar(data_iso, dias_cobrir):
     dias_sl = {ik: g.get("dias_item") for ik, g in
                ((salvos.get(CASA_DIAS) or {}).get("insumos") or {}).items()}
 
+    # Pedido de dia que ja passou mostra o estoque e a media com que foi feito,
+    # nao os de hoje: lancamento corrigido depois mudaria o pedido de tras.
+    congelado = ler_congelado(data_iso) if data_iso < data_de_hoje() else None
+    fora["congelado_em"] = (congelado or {}).get("_em")
+
     dados_lanc = carregar()
     for ck in casas:
         linhas = []
         guardado = (salvos.get(ck) or {}).get("insumos") or {}
         for ins in cfg["insumos"]:
             ik = ins["chave"]
-            est, quando = estoque.get((ik, ck), (0.0, ""))
-            lista = usos.get((ik, ck), [])
-            # Mesma semantica do AVERAGEIFS do PCPOE: divide pelos dias que tem
-            # registro na janela, nao pelos 14 corridos. Dividir por 14 fixo
-            # rebaixaria a media sempre que faltasse lancamento, e o pedido sairia menor.
-            media = sum(lista) / len(lista) if lista else 0.0
+            b = ((congelado or {}).get(ck) or {}).get(ik)
+            if b is None:
+                b = base_do_item(ik, ck, estoque, usos, historicos, inicio_janela,
+                                 dados_lanc, data_iso)
+            historico = [tuple(h) for h in b["historico"]]
+            media, n_dias = b["media"], b["dias_com_uso"]
             # Dias escolhidos a mao para a media (feriado, evento, semana
             # atipica). Sem escolha, a media e a da janela, como sempre foi.
             g = guardado.get(ik, {})
-            historico = historicos.get((ik, ck), [])
-            padrao_dias = [iso for iso, _u in historico if iso >= inicio_janela]
             escolha = g.get("dias_media")
             if isinstance(escolha, list):
                 media, n_dias = media_dos_dias(historico, escolha)
             else:
-                escolha, n_dias = None, len(lista)
-            # Lula, tentaculo e atum: o que a casa CONTA e o processado, mas o
-            # que ela COMPRA e o in natura. Antes a conversao usava um
-            # rendimento medio fixo (70%, 30%, 85%); agora usa o rendimento do
-            # ultimo processamento realmente informado. O estoque em in natura
-            # que ainda nao passou pelo processamento entra somado, sem divisao.
-            proc = None
-            if ik in PROC_POR_CHAVE:
-                par = PROC_POR_CHAVE[ik]
-                rend, rend_de = rendimento_atual(dados_lanc, ik, ck, data_iso)
-                est_cru, quando_cru = estoque.get((par["in_natura"], ck), (0.0, ""))
-                est_proc = est
-                est = est_cru + (est_proc / rend if rend else 0.0)
-                media = media / rend if rend else media
-                historico = [(iso, u / rend if rend else u) for iso, u in historico]
-                quando = max(x for x in (quando, quando_cru) if x is not None) or quando
-                proc = {
-                    "rendimento": rend, "rendimento_de": rend_de,
-                    "rendimento_padrao": par["rendimento_padrao"],
-                    "medido": rend_de is not None,
-                    "estoque_processado": round(est_proc, 3),
-                    "estoque_in_natura": round(est_cru, 3),
-                    "nome": par["nome"],
-                }
+                escolha = None
             linhas.append({
                 "chave": ik, "nome": ins["nome"], "un": ins["un"],
                 "conversao": ins.get("conversao"),
-                "processamento": proc,
-                "estoque": round(est, 3), "estoque_de": quando,
+                "processamento": b["processamento"],
+                "estoque": round(b["estoque"], 3), "estoque_de": b["estoque_de"],
                 "media_diaria": round(media, 4), "dias_com_uso": n_dias,
                 "historico": [{"data": iso, "uso": round(u, 3)} for iso, u in historico],
-                "dias_media": escolha, "dias_media_padrao": padrao_dias,
+                "dias_media": escolha, "dias_media_padrao": b["dias_media_padrao"],
                 # transito de entrada (pedido que vai chegar, transferencia
                 # recebida) e de saida (transferencia para outra casa); no
                 # salmao, cada um com a libragem em que foi digitado
@@ -1747,6 +1818,7 @@ def gravar_pedido(corpo):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(todos, f, ensure_ascii=False, indent=1)
     trocar(tmp, ARQ_PEDIDOS)
+    congelar(data_iso)
     fora = {"ok": True, "data": data_iso}
     fora.update(sincronizar_ordens(data_iso))
     return fora
