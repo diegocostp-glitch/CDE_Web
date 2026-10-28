@@ -409,6 +409,8 @@ input.suspeito { border-color:var(--ruim) !important; background:var(--ruim-bg) 
 .selo.info { background:var(--info-bg); color:var(--info) }
 .selo.bom { background:var(--bom-bg); color:var(--bom) }
 .selo.neutro { background:var(--campo); color:var(--tinta-3) }
+.selo.laranja { background:var(--laranja-claro); color:var(--laranja-forte) }
+body.dark .selo.laranja { background:#F5860F1F; color:var(--laranja) }
 
 /* ============================ MAPA / BARRAS / GRÁFICOS ============================ */
 .mapa { display:grid; grid-template-columns:176px repeat(4,1fr); gap:1px;
@@ -860,6 +862,8 @@ body.dark .lt-linha:first-child .lt-pos { background:#F5860F1F; color:var(--lara
 .cartao.dobravel .ordem-chev { color:var(--tinta-3); font-size:13px; margin-left:10px }
 .cartao.dobravel .dobra-corpo { display:none }
 .cartao.dobravel.aberta .dobra-corpo { display:block; padding-bottom:22px }
+/* Limpar só faz sentido com o quadro à vista */
+#area-nota:not(.aberta) #nf-limpar { display:none }
 
 /* Os dois gráficos da evolução ficam lado a lado em tela larga: empilhados,
    cada um esticava para uns 350px de altura e a página ganhava meia tela de

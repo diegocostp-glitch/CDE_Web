@@ -255,7 +255,7 @@ function desenharTabela() {
         <td class="fonte">${brDate(m.data)}</td>
         <td><span class="ponto" style="background:${corCasa(m.casa)}"></span>${esc(m.casa_nome)}</td>
         <td>${esc(m.insumo)}</td>
-        <td><span class="selo ${SELO[m.tipo] || "neutro"}">${esc(m.tipo_nome)}</span></td>
+        <td>${seloMovimento(m)}</td>
         ${celulasInfo(m, m.parceiro, m.nf)}
         <td class="calc"><input class="qtd" type="text" inputmode="decimal" value="${fmtQ(m.qtd)}"
                title="Quantidade de Movimentações — corrigi-la não muda o lançamento diário.">
@@ -333,6 +333,21 @@ function desenharTabela() {
 // uma célula só para o grupo; o alerta (notas abaixo do lançamento) pinta o
 // grupo todo. As linhas de nota não se editam aqui: o botão de notas abre o
 // quadro, onde elas são corrigidas juntas.
+// Entrada que veio de outra casa ganha selo próprio, em laranja: no verde da
+// entrada ela passava por compra de fornecedor.
+function seloNota(m, n) {
+  if (m.tipo === "entrada" && n.origem === "transferencia")
+    return '<span class="selo laranja">Entrada (transferência entre lojas)</span>';
+  return seloMovimento(m);
+}
+
+// Processado (lula, tentáculo, atum) entra pelo rendimento do in natura da
+// própria casa: sem fornecedor e sem nota, não é compra.
+function seloMovimento(m) {
+  if (m.processamento) return '<span class="selo neutro">Processamento interno</span>';
+  return `<span class="selo ${SELO[m.tipo] || "neutro"}">${esc(m.tipo_nome)}</span>`;
+}
+
 function linhasDeNotas(m, i, temKg) {
   const k = m.notas.length;
   return m.notas.map((n, j) => `
@@ -341,7 +356,7 @@ function linhasDeNotas(m, i, temKg) {
         <td class="fonte">${brDate(m.data)}</td>
         <td><span class="ponto" style="background:${corCasa(m.casa)}"></span>${esc(m.casa_nome)}</td>
         <td>${esc(m.insumo)}${j === 0 && k > 1 ? ` <span class="un">${k} notas</span>` : ""}</td>
-        <td><span class="selo ${SELO[m.tipo] || "neutro"}">${esc(m.tipo_nome)}</span></td>
+        <td>${seloNota(m, n)}</td>
         ${celulasInfo(m, n.parceiro, n.nf, n)}
         <td class="calc" title="Quantidade desta nota — corrija pelo botão de notas">${fmtQ(n.qtd)}
           <span class="un">${esc(m.un)}</span></td>
@@ -751,9 +766,40 @@ function montarNota() {
 
 const linhaVazia = () => ({ parceiro: "", nf: "", qtd: null, total: null });
 
+// O quadro de notas recolhe pelo cabeçalho, para o extrato subir quando não
+// há nota a lançar. Nasce aberto e lembra a última escolha neste navegador.
+const DOBRA_NOTA_KEY = "cde_mov_nota_aberta_v1";
+
+function dobrarNota(aberto, guardar) {
+  const cart = $("#area-nota");
+  cart.classList.toggle("aberta", aberto);
+  cart.querySelector(".dobra").setAttribute("aria-expanded", aberto);
+  cart.querySelector(".ordem-chev").textContent = aberto ? "▾" : "▸";
+  if (guardar) {
+    try { localStorage.setItem(DOBRA_NOTA_KEY, aberto ? "1" : "0"); } catch (err) { /* sem storage: só não lembra */ }
+  }
+}
+
+function ligarDobraNota() {
+  let guardado = null;
+  try { guardado = localStorage.getItem(DOBRA_NOTA_KEY); } catch (err) { /* sem storage */ }
+  dobrarNota(guardado !== "0", false);
+  const cabeca = $("#area-nota .dobra");
+  const alternar = () => dobrarNota(!$("#area-nota").classList.contains("aberta"), true);
+  cabeca.onclick = (e) => {
+    if (e.target.closest("button")) return;        // o Limpar não dobra o quadro
+    alternar();
+  };
+  cabeca.onkeydown = (e) => {
+    if (e.target !== cabeca) return;
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alternar(); }
+  };
+}
+
 // Abre no quadro o movimento de uma linha do extrato.
 function abrirNota(m) {
   if (!m) return;
+  dobrarNota(true, false);
   $("#nf-data").value = m.data;
   $("#nf-casa").value = m.casa;
   $("#nf-tipo").value = m.tipo;
@@ -960,4 +1006,5 @@ $("#mes-atual").onclick = () => {
   carregar();
 };
 $("#btn-csv").onclick = exportarCSV;
+ligarDobraNota();
 carregar();

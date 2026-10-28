@@ -3093,6 +3093,9 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                         # salmao e faturado em kg: a entrada da libragem guarda
                         # os kg da nota, e a transferencia os kg enviados
                         "pesavel": ik in FATOR_LIBRA and t in TIPOS_COM_KG,
+                        # entrada do processado e o que rendeu o in natura da
+                        # casa, nao compra: a tela a etiqueta como tal
+                        "processamento": ik in PROC_POR_CHAVE and t == "entrada",
                         "kg": (campos.get("kg") or {}).get(t),
                         "origem": "Movimentações" if propria
                                   else "Planilha" if da_planilha(campos)

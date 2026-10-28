@@ -70,11 +70,13 @@
   <!-- Notas fiscais e transferências. A quantidade do dia vem da planilha;
        aqui ela é detalhada por nota (5 pacotes de um fornecedor, 210 de
        outro, cada um com seu preço) ou lançada, quando ainda não existe. -->
-  <section class="cartao" id="area-nota">
-    <div class="cabeca"><h2>Notas fiscais e transferências</h2>
+  <section class="cartao dobravel aberta" id="area-nota">
+    <div class="cabeca dobra" role="button" tabindex="0" aria-expanded="true">
+      <h2>Notas fiscais e transferências<span class="ordem-chev">▾</span></h2>
       <span class="fonte" id="nota-situacao">Escolha o dia, a casa e o insumo</span>
       <span style="flex:1"></span>
       <button class="botao" id="nf-limpar" type="button">Limpar</button></div>
+    <div class="dobra-corpo">
     <div class="barra barra-interna">
       <label class="campo"><span>Data</span><input type="date" id="nf-data"></label>
       <label class="campo"><span>Casa</span><select id="nf-casa"></select></label>
@@ -92,6 +94,7 @@
       <span class="nf-ajuste" id="nf-ajuste" hidden></span>
       <span style="flex:1"></span>
       <button class="botao primario" id="nf-salvar" type="button">Salvar notas</button>
+    </div>
     </div>
     <datalist id="nf-fornecedores"></datalist>
   </section>
