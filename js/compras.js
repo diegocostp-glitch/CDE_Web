@@ -463,9 +463,20 @@ function consolidar() {
   // Um bloco por fornecedor: é assim que a compra acontece — uma ligação,
   // uma entrega. Item repetido em casas diferentes aparece uma vez por casa,
   // porque cada casa vira uma ordem separada.
-  $("#consolidado").innerHTML = lista.map((g) => {
+  const blocos = lista.map((g) => {
     const itens = g.itens.slice().sort((a, b) =>
       a.nome.localeCompare(b.nome) || a.casa.localeCompare(b.casa));
+    // as linhas primeiro: cada uma deixa o seu custo em i.custo para o total
+    const linhas = itens.map((i) => linhaConsolidada(i, g.forn)).join("");
+    return { g, itens, linhas, salmao: CONS_CASA ? [] : itens.filter((i) => i.chave === CHAVE_SALMAO) };
+  });
+  // Com várias fornecedoras de salmão no mesmo pedido, o total de cada bloco
+  // não diz quanto peixe o grupo está comprando: uma linha geral no topo diz.
+  const comSalmao = blocos.filter((b) => b.salmao.length);
+  $("#consolidado").innerHTML = (comSalmao.length > 1
+    ? `<p class="nota-info">${resumoSalmao(comSalmao.flatMap((b) => b.salmao), "Salmão em todas as ordens")}` +
+      ` · ${comSalmao.length} fornecedores</p>` : "") +
+    blocos.map(({ g, itens, linhas, salmao }) => {
     return `<div class="grupo-forn">
       <div class="grupo-forn-cab">
         <h3>${g.forn}</h3>
@@ -479,7 +490,7 @@ function consolidar() {
       <table class="tabela-curta">
         <thead><tr><th>Item</th>${CONS_CASA ? "" : "<th>Casa</th>"}<th>Quantidade</th><th>Un.</th>
           <th>Produto na OC</th><th>Custo estimado</th><th>Projetado</th></tr></thead>
-        <tbody>${itens.map((i) => linhaConsolidada(i, g.forn)).join("")}</tbody>
+        <tbody>${linhas}${salmao.length ? linhaTotalSalmao(salmao) : ""}</tbody>
       </table>
     </div>`;
   }).join("");
@@ -494,6 +505,38 @@ function consolidar() {
   });
 }
 
+// Total do salmão quando o consolidado mostra as quatro casas: a soma das
+// ordens de compra de salmão do fornecedor, em quilos e em reais. Só o salmão
+// ganha a linha — é o item de maior peso no pedido e o único comprado para o
+// grupo inteiro numa negociação só.
+function somaSalmao(itens) {
+  const kg = itens.reduce((s, i) => s + i.qtd, 0);
+  const comCusto = itens.filter((i) => i.custo !== null);
+  const custo = comCusto.reduce((s, i) => s + i.custo, 0);
+  return { kg, custo, casas: new Set(itens.map((i) => i.casa)).size,
+           semPreco: itens.length - comCusto.length };
+}
+
+function resumoSalmao(itens, rotulo) {
+  const t = somaSalmao(itens);
+  return `<strong>${rotulo}:</strong> ${fmt(t.kg, 1)} kg · ` +
+    (t.custo > 0 ? "R$ " + fmt(t.custo) : "sem preço") +
+    (t.semPreco ? ` (${t.semPreco} linha(s) sem preço fora da soma)` : "");
+}
+
+function linhaTotalSalmao(itens) {
+  const t = somaSalmao(itens);
+  return `<tr class="linha-total">
+      <td><strong>Total Salmão</strong></td>
+      <td>${t.casas} casa(s)</td>
+      <td class="calc"><strong>${fmt(t.kg, 1)}</strong></td>
+      <td class="un">${itens[0].un}</td>
+      <td>${t.semPreco ? `<span class="fonte">${t.semPreco} linha(s) sem preço fora da soma</span>` : ""}</td>
+      <td class="calc"><strong>${t.custo > 0 ? "R$ " + fmt(t.custo) : "—"}</strong></td>
+      <td></td>
+    </tr>`;
+}
+
 // Uma linha do consolidado: quantidade, o produto do catálogo em que ela vira
 // e o custo estimado por esse preço. Salmão ganha a linha extra de repartição.
 function linhaConsolidada(i, forn) {
@@ -501,7 +544,25 @@ function linhaConsolidada(i, forn) {
   const ops = opcoesCatalogo(i.chave, forn);
   const escolhido = produtoEscolhido(ins, ops);
   const colunas = CONS_CASA ? 6 : 7;
-  const custo = escolhido ? i.qtd * escolhido.preco : 0;
+  // O catálogo vende em caixa, fardo, bisnaga; o pedido é na unidade do CDE.
+  // Converte pelo conteúdo da embalagem (compras.json → embalagens), como a OC.
+  // Sem arredondar: embalagem quebrada fica marcada e quem compra decide na OC.
+  const emb = escolhido && escolhido.conteudo ? i.qtd / escolhido.conteudo : null;
+  // O que a ordem do dia já decidiu vale para o custo: caixa arredondada, item
+  // cortado, preço digitado, ou a ordem já gerada. Decisão de pendente só vale
+  // enquanto o cálculo for o mesmo de quando ela foi tomada — como no servidor.
+  const oc = (PROJ.na_oc || {})[`${i.casa}|${norm(forn).replace(/\s+/g, " ")}|${i.chave}`];
+  const ocVale = !!oc && (oc.gerada || (oc.qtd_calc != null && emb !== null &&
+    Math.abs(oc.qtd_calc - Math.round(emb * 1000) / 1000) <= 0.0005));
+  const decidida = ocVale && (oc.gerada || Math.abs(oc.qtd - oc.qtd_calc) > 0.0005);
+  const qtdFinal = ocVale ? oc.qtd : emb;
+  const precoFinal = ocVale && oc.preco > 0 ? oc.preco : (escolhido ? escolhido.preco : 0);
+  const unFinal = ocVale ? oc.un : (escolhido ? escolhido.un : "");
+  // vermelho enquanto a quantidade que vai para a OC não fecha embalagem inteira
+  const fechada = !!escolhido && !escolhido.fraciona;
+  const quebrada = fechada && qtdFinal !== null && Math.abs(qtdFinal - Math.round(qtdFinal)) > 0.0005;
+  const custo = qtdFinal !== null ? qtdFinal * precoFinal : 0;
+  i.custo = qtdFinal !== null && precoFinal > 0 ? custo : null;   // para o total do salmão
   const ehSalmao = i.chave === CHAVE_SALMAO && partesSalmao().length;
   const repartido = ehSalmao ? equivalenteDoSplit(ins) : 0;
 
@@ -512,7 +573,7 @@ function linhaConsolidada(i, forn) {
     : `<span class="fonte" title="Sem produto vinculado para este fornecedor">Sem vínculo —
         <a href="cadastros.html">cadastre o produto</a></span>`;
 
-  return `<tr>
+  return `<tr${quebrada ? ' class="embalagem-quebrada"' : ""}>
       <td>${i.nome}${ehSalmao
         ? ` <button class="botao-mini abrir-partes" data-casa="${i.casa}" title="Pedir em filé em vez de peixe inteiro">Repartir</button>` : ""}</td>
       ${CONS_CASA ? "" : `<td>${i.casa}</td>`}
@@ -521,11 +582,24 @@ function linhaConsolidada(i, forn) {
              data-calc="${i.calculado}" value="${fmt(i.qtd, 1)}"
              title="${i.ajustado ? "Ajustado à mão — o cálculo dava " + fmt(i.calculado, 1) : "Quantidade projetada pelo cálculo"}"></td>
       <td class="un">${i.un}</td>
-      <td>${seletor}</td>
-      <td class="calc">${escolhido && escolhido.preco > 0 ? "R$ " + fmt(custo) : "—"}</td>
-      <td class="calc">${i.ajustado
-        ? `<span class="selo-mini" title="Quantidade alterada à mão">${fmt(i.calculado, 1)} calc.</span>`
-        : "—"}</td>
+      <td>${seletor}${decidida
+          ? `<span class="msg-conv">${oc.gerada ? `OC ${escapa(oc.numero_oc || "")} gerada` : "Na OC"}: ` +
+            `${fmt(oc.qtd, Number.isInteger(oc.qtd) ? 0 : 3)} × ${escapa(oc.un)}` +
+            `${quebrada ? " — embalagem quebrada, decida na OC" : ""}</span>`
+        : !escolhido ? ""
+        : emb === null
+          ? `<span class="msg-conv" title="Defina em compras.json → embalagens quanto vem nesta unidade">Sem conversão para ${escapa(escolhido.un)}</span>`
+          : escolhido.fraciona ? ""
+          : `<span class="msg-conv">${fmt(emb, quebrada ? 3 : 0)} × ${escapa(escolhido.un)}` +
+            `${quebrada ? " — embalagem quebrada, decida na OC" : ""}</span>`}</td>
+      <td class="calc">${qtdFinal !== null && precoFinal > 0 ? "R$ " + fmt(custo) : "—"}</td>
+      <td class="calc">${[
+          // o que o cálculo deu, quando a OC ficou com outro número
+          decidida && emb !== null && Math.abs(emb - oc.qtd) > 0.0005
+            ? `<span class="selo-mini" title="Quantidade calculada pela Projeção, antes da decisão na OC">${fmt(emb, 3)} ${escapa(unFinal)} calc.</span>` : "",
+          i.ajustado
+            ? `<span class="selo-mini" title="Quantidade alterada à mão">${fmt(i.calculado, 1)} ${i.un} calc.</span>` : "",
+        ].filter(Boolean).join(" ") || "—"}</td>
     </tr>` + (ehSalmao ? blocoPartes(i, ins, forn, colunas, repartido) : "");
 }
 
@@ -826,6 +900,9 @@ function enterDesce(e) {
     DIAS = num($("#dias").value) || 7;
     marcarSujo(); recalcular();
   };
+  // Voltando da tela de Ordens pelo Voltar do navegador, a página vem do cache:
+  // recarrega para o custo trazer o que foi decidido na OC.
+  window.addEventListener("pageshow", (e) => { if (e.persisted) carregar(); });
   $("#responsavel").onchange = () => {
     PROJ.casas[CASA].responsavel = $("#responsavel").value || null;
     marcarSujo();

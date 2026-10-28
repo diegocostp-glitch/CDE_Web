@@ -442,6 +442,18 @@ compra acontece: uma ligação, uma entrega.</p>
 lista não misturar os itens das quatro. Quem quiser o total somado escolhe
 <strong>Todas as casas</strong> — aí a coluna <em>Casa</em> reaparece na tabela, mostrando de
 onde vem cada linha.</p>
+<p>O pedido é calculado na unidade do CDE (quilo, pacote de 5 kg, bisnaga), mas o fornecedor
+vende na dele (caixa de 20 kg, fardo de 30 kg). Na ordem, a quantidade é convertida para a
+unidade do catálogo do Gerador de OCs e o preço é o daquela unidade: 13,571 kg de tentáculo
+viram <strong>0,679 caixa de 20 kg</strong>. O sistema <strong>não arredonda</strong>. Caixa,
+fardo, pacote ou bisnaga que não fecha número inteiro deixa a linha <strong>vermelha</strong>,
+aqui e na ordem, com o aviso "Embalagem quebrada". Quem compra decide na ordem: arredonda para
+cima, para baixo ou corta o item. A quantidade decidida fica guardada enquanto o cálculo daquele
+item não mudar; se a Projeção mudar o número, a linha volta vermelha. Produto vendido a quilo
+segue com as casas decimais, sem marca. Quanto cabe em cada embalagem está em
+<span class="cod">dados/compras.json</span>, no bloco <em>embalagens</em>. Unidade que não
+estiver lá sai na ordem com a unidade do CDE e <strong>sem preço</strong>, com o aviso
+"Sem conversão".</p>
 <p class="nota-info">O filtro é só de leitura: o cálculo é sempre das quatro casas, e cada
 casa continua virando uma ordem separada. Esse seletor é independente das abas de cima — dá
 para conferir a tabela de uma casa enquanto se lê o pedido de outra. A escolha fica guardada

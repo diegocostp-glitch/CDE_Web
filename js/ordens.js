@@ -115,15 +115,29 @@ function cartao(o) {
   </section>`;
 }
 
+// A Projeção pede na unidade do CDE e a ordem sai na do catálogo (caixa,
+// fardo). A linha diz de quanto saiu a embalagem, ou por que ficou sem preço.
+function origemCDE(i) {
+  if (i.sem_conversao)
+    return `<span class="msg-conv">Sem conversão de ${esc(i.un_cde)} para ${esc(i.sem_conversao)} —` +
+      ` defina em compras.json → embalagens</span>`;
+  if (i.qtd_cde == null || !i.conteudo) return "";
+  if (i.conteudo === 1 && num(i.qtd) === num(i.qtd_cde)) return "";   // quilo por quilo: nada a explicar
+  return `<span class="msg-conv">Projeção: ${fmt(num(i.qtd_cde), 3)} ${esc(i.un_cde)}` +
+    ` · ${fmt(i.conteudo, i.conteudo % 1 ? 1 : 0)} ${esc(i.un_cde)} por ${esc(i.un)}</span>`;
+}
+
 function corpo(o) {
   const opts = '<option value="">— escolher cadastro —</option>' + BASE.fornecedores.map((f) =>
     `<option value="${esc(f.chave)}"${chave(f.chave) === chave(o.fornecedor_base) ? " selected" : ""}>${esc(f.chave)} — ${esc(f.razao)}</option>`).join("");
   const obsFixa = obsDoFornecedor(o.fornecedor_base);
 
   const linhas = o.itens.map((i, n) => `
-    <tr data-n="${n}">
+    <tr data-n="${n}"${i.embalagem_fechada ? ' data-fechada="1"' : ""}>
       <td>${i.origem === "projecao"
-        ? `${esc(i.nome)} <span class="selo-mini" title="Veio do cálculo da Projeção — será recalculado se o pedido for salvo de novo">Projeção</span>`
+        ? `${esc(i.nome)} <span class="selo-mini" title="Veio do cálculo da Projeção — recalculado quando o pedido muda; quantidade decidida aqui fica enquanto o cálculo do item não mudar">Projeção</span>` +
+          origemCDE(i) +
+          '<span class="msg-quebrada">Embalagem quebrada — arredonde para cima, para baixo ou corte o item</span>'
         : `<input data-c="nome" type="text" value="${esc(i.nome)}" style="width:100%">`}</td>
       <td><input data-c="un" type="text" value="${esc(i.un)}" style="width:74px"></td>
       <td><input data-c="qtd" type="text" inputmode="decimal" value="${fmt(num(i.qtd), 3)}" style="width:90px"></td>
@@ -286,6 +300,10 @@ function somar(cart) {
     const s = q * p;
     total += s;
     tr.querySelector(".sub").textContent = s > 0 ? "R$ " + fmt(s) : "—";
+    // caixa, fardo, bisnaga: o sistema não arredonda, só aponta. A marca some
+    // quando a quantidade vira número inteiro de embalagens (ou zero, corte).
+    tr.classList.toggle("embalagem-quebrada",
+      tr.dataset.fechada === "1" && Math.abs(q - Math.round(q)) > 0.0005);
   });
   const alvo = cart.querySelector(".total-geral");
   if (alvo) alvo.innerHTML = total > 0 ? "<strong>R$ " + fmt(total) + "</strong>" : "—";

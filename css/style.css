@@ -1279,3 +1279,11 @@ table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
 .dia-chip.marcado { border:1px solid var(--tinta-2); color:var(--tinta) }
 .dia-chip.marcado .dia-uso { font-weight:600 }
 .dia-chip.neg .dia-uso { color:var(--ruim) }
+
+/* Embalagem quebrada (0,68 caixa): o sistema não arredonda, marca a linha para
+   quem compra decidir. Texto junto da cor, para não depender só do vermelho. */
+tr.embalagem-quebrada td { background:var(--ruim-bg) }
+tr.embalagem-quebrada td:first-child { box-shadow:inset 3px 0 0 var(--ruim) }
+tr.embalagem-quebrada input[data-c="qtd"] { border-color:var(--ruim); color:var(--ruim); font-weight:600 }
+.msg-quebrada { display:none; font-size:10.5px; color:var(--ruim); font-weight:600; margin-top:1px }
+tr.embalagem-quebrada .msg-quebrada { display:block }

@@ -203,5 +203,49 @@
     "atum": null,
     "atum_in_natura": null
   },
-  "_nota_fornecedores": "fornecedores dentro de cada insumo: os que aparecem na lista da Projecao para aquele item. Item sem a lista mostra todos os fornecedores. A lista geral (fornecedores) continua sendo a editada em Parametros."
+  "_nota_fornecedores": "fornecedores dentro de cada insumo: os que aparecem na lista da Projecao para aquele item. Item sem a lista mostra todos os fornecedores. A lista geral (fornecedores) continua sendo a editada em Parametros.",
+  "embalagens": {
+    "_nota": "Quanto cabe em cada unidade de venda do catalogo do Gerador de OCs, medido na unidade de PEDIDO do CDE (Kg no salmao, a unidade do insumo nos demais). A Projecao pede em unidade do CDE; o fornecedor vende em caixa, fardo ou bisnaga. Sem esta tabela a OC multiplicava quilos pelo preco da caixa. Chave = unidade exatamente como esta na aba Produtos (espacos nao importam). Unidade vendida em KG fraciona; qualquer outra e embalagem fechada e o pedido arredonda para CIMA. Unidade de catalogo fora daqui e sem C/ N KG no nome fica sem conversao: a OC sai na unidade do CDE e sem preco, para ninguem emitir valor errado.",
+    "salmao_equivalente": {
+      "KG": 1
+    },
+    "camarao_g": {
+      "KG": 1
+    },
+    "camarao_m": {
+      "KG": 1
+    },
+    "camarao_p": {
+      "KG": 1
+    },
+    "file_tilapia": {
+      "CAIXA C/05 KG": 5,
+      "CAIXA C/10 KG": 10,
+      "CAIXA C/15 KG": 15
+    },
+    "lula": {
+      "KG": 1,
+      "CAIXA C/10 KG": 10
+    },
+    "polvo": {
+      "KG": 1,
+      "CAIXA C/ 20 KG": 20
+    },
+    "kani": {
+      "KG": 1,
+      "CAIXA C/10 KG": 10
+    },
+    "anchova": {
+      "KG": 1
+    },
+    "nori": {
+      "PCT C/50 FOLHAS": 1
+    },
+    "cream_cheese": {
+      "1,5 KG": 1
+    },
+    "arroz": {
+      "FARDO C/30 KG": 6
+    }
+  }
 }

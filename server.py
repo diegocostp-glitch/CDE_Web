@@ -1694,10 +1694,29 @@ def projetar(data_iso, dias_cobrir):
     # que preco. Vai junto da projecao para nao obrigar a tela a cruzar a base
     # de cadastros por conta propria — e para o de-para ser o mesmo dos dois
     # lados, evitando a OC sair com um produto na tela e outro no PDF.
-    fora["catalogo"] = {ins["chave"]: [
-        {"fornecedor": p["fornecedor"], "produto": p["produto"],
-         "un": p.get("un") or "", "preco": numero(p.get("preco"))}
+    def com_embalagem(ins, p):
+        un_ped = (ins.get("conversao") or {}).get("un_pedido") or ins["un"]
+        conteudo, fraciona = embalagem(ins["chave"], p.get("un") or "", un_ped)
+        return {"fornecedor": p["fornecedor"], "produto": p["produto"],
+                "un": p.get("un") or "", "preco": numero(p.get("preco")),
+                "conteudo": conteudo, "fraciona": fraciona}
+    fora["catalogo"] = {ins["chave"]: [com_embalagem(ins, p)
         for p in produtos_vinculados(ins["chave"])] for ins in cfg["insumos"]}
+    # O que a ordem do dia ja diz de cada linha: quantidade decidida (caixa
+    # arredondada, item cortado), preco digitado, ou a ordem ja gerada. A tela
+    # usa isto no custo estimado, para o consolidado bater com a OC.
+    fora["na_oc"] = {}
+    for o in (ler_ordens().get("ordens") or {}).values():
+        if o.get("data") != data_iso:
+            continue
+        for i in o.get("itens", []):
+            if i.get("origem") != "projecao" or ":" in str(i.get("chave")):
+                continue
+            fora["na_oc"]["%s|%s|%s" % (o.get("casa"), _norm(o.get("fornecedor")), i["chave"])] = {
+                "qtd": numero(i.get("qtd")), "qtd_calc": i.get("qtd_calc"),
+                "un": i.get("un"), "preco": numero(i.get("preco")),
+                "gerada": o.get("situacao") == "gerada",
+                "numero_oc": o.get("numero_oc") or o.get("oc")}
     # nome curto usado na Projecao -> apelido do cadastro ("Nippobraz" -> "NIPPOBRAZ")
     fora["fornecedor_cadastro"] = {}
     todos = list(cfg.get("fornecedores", []))
@@ -2078,6 +2097,46 @@ def calcular_linha(ins, campos):
             "manual": False, "un": un}
 
 
+# ------------------------------------------------------- unidade do catalogo
+# A Projecao pede na unidade do CDE (Kg, Pct de 5 kg, Bng); o catalogo do
+# Gerador vende em caixa, fardo, bisnaga. Antes a OC levava a quantidade do CDE
+# com a unidade e o preco do catalogo: 13,5 kg de tentaculo viravam 13,5
+# caixas de 20 kg. A tabela "embalagens" de compras.json diz quanto cabe em
+# cada unidade de venda, na unidade de pedido do CDE.
+def _chave_emb(un):
+    return _norm(un).replace(" ", "")
+
+
+def embalagem(ik, un_catalogo, un_pedido):
+    """(conteudo, fraciona) da unidade do catalogo, ou (None, False) sem definicao.
+
+    conteudo: quanto da unidade de pedido do CDE cabe numa unidade vendida.
+    fraciona: vendido a granel (KG). Senao e embalagem fechada: quantidade
+    quebrada nao e arredondada aqui — a tela marca a linha e quem compra decide.
+    """
+    import re
+    alvo = _chave_emb(un_catalogo)
+    fraciona = alvo == "KG"
+    tabela = ((ler_compras().get("embalagens") or {}).get(ik)) or {}
+    for k, v in tabela.items():
+        if _chave_emb(k) == alvo and numero(v) > 0:
+            return numero(v), fraciona
+    # produto novo no catalogo, ainda fora da tabela: em quilo da para deduzir
+    if _norm(un_pedido) == "KG":
+        if fraciona:
+            return 1.0, True
+        m = re.search(r"C/0*(\d+(?:[.,]\d+)?)KG$", alvo)
+        if m:
+            return float(m.group(1).replace(",", ".")), False
+    return None, False
+
+
+def qtd_na_embalagem(qtd, conteudo):
+    # sem arredondar: 13,571 kg em caixa de 20 kg sao 0,679 caixa. Arredondar
+    # para cima, para baixo ou cortar o item e decisao de compra, nao do sistema.
+    return round(qtd / conteudo, 3)
+
+
 def itens_para_oc(ins, campos, resultado, fornecedor, partes):
     """Traduz uma linha do pedido consolidado nos itens que entram na OC.
 
@@ -2101,9 +2160,30 @@ def itens_para_oc(ins, campos, resultado, fornecedor, partes):
         escolhido = next((p for p in opcoes if _norm(p["produto"]) == alvo), None)
         if not escolhido and opcoes:
             escolhido = opcoes[0]          # vinculo unico: nao precisa escolher
-        if not escolhido:
-            return ins["nome"], resultado["un"], 0.0
-        return escolhido["produto"], (escolhido.get("un") or resultado["un"]), numero(escolhido.get("preco"))
+        return escolhido
+
+    def item(chave, qtd, nome_escolhido, **extra):
+        """Item da OC na unidade do catalogo; a quantidade do CDE vai junto."""
+        un_cde = resultado["un"]
+        base = {"chave": chave, "qtd_cde": round(qtd, 3), "un_cde": un_cde,
+                "origem": "projecao"}
+        base.update(extra)
+        p = catalogo(nome_escolhido)
+        if not p:
+            return dict(base, nome=ins["nome"], un=un_cde, qtd=round(qtd, 3), preco=0.0)
+        un_cat = p.get("un") or un_cde
+        conteudo, fraciona = embalagem(ins["chave"], un_cat, un_cde)
+        if not conteudo:
+            # sem saber quanto vem na embalagem, preco do catalogo daria total
+            # errado: sai na unidade do CDE e sem preco, e a tela de Ordens acusa
+            return dict(base, nome=p["produto"], un=un_cde, qtd=round(qtd, 3),
+                        preco=0.0, sem_conversao=un_cat)
+        q = qtd_na_embalagem(qtd, conteudo)
+        # qtd_calc guarda o que o calculo deu, para a ordem saber se a
+        # quantidade foi decidida por alguem (arredondada, cortada)
+        return dict(base, nome=p["produto"], un=un_cat, qtd=q, qtd_calc=q,
+                    preco=numero(p.get("preco")), conteudo=conteudo,
+                    embalagem_fechada=not fraciona)
 
     total = round(resultado["pedido"], 3)
     split = campos.get("split") or {}
@@ -2116,26 +2196,21 @@ def itens_para_oc(ins, campos, resultado, fornecedor, partes):
                                    if isinstance(split.get(parte["chave"]), dict) else None))
 
     if not partes_pedidas:
-        nome, un, preco = catalogo(campos.get("produto_oc"))
-        return [{"chave": ins["chave"], "nome": nome, "un": un, "qtd": total,
-                 "preco": preco, "origem": "projecao", "ajustado": resultado.get("manual", False)}]
+        return [item(ins["chave"], total, campos.get("produto_oc"),
+                     ajustado=resultado.get("manual", False))]
 
     itens, consumido = [], 0.0
     for parte, qtd, produto in partes_pedidas:
         rend = parte.get("rendimento") or 1.0
         consumido += qtd / rend if rend else 0.0
-        nome, un, preco = catalogo(produto or parte.get("produto"))
-        itens.append({"chave": "%s:%s" % (ins["chave"], parte["chave"]), "nome": nome,
-                      "un": un, "qtd": round(qtd, 3), "preco": preco,
-                      "origem": "projecao", "ajustado": True,
-                      "parte": parte["chave"]})
+        itens.append(item("%s:%s" % (ins["chave"], parte["chave"]), qtd,
+                          produto or parte.get("produto"), ajustado=True,
+                          parte=parte["chave"]))
     # o que a divisao em partes ainda nao cobriu continua indo como inteiro
     resto = round(total - consumido, 3)
     if resto > 0.0005:
-        nome, un, preco = catalogo(campos.get("produto_oc"))
-        itens.append({"chave": ins["chave"], "nome": nome, "un": un, "qtd": resto,
-                      "preco": preco, "origem": "projecao",
-                      "ajustado": resultado.get("manual", False)})
+        itens.append(item(ins["chave"], resto, campos.get("produto_oc"),
+                          ajustado=resultado.get("manual", False)))
     return itens
 
 
@@ -2183,7 +2258,19 @@ def sincronizar_ordens(data_iso):
             manuais = [i for i in (atual or {}).get("itens", []) if i.get("origem") == "manual"]
             # preco ja digitado nao se perde quando a quantidade muda
             precos = {i["chave"]: numero(i.get("preco")) for i in (atual or {}).get("itens", [])}
+            # Quantidade decidida na ordem (0,68 caixa virou 1, ou o item foi
+            # cortado) sobrevive a gravacao automatica da Projecao enquanto o
+            # calculo daquele item nao mudar. Mudou o calculo, a decisao antiga
+            # nao vale mais e a linha volta marcada.
+            decididas = {i["chave"]: numero(i.get("qtd")) for i in (atual or {}).get("itens", [])
+                         if i.get("qtd_calc") is not None
+                         and abs(numero(i.get("qtd")) - numero(i.get("qtd_calc"))) > 0.0005}
+            calc_antes = {i["chave"]: numero(i.get("qtd_calc")) for i in (atual or {}).get("itens", [])
+                          if i.get("qtd_calc") is not None}
             for i in itens:
+                if (i["chave"] in decididas and i.get("qtd_calc") is not None
+                        and abs(calc_antes[i["chave"]] - i["qtd_calc"]) <= 0.0005):
+                    i["qtd"] = decididas[i["chave"]]
                 # preco digitado na ordem manda; sem ele, vale o preco do catalogo
                 digitado = precos.get(i["chave"], 0.0)
                 if digitado > 0:
@@ -2225,10 +2312,19 @@ def gravar_ordem(corpo):
             nome = (i.get("nome") or "").strip()
             if not nome:
                 continue
-            limpos.append({"chave": i.get("chave") or ("manual_%d" % len(limpos)),
-                           "nome": nome, "un": i.get("un") or "Un",
-                           "qtd": numero(i.get("qtd")), "preco": numero(i.get("preco")),
-                           "origem": i.get("origem") or "manual"})
+            novo = {"chave": i.get("chave") or ("manual_%d" % len(limpos)),
+                    "nome": nome, "un": i.get("un") or "Un",
+                    "qtd": numero(i.get("qtd")), "preco": numero(i.get("preco")),
+                    "origem": i.get("origem") or "manual"}
+            # a tela nao devolve de quantos quilos do CDE a caixa saiu: vem
+            # do item gravado, para a dica continuar na ordem editada
+            antes = next((x for x in o.get("itens", []) if x.get("chave") == novo["chave"]), None)
+            if antes and novo["origem"] == "projecao":
+                for k in ("qtd_cde", "un_cde", "conteudo", "sem_conversao",
+                          "qtd_calc", "embalagem_fechada"):
+                    if k in antes:
+                        novo[k] = antes[k]
+            limpos.append(novo)
         o["itens"] = limpos
     o["alterada_em"] = datetime.now().isoformat(timespec="seconds")
     salvar_ordens(todas)
