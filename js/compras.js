@@ -243,7 +243,7 @@ function fornecedoresDe(i) {
 // Célula de trânsito. No salmão vem com a libragem ao lado e, embaixo, quanto
 // aquilo dá em equivalente 08/10 (preenchido no recalcular).
 function celTransito(i, campo, dica) {
-  const input = `<input data-c="${campo}" type="text" inputmode="decimal" value="${i[campo] ?? ""}" title="${dica}"`;
+  const input = `<input data-c="${campo}" type="text" inputmode="decimal" value="${i[campo] == null ? "" : fmt(i[campo], 3)}" title="${dica}"`;
   if (i.chave !== CHAVE_SALMAO || !(PROJ.libragens || []).length) return `<td>${input}></td>`;
   const tam = i[campo + "_tam"] || PROJ.libragens[0].chave;
   return `<td>${input} style="width:56px">
@@ -339,8 +339,8 @@ function recalcular() {
       const q = num(campos[c]), f = fatorLibra(campos[c + "_tam"]);
       const tam = ((PROJ.libragens || []).find((l) => l.chave === campos[c + "_tam"]) || {}).nome || "08/10";
       el.textContent = q
-        ? `${fmt(q, Number.isInteger(q) ? 0 : 2)} px ${tam} = ${fmt(q * f, 2)} ${ins.un} eq. 08/10`
-        : `1 px ${tam} = ${fmt(f, 2)} ${ins.un} eq. 08/10`;
+        ? `${fmt(q, Number.isInteger(q) ? 0 : 2)} px ${tam} = ${fmt(q * f, 3)} ${ins.un} eq. 08/10`
+        : `1 px ${tam} = ${fmt(f, 3)} ${ins.un} eq. 08/10`;
     });
     tr.querySelector(".media").innerHTML = `${fmt(m.media, 3)}
       <button type="button" class="botao-mini abrir-dias${Array.isArray(ins.dias_media) ? " ajustado" : ""}"
@@ -355,9 +355,9 @@ function recalcular() {
     if (r.pedido <= 0.0005) {
       tdP.innerHTML = '<span class="selo bom">Não pedir</span>';
     } else {
-      tdP.innerHTML = `<strong>${fmt(r.pedido, r.un_pedido === "Kg" ? 1 : 3)}</strong>
+      tdP.innerHTML = `<strong>${fmt(r.pedido, 3)}</strong>
         <span class="un">${r.un_pedido}</span>` +
-        (ins.conversao ? `<span class="msg-conv">${fmt(r.qtd, 1)} ${ins.un} × ${fmt(r.conv, 3)} kg
+        (ins.conversao ? `<span class="msg-conv">${fmt(r.qtd, 3)} ${ins.un} × ${fmt(r.conv, 3)} kg
            <span title="peso da caixa ÷ peixes por caixa">(${ins.conversao.kg_por_caixa} kg ÷ ${ins.conversao.peixes_por_caixa} px)</span></span>` : "");
     }
     tdP.className = "calc ped";
@@ -704,6 +704,15 @@ function ligarTabela() {
     marcarSujo(); recalcular();
   });
   tela.addEventListener("change", (e) => {
+    // Fornecedor escolhido na SL vale para as outras casas, como os dias a cobrir;
+    // cada casa ainda pode trocar o seu depois.
+    if (e.target.dataset.c === "fornecedor" && CASA === CASA_DIAS) {
+      const k = e.target.closest("tr").dataset.k;
+      Object.values(PROJ.casas).forEach((casa) => {
+        const ins = casa.insumos.find((i) => i.chave === k);
+        if (ins) ins.fornecedor = e.target.value || null;
+      });
+    }
     if (e.target.matches("select[data-c]")) { marcarSujo(); consolidar(); return; }
     const cx = e.target.closest("input[data-dia]");
     if (!cx) return;
