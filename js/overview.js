@@ -233,15 +233,13 @@ const ICO_INS = {
   dinheiro: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   consumo: '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
   caixa: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/>',
-  alerta: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  perda: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
 };
 const svgIns = (d) => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 
 // Os seis cartões, na ordem de quem decide: o dinheiro que entrou, o que dele
-// virou insumo, o que está parado, o que mais subiu, o que mais caiu e o que
-// vai faltar. Os quatro primeiros vêm do antigo placar — nada se perdeu ao
+// virou insumo, o que está parado, o que mais subiu, o que mais caiu e quanto
+// do faturamento virou insumo. Os quatro primeiros vêm do antigo placar — nada se perdeu ao
 // apagá-lo.
 // Leem da VISTA, não do DADOS: com casa escolhida, os seis números, variações e
 // curvas são os daquela casa — o mês já chega certo do servidor.
@@ -269,9 +267,7 @@ function destaques() {
     rotulo: "Consumo de insumo", valor: curto(d.consumo_valor),
     delta: d.consumo_valor_anterior
       ? (d.consumo_valor - d.consumo_valor_anterior) / d.consumo_valor_anterior : null,
-    bomSeSobe: false, icone: ICO_INS.consumo,
-    contexto: d.faturamento_total
-      ? `${parte(d.consumo_valor / d.faturamento_total)} do faturamento bruto` : contexto,
+    bomSeSobe: false, icone: ICO_INS.consumo, contexto,
     serie: serieConsumo,
   });
 
@@ -309,22 +305,25 @@ function destaques() {
     serie: caiu.serie,
   });
 
-  const abaixo = (d.criticos || []).filter((c) => c.situacao === "abaixo");
-  const perda = (d.perdas || []).reduce((s, x) => s + (x.valor || 0), 0);
-  if (abaixo.length) {
-    fora.push({
-      rotulo: "Itens abaixo do mínimo", valor: String(abaixo.length),
-      delta: null, tom: "ruim", icone: ICO_INS.alerta, alvo: "minimos",
-      contexto: `${abaixo[0].insumo} em ${abaixo[0].casa} é o mais crítico`, serie: null,
-    });
-  } else {
-    fora.push({
-      rotulo: "Desperdício no mês", valor: curto(perda),
-      delta: null, tom: perda > 0 ? "aviso" : "bom", icone: ICO_INS.perda,
-      contexto: d.perdas.length ? `${d.perdas[0].insumo} responde pela maior parte`
-                                : "Nada lançado como perda", serie: null,
-    });
-  }
+  // Quanto do faturamento bruto virou insumo. Tomou o lugar do cartão de
+  // itens abaixo do mínimo, que continua detalhado na seção de mínimos. A
+  // pílula fala em pontos percentuais: 26,5% contra 25,7% é +0,8 p.p., e não
+  // "+3%", que leria como se o consumo tivesse subido 3% do faturamento.
+  const peso = (c, f) => f ? c / f : null;
+  const pesoAtual = peso(d.consumo_valor, d.faturamento_total);
+  const pesoAnt = peso(d.consumo_valor_anterior, d.faturamento_anterior);
+  const pp = pesoAtual !== null && pesoAnt !== null ? pesoAtual - pesoAnt : null;
+  fora.push({
+    rotulo: "Insumo consumido / faturamento", valor: parte(pesoAtual),
+    delta: pp, deltaTxt: pp === null ? null
+      : (pp >= 0 ? "+" : "−") + fmt(Math.abs(pp) * 100, 1) + " p.p.",
+    bomSeSobe: false, icone: ICO_INS.consumo,
+    contexto: `${curto(d.consumo_valor)} de ${curto(d.faturamento_total)} · ${contexto}`,
+    // mês sem faturamento fica fora da curva (NaN), em vez de desenhar um zero
+    serie: (d.serie_meses || []).map((m) => (d.parcial
+      ? peso(m.consumo_valor_trecho, m.faturamento_trecho)
+      : peso(m.consumo_valor, m.faturamento)) ?? NaN),
+  });
   return fora;
 }
 
@@ -370,14 +369,14 @@ function insights() {
       <span class="ins-valor">${esc(i.valor)}</span>
       <div class="ins-rodape">
         ${i.delta === null ? "" : `<span class="ins-pilula ${tom}">
-          ${svgIns(i.delta > 0 ? ICO_INS.alta : ICO_INS.queda)}${pct(i.delta, 0)}</span>`}
+          ${svgIns(i.delta > 0 ? ICO_INS.alta : ICO_INS.queda)}${i.deltaTxt || pct(i.delta, 0)}</span>`}
         <span class="ins-contexto">${esc(i.contexto)}</span>
       </div>
       ${miniCurva(i.serie, corDe(tom))}
     </div>`;
   }).join("");
 
-  // o cartão de estoque baixo leva à seção detalhada, como os cartões de baixo
+  // cartão com alvo leva à seção detalhada, como os cartões de baixo
   document.querySelectorAll("#insights [data-alvo]").forEach((c) => {
     c.onclick = () => abrirSecao(c.dataset.alvo);
   });
@@ -466,8 +465,18 @@ function pizzaCasas() {
   $("#nota-participacao").textContent = VISTA.parcial
     ? `Dia 1 ao ${VISTA.dia_limite} de ${mesFrase(VISTA.mes)}` : mesBR(VISTA.mes);
 
+  // Consumo de insumos sobre o faturamento: o consumo valorizado do mês da
+  // casa (o mesmo do cartão "Consumo de insumo") dividido pelo bruto dela.
+  // Lido de DADOS, e não da VISTA, porque a tabela mostra as quatro casas
+  // mesmo com o filtro de casa ligado.
+  const consumoCasa = DADOS.consumo_valor_por_casa || {};
+  const sobreFat = (consumo, fat) => fat ? consumo / fat : null;
+  const celConsumo = (consumo, fat) => `<td class="calc" title="${reais(consumo)} de insumo consumido` +
+    ` sobre ${reais(fat)} de faturamento bruto">${parte(sobreFat(consumo, fat))}</td>`;
+
   $("#tabela-casas").innerHTML = `<table>
     <thead><tr><th>Casa</th><th>Faturamento (Bruto)</th><th>Participação</th>
+      <th title="Consumo de insumos do mês, valorizado, sobre o faturamento bruto da casa">Consumo de insumos / Faturamento</th>
       <th>${VISTA.parcial ? "Mesmo trecho do mês anterior" : "Mês anterior"}</th><th>Variação</th></tr></thead>
     <tbody>${VISTA.participacao.map((p) => `
       <tr data-casa="${p.casa}">
@@ -475,12 +484,14 @@ function pizzaCasas() {
           <span class="un">${p.casa}</span></td>
         <td class="calc">${reais(p.valor)}</td>
         <td class="calc">${parte(p.parte)}</td>
+        ${celConsumo(consumoCasa[p.casa] || 0, p.valor)}
         <td class="calc">${reais(p.anterior)}</td>
         <td class="calc ${p.variacao !== null && p.variacao < 0 ? "neg" : ""}">${pct(p.variacao)}</td>
       </tr>`).join("")}
       <tr class="linha-total"><td><strong>Grupo</strong></td>
         <td class="calc"><strong>${reais(VISTA.faturamento_total)}</strong></td>
         <td class="calc">100%</td>
+        ${celConsumo(DADOS.consumo_valor, DADOS.faturamento_total)}
         <td class="calc">${reais(VISTA.faturamento_anterior)}</td>
         <td class="calc">${pct(VISTA.faturamento_anterior
           ? (VISTA.faturamento_total - VISTA.faturamento_anterior) / VISTA.faturamento_anterior : null)}</td>
