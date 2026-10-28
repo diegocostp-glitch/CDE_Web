@@ -15,6 +15,8 @@
 # ordens carregam quantidade e preço negociado.
 dados/lancamentos.json
 dados/pedidos.json
+# copia do pedido por responsavel: mesma estrutura do pedidos.json
+dados/pedidos-*.json
 dados/ordens.json
 dados/custos.json
 dados/*.tmp
@@ -78,6 +80,8 @@ ajuste*.png
 pequenos blocos*.png
 
 # --- lixo de execução --------------------------------------------------------
+# cache e extracao do graphify: regeneravel e pode trazer trecho dos dados
+graphify-out/
 __pycache__/
 *.pyc
 *.log
