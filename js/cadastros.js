@@ -323,7 +323,10 @@ function telaProdutos() {
         <label class="campo campo-largo"><span>Fornecedor</span>
           <select id="p-forn"><option value="">— Escolher —</option>${BASE.fornecedores.map((f) =>
             `<option value="${esc(f.chave)}">${esc(f.chave)} — ${esc(f.razao)}</option>`).join("")}</select></label>
-        <label class="campo campo-largo"><span>Produto</span><input id="p-nome" placeholder="Ex: SALMÃO INTEIRO"></label>
+        <div class="campo campo-largo campo-sugestao"><label for="p-nome">Produto</label>
+          <input id="p-nome" placeholder="Ex: SALMÃO INTEIRO" autocomplete="off" role="combobox"
+                 aria-autocomplete="list" aria-expanded="false" aria-controls="p-sugestoes">
+          <div id="p-sugestoes" class="sugestoes" role="listbox" hidden></div></div>
         <label class="campo"><span>Unidade</span><input id="p-un" placeholder="Ex: KG" style="width:130px"></label>
         <label class="campo"><span>Preço (R$)</span><input id="p-preco" inputmode="decimal" placeholder="0,00" style="width:110px"></label>
         <label class="campo"><span>Item do CDE (pedido consolidado)</span>
@@ -369,11 +372,129 @@ function telaProdutos() {
     </section>`;
 
   $("#p-add").onclick = addProduto;
+  ligarSugestoes();
   ligarVinculos();
   $("#p-busca").oninput = (e) => { FILTRO.prod = e.target.value; repintarProdutos(); };
   $("#p-filtro-forn").onchange = (e) => { FILTRO.prodForn = e.target.value; repintarProdutos(); };
   $("#p-importar").onclick = () => $("#arquivo-import").click();
   ligarCelulas("produtos", null);
+}
+
+// ------------------------------------------------------- sugestões do produto
+// Digitar o nome de um produto novo abre a lista dos que já existem no
+// catálogo, com quem vende, em que unidade e por quanto. Escolher um reaproveita
+// a grafia exata: "Cream cheese Phila" e "CREAM CHEESE PHILADELPHIA" viravam
+// dois produtos, e a comparação de preço entre fornecedores se perdia.
+const MAX_SUGESTOES = 12;
+let SUG = { lista: [], ativo: -1 };
+
+function sugestoesProduto(texto) {
+  const t = busca(limpaNome(texto));
+  if (t.length < 2) return [];
+  // cada palavra digitada casa com o COMEÇO de uma palavra do nome: "lula"
+  // acha LULA ANEL e TENTÁCULOS DE LULA, e não "CELULAR"
+  const termos = t.split(/\s+/).filter(Boolean).map((x) =>
+    new RegExp("(^|[^a-z0-9])" + x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  const grupos = new Map();
+  BASE.produtos.forEach((p) => {
+    const nome = busca(p.produto);
+    if (!termos.every((re) => re.test(nome))) return;
+    const k = chave(p.produto);
+    if (!grupos.has(k)) grupos.set(k, { produto: p.produto, itens: [] });
+    grupos.get(k).itens.push(p);
+  });
+  // quem começa com o que foi digitado vem antes; depois, ordem alfabética
+  return [...grupos.values()].sort((a, b) =>
+    (busca(b.produto).startsWith(t) - busca(a.produto).startsWith(t)) ||
+    a.produto.localeCompare(b.produto, "pt-BR"));
+}
+
+function desenharSugestoes() {
+  const caixa = $("#p-sugestoes"), campo = $("#p-nome");
+  const texto = campo.value;
+  if (busca(limpaNome(texto)).length < 2) { fecharSugestoes(); return; }
+  const todas = sugestoesProduto(texto);
+  SUG.lista = todas.slice(0, MAX_SUGESTOES);
+  if (SUG.ativo >= SUG.lista.length) SUG.ativo = SUG.lista.length - 1;
+  const forn = chave($("#p-forn").value);
+
+  caixa.innerHTML = SUG.lista.length
+    ? `<div class="sug-topo">${todas.length} produto(s) parecido(s) no catálogo — use o nome existente</div>` +
+      SUG.lista.map((g, n) => {
+        const deste = forn && g.itens.find((p) => chave(p.fornecedor) === forn);
+        const quem = g.itens.slice(0, 3).map((p) =>
+          `${esc(p.fornecedor)} · ${esc(p.un || "—")} · ${num(p.preco) > 0 ? "R$ " + fmt(p.preco) : "sem preço"}`).join("; ") +
+          (g.itens.length > 3 ? ` · +${g.itens.length - 3}` : "");
+        return `<div class="sug-item${n === SUG.ativo ? " ativo" : ""}" role="option" id="p-sug-${n}"
+                     aria-selected="${n === SUG.ativo}" data-n="${n}">
+            <span class="sug-nome">${esc(g.produto)}</span>
+            ${deste ? '<span class="selo-mini aviso">já neste fornecedor — vai atualizar</span>' : ""}
+            <span class="sug-quem">${quem}</span>
+          </div>`;
+      }).join("") +
+      (todas.length > MAX_SUGESTOES ? `<div class="sug-topo">+${todas.length - MAX_SUGESTOES} — continue digitando para filtrar</div>` : "")
+    : '<div class="sug-topo">Nenhum produto parecido — será um cadastro novo</div>';
+  caixa.hidden = false;
+  campo.setAttribute("aria-expanded", "true");
+  if (SUG.ativo >= 0) campo.setAttribute("aria-activedescendant", "p-sug-" + SUG.ativo);
+  else campo.removeAttribute("aria-activedescendant");
+}
+
+function fecharSugestoes() {
+  const caixa = $("#p-sugestoes");
+  if (!caixa) return;
+  caixa.hidden = true; SUG = { lista: [], ativo: -1 };
+  $("#p-nome").setAttribute("aria-expanded", "false");
+  $("#p-nome").removeAttribute("aria-activedescendant");
+}
+
+// Escolher traz a grafia do catálogo e o vínculo com o item do CDE que o
+// produto já tem. Unidade e preço só vêm quando o fornecedor escolhido já vende
+// o produto — de outro fornecedor, a caixa e o preço são outros.
+function escolherSugestao(n) {
+  const g = SUG.lista[n];
+  if (!g) return;
+  $("#p-nome").value = g.produto;
+  const deste = g.itens.find((p) => chave(p.fornecedor) === chave($("#p-forn").value));
+  if (deste) {
+    $("#p-un").value = deste.un || "";
+    $("#p-preco").value = num(deste.preco) > 0 ? fmt(deste.preco) : "";
+  }
+  const ik = insumoDoProduto(g.produto);
+  if (ik) $("#p-vinculo").value = ik;
+  fecharSugestoes();
+  (deste ? $("#p-preco") : $("#p-un")).focus();
+}
+
+function ligarSugestoes() {
+  const campo = $("#p-nome"), caixa = $("#p-sugestoes");
+  campo.oninput = () => { SUG.ativo = -1; desenharSugestoes(); };
+  campo.onfocus = desenharSugestoes;
+  campo.onblur = () => setTimeout(fecharSugestoes, 120);
+  campo.onkeydown = (e) => {
+    if (caixa.hidden || !SUG.lista.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const d = e.key === "ArrowDown" ? 1 : -1;
+      SUG.ativo = (SUG.ativo + d + SUG.lista.length) % SUG.lista.length;
+      desenharSugestoes();
+      const el = $("#p-sug-" + SUG.ativo);
+      if (el) el.scrollIntoView({ block: "nearest" });
+    } else if (e.key === "Enter" && SUG.ativo >= 0) {
+      e.preventDefault(); e.stopPropagation();
+      escolherSugestao(SUG.ativo);
+    } else if (e.key === "Escape") {
+      fecharSugestoes();
+    }
+  };
+  // mousedown, e não click: o blur do campo fecharia a lista antes do clique
+  caixa.onmousedown = (e) => {
+    const item = e.target.closest(".sug-item");
+    if (!item) return;
+    e.preventDefault();
+    escolherSugestao(Number(item.dataset.n));
+  };
+  $("#p-forn").addEventListener("change", () => { if (!caixa.hidden) desenharSugestoes(); });
 }
 
 // A identidade do produto é (fornecedor, produto): o mesmo nome existe em vários
