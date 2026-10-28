@@ -172,7 +172,7 @@ function pcqsValor(v) {
 // O nome da loja chega como a planilha escreveu ("SENADOR LEMOS", "Delivery
 // Umarizal"), por isso o casamento é por pedaço do nome e, de quebra, pela
 // sigla usada no CDE (SL, DC, DLU, DLCN).
-const PCQS_GERENTE_SUPRIMENTOS = "José do Couto";
+const PCQS_GERENTE_SUPRIMENTOS = GERENTE_SUPRIMENTOS;   // definido em js/gerentes.js
 const PCQS_GERENTES_OPERACIONAIS = [
   { nome: "Emesson Soares",
     pedacos: ["senador lemos", "duque de caxias"], siglas: ["sl", "dc"] },

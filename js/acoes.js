@@ -381,13 +381,14 @@
   // `oc-pdf.js` que gera a OC de verdade — prévia desenhada de outro jeito
   // mostraria um documento que não é o que o fornecedor vai receber.
   //
-  // As bibliotecas do PDF (jsPDF, autoTable, cabeçalho) só existem nas telas de
+  // As bibliotecas do PDF (jsPDF, autoTable, logo) só existem nas telas de
   // Ordens e Importar. Como este painel abre em qualquer tela, elas são
   // carregadas na hora do clique e ficam em memória para os próximos.
   const PDF_SCRIPTS = [
     "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
     "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js",
-    "js/header-img.js",
+    "js/gerentes.js",
+    "js/oc-logo.js",
     "js/oc-pdf.js",
   ];
 
