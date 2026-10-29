@@ -1,8 +1,8 @@
 // ============================================================================
 // CDE Web - tela de lancamento diario
 // Estoque inicial vem encadeado do dia anterior (o servidor calcula).
-// Uso diario = inicial + chegada - transferencia - final (mesma conta da planilha).
-// Desperdicio/perda e registrado a parte e NAO entra no uso.
+// Uso diario = inicial + chegada - transferencia - perda - final.
+// Perda e informacao propria e NAO e consumo (mesma conta do uso_do_dia do servidor).
 // ============================================================================
 
 let CONFIG = null;
@@ -80,6 +80,13 @@ const fileEmPeixes = (kg) => {
   return !kg ? 0 : (kg / rend) / kgPeixe;
 };
 
+// O inicial que vale na linha: o digitado (pode ter sido corrigido na
+// conferência da manhã) ou, sem caixa, o que veio do servidor.
+function inicialDaLinha(tr, ins) {
+  const el = tr && tr.querySelector('[data-campo="inicial"]');
+  return el ? num(el.value) : num(ins.inicial);
+}
+
 // O que está digitado numa linha agora, mais o uso do dia. Campo vazio vira
 // null (e não 0) para a linha derivada saber distinguir "não contaram ainda"
 // de "contaram e deu zero".
@@ -87,13 +94,13 @@ function valoresDaLinha(chave) {
   const linha = document.querySelector('tr[data-chave="' + chave + '"]');
   const ins = DIA.casas[CASA].insumos.find((i) => i.chave === chave);
   if (!linha || !ins) return null;
-  const v = { inicial: num(ins.inicial) };
+  const v = { inicial: inicialDaLinha(linha, ins) };
   COLS_DERIVADAS.forEach((c) => {
     const el = linha.querySelector('[data-campo="' + c + '"]');
     v[c] = (!el || el.value === "") ? null : num(el.value);
   });
   v.uso = v.final === null ? null
-    : v.inicial + num(v.entrada) - num(v.transferencia) - v.final;
+    : v.inicial + num(v.entrada) - num(v.transferencia) - num(v.desperdicio) - v.final;
   return v;
 }
 
@@ -218,7 +225,7 @@ function desenhar() {
       tr.innerHTML =
         "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span>" +
           ' <span class="selo-mini" title="' + origem + '">calculado</span></td>' +
-        '<td class="calc">' + fmt(ins.inicial, 3) + "</td>" +
+        '<td class="calc d-inicial">' + fmt(ins.inicial, 3) + "</td>" +
         '<td class="calc d-entrada"></td><td class="calc d-transferencia"></td>' +
         '<td class="calc d-desperdicio"></td><td class="calc d-final"></td>' +
         '<td class="calc uso"></td><td class="calc coef"></td>';
@@ -249,9 +256,16 @@ function desenhar() {
     // coeficiente também, porque o consumo do salmão é medido no equivalente,
     // que já soma este filé.
     const vazias = '<td class="calc"></td>';
+    // Inicial editável: chega com o final de ontem, e a conferência da manhã
+    // corrige se a contagem divergir. Corrigido, o servidor grava o mesmo
+    // número como final de ontem — os dois são a mesma contagem.
+    const inicial = '<td><input data-campo="inicial" type="text" inputmode="decimal" value="' +
+      qtd(ins.inicial) + '" data-original="' + qtd(ins.inicial) + '" title="Final do dia ' +
+      'anterior. Corrija se a conferência da manhã divergir: ao salvar, o final de ontem ' +
+      'recebe o mesmo número."></td>';
     tr.innerHTML =
       "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span>" + selo + "</td>" +
-      '<td class="calc">' + fmt(ins.inicial, 3) + "</td>" +
+      inicial +
       (ins.so_contagem
         ? vazias + vazias + vazias + campo("final", ins.final) + vazias + vazias
         : campo("entrada", ins.entrada) + campo("transferencia", ins.transferencia) +
@@ -393,8 +407,18 @@ function recalcular() {
           col.final += fileEmPeixes(fil.final);
           temCol = true;
         }
+        // O inicial do equivalente acompanha o das faixas e o do filé, que
+        // agora podem ser corrigidos na tela: sem refazer a soma aqui, o uso
+        // ficaria com o inicial antigo até salvar.
+        let ini = 0;
+        for (const [banda, fator] of Object.entries(FATOR_LIBRA)) {
+          const v = valoresDaLinha(banda);
+          if (v) ini += v.inicial * fator;
+        }
+        if (fil) ini += fileEmPeixes(fil.inicial);
+        tr.querySelector(".d-inicial").textContent = fmt(ini, 3);
         if (temCol) {
-          uso = num(ins.inicial) + col.entrada - col.transferencia - col.final;
+          uso = ini + col.entrada - col.transferencia - col.desperdicio - col.final;
           temUso = true;
         }
       }
@@ -412,7 +436,8 @@ function recalcular() {
       return el ? el.value : "";
     };
     const temFinal = val("final") !== "";
-    const uso = num(ins.inicial) + num(val("entrada")) - num(val("transferencia")) - num(val("final"));
+    const uso = inicialDaLinha(tr, ins) + num(val("entrada")) - num(val("transferencia"))
+      - num(val("desperdicio")) - num(val("final"));
     const tdUso = tr.querySelector(".uso");
     const tdCoef = tr.querySelector(".coef");
     if (!temFinal) { tdUso.textContent = "—"; tdCoef.textContent = "—"; tdUso.className = "calc uso"; return; }
@@ -474,7 +499,7 @@ async function salvar() {
   document.querySelectorAll("tbody tr[data-chave]").forEach((tr) => {
     const ins = casa.insumos.find((i) => i.chave === tr.dataset.chave);
     if (ins.derivado) return;
-    ["final", "entrada", "transferencia", "desperdicio"].forEach((c) => {
+    ["inicial", "final", "entrada", "transferencia", "desperdicio"].forEach((c) => {
       // A linha de contagem não tem as caixas de movimento: sem esta guarda o
       // querySelector devolve null e o salvamento inteiro quebra.
       const el = tr.querySelector('[data-campo="' + c + '"]');
@@ -499,7 +524,7 @@ async function salvar() {
   Object.entries(DIA.casas).forEach(([ck, c]) => {
     const insumos = {};
     c.insumos.forEach((i) => {
-      insumos[i.chave] = { final: i.final, entrada: i.entrada,
+      insumos[i.chave] = { inicial: i.inicial, final: i.final, entrada: i.entrada,
                           transferencia: i.transferencia, desperdicio: i.desperdicio };
     });
     const proc = {};
@@ -522,7 +547,15 @@ async function salvar() {
     if (!resp.ok) throw new Error(resp.erro || "erro no servidor");
     sujo = false;
     estado("Salvo", "ok");
-    aviso("Dia " + DIA.data.split("-").reverse().join("/") + " salvo.", "bom");
+    // inicial corrigido grava o final de ontem (e final corrigido, o inicial
+    // de amanhã que vinha da planilha): avisa o que mudou fora do dia aberto
+    const outros = (resp.encadeados || []).map((e) => {
+      const ins = (DIA.casas[e.casa] || {}).insumos || [];
+      const nome = (ins.find((i) => i.chave === e.insumo) || {}).nome || e.insumo;
+      return nome + " (" + e.casa + ", " + e.data.split("-").reverse().slice(0, 2).join("/") + ")";
+    });
+    aviso("Dia " + DIA.data.split("-").reverse().join("/") + " salvo." + (outros.length
+      ? " Também atualizado: " + outros.join("; ") + "." : ""), "bom");
     await carregarDia(DIA.data);      // recarrega para reencadear o estoque inicial
   } catch (e) {
     estado("Falha ao salvar", "erro");

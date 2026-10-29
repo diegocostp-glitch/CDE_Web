@@ -65,7 +65,17 @@ INSUMOS = [
     # casa espera ve-lo.
     {"chave": "salmao_equivalente", "nome": "Salmão — equivalente 08/10", "un": "Pxs",
      "grupo": "Salmão", "derivado": True},
-    {"chave": "camarao_g",    "nome": "Camarão G",        "un": "Kg",  "grupo": "Camarão"},
+    # Subprodutos do salmao: saem da bandagem e do filetamento e sao contados
+    # na casa (a raspa no sushibar, apara e pele na cozinha). Nao sao comprados
+    # nem entram no equivalente: so_lancamento os deixa fora do coeficiente,
+    # do painel e da projecao, que medem o salmao pelo equivalente.
+    {"chave": "raspa_salmao", "nome": "Raspa de salmão", "un": "Kg",
+     "grupo": "Salmão — subprodutos", "so_lancamento": True},
+    {"chave": "apara_salmao", "nome": "Apara de salmão", "un": "Kg",
+     "grupo": "Salmão — subprodutos", "so_lancamento": True},
+    {"chave": "pele_salmao",  "nome": "Pele de salmão",  "un": "Kg",
+     "grupo": "Salmão — subprodutos", "so_lancamento": True},
+    {"chave": "camarao_g",   "nome": "Camarão G",        "un": "Kg",  "grupo": "Camarão"},
     {"chave": "camarao_m",    "nome": "Camarão M",        "un": "Kg",  "grupo": "Camarão"},
     {"chave": "camarao_p",    "nome": "Camarão P (sem rabo)", "un": "Kg", "grupo": "Camarão"},
     # ------------------------------------------- peixe e frutos do mar
@@ -234,9 +244,9 @@ def somar_file_no_equivalente(soma, sobra_ontem, sobra_hoje):
         soma["final"] = round(soma["final"]
                               + file_em_peixes(numero(sobra_hoje)), 3)
     if soma.get("inicial") is not None and soma.get("final") is not None:
-        soma["uso"] = round(numero(soma.get("inicial")) + numero(soma.get("entrada"))
-                            - numero(soma.get("transferencia"))
-                            - numero(soma.get("final")), 3)
+        soma["uso"] = round(uso_do_dia(soma.get("inicial"), soma.get("entrada"),
+                                       soma.get("transferencia"), soma.get("desperdicio"),
+                                       soma.get("final")), 3)
     return soma
 
 
@@ -248,6 +258,49 @@ def somar_file_no_equivalente(soma, sobra_ontem, sobra_hoje):
 # mudar; qualquer gravacao troca a data de modificacao e derruba o cache.
 _cache_lanc = {"mtime": None, "dados": None}
 
+
+
+def uso_do_dia(inicial, entrada, transferencia, perda, final):
+    """Consumo do dia: inicial + chegada - transferencia - perda - final.
+
+    Uso e perda sao informacoes diferentes: perda (descarte, evento, teste de
+    cardapio) NAO e consumo. Ate 29/10/2026 a perda ficava dentro do uso, como
+    na planilha — o coeficiente, a media da Projecao e o relatorio financeiro
+    (que ainda somava a perda a parte, contando-a duas vezes) liam um consumo
+    inflado em todo dia com descarte. Esta e a unica conta; tela, importacao
+    e base das casas usam a mesma regra.
+    """
+    return (numero(inicial) + numero(entrada) - numero(transferencia)
+            - numero(perda) - numero(final))
+
+
+def recalcular_uso(dados, iso, casa):
+    """Grava o uso de cada insumo do dia com a conta de uso_do_dia.
+
+    O uso gravado e o que o painel, o coeficiente e a Projecao leem. Antes so a
+    planilha o trazia: dia lancado na tela ficava sem uso e sumia das analises.
+    O inicial e o gravado no dia ou, sem ele, o final da vespera. Linha sem
+    contagem final, derivada (o equivalente tem conta propria) ou so de
+    contagem (file) fica sem uso.
+    """
+    lan = (dados.get(iso) or {}).get(casa)
+    if not isinstance(lan, dict):
+        return
+    vespera = (datetime.strptime(iso, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    ontem = (((dados.get(vespera) or {}).get(casa) or {}).get("insumos") or {})
+    sem_uso = DERIVADOS | {i["chave"] for i in INSUMOS if i.get("so_contagem")}
+    for ik, c in (lan.get("insumos") or {}).items():
+        if ik in sem_uso or not isinstance(c, dict):
+            continue
+        if c.get("final") in (None, ""):
+            c.pop("uso", None)
+            continue
+        ini = c.get("inicial")
+        if ini in (None, ""):
+            ini = (ontem.get(ik) or {}).get("final")
+        uso = round(uso_do_dia(ini, c.get("entrada"), c.get("transferencia"),
+                               c.get("desperdicio"), c["final"]), 4)
+        c["uso"] = uso if uso else 0.0         # sem "-0.0" de residuo binario
 
 
 def recalcular_equivalente(dados, iso, casa):
@@ -588,9 +641,9 @@ def montar_dia(data_iso):
             entrada = atual.get("entrada")
             transferencia = atual.get("transferencia")
             desperdicio = atual.get("desperdicio")
-            # mesma conta da planilha: uso = inicio + chegada - transferencia - final
-            # (a perda/desperdicio e registrada a parte e nao entra no uso)
-            uso = inicial + numero(entrada) - numero(transferencia) - numero(final)
+            # uso = inicio + chegada - transferencia - perda - final: a perda e
+            # registrada a parte e NAO e consumo (veja uso_do_dia)
+            uso = uso_do_dia(inicial, entrada, transferencia, desperdicio, final)
             # historico importado traz o uso pronto (lula, salmao, polvo e atum tem
             # rendimento de processamento embutido). Nesses casos o valor manda.
             importado = atual.get("uso")
@@ -679,8 +732,14 @@ def _gravar_dia_sem_trava(corpo):
     datetime.strptime(data_iso, "%Y-%m-%d")       # valida o formato
     dados = carregar()
     dia = dados.setdefault(data_iso, {})
+    anterior = (datetime.strptime(data_iso, "%Y-%m-%d") - timedelta(days=1)).strftime("%Y-%m-%d")
+    seguinte = (datetime.strptime(data_iso, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+    encadeados = []                    # (casa, insumo, data) cujo numero acompanhou a edicao
     for ck, lan in (corpo.get("casas") or {}).items():
         antigo = (dia.get(ck) or {}).get("insumos") or {}
+        ins_ontem = ((dados.get(anterior) or {}).get(ck) or {}).get("insumos") or {}
+        ins_amanha = ((dados.get(seguinte) or {}).get(ck) or {}).get("insumos") or {}
+        mexeu_ontem = False
         limpo = {"faturamento": lan.get("faturamento"), "insumos": {}}
         for ik, campos in (lan.get("insumos") or {}).items():
             # Linha CALCULADA nao se grava. A tela manda de volta o array
@@ -695,9 +754,51 @@ def _gravar_dia_sem_trava(corpo):
             if ik in DERIVADOS:
                 continue
             vals = {c: campos.get(c) for c in ("final", "entrada", "transferencia",
-                                               "desperdicio", "uso", "inicial")
+                                               "desperdicio", "uso")
                     if campos.get(c) not in (None, "")}
             velho = antigo.get(ik)
+            # Inicial: e o final de ontem, e a conferencia da manha pode
+            # corrigi-lo. A tela manda sempre o numero que mostrou; so conta como
+            # correcao o que mudou em relacao ao que estava valendo. Corrigido,
+            # o final de ONTEM passa a ser o mesmo numero — a contagem da manha
+            # e a que vale para o fechamento da vespera, e os dois nao podem
+            # contar historias diferentes sobre o mesmo estoque.
+            ini_tela = campos.get("inicial")
+            if isinstance(velho, dict) and velho.get("inicial") is not None:
+                ini_antes = velho["inicial"]
+            else:
+                ini_antes = (ins_ontem.get(ik) or {}).get("final")
+            # A tela mostra o inicial com 3 casas (e 0 quando ontem nao tem
+            # final): diferenca abaixo do arredondamento nao e correcao.
+            editou_ini = ini_tela not in (None, "") and \
+                abs(numero(ini_tela) - numero(ini_antes)) > 0.00051
+            if editou_ini:
+                vals["inicial"] = round(numero(ini_tela), 4)
+                ontem_ck = dados.setdefault(anterior, {}).setdefault(ck, {})
+                reg = ontem_ck.setdefault("insumos", {}).setdefault(ik, {})
+                reg["final"] = vals["inicial"]
+                reg.pop("uso", None)               # o uso da planilha era do final antigo
+                reg.pop(MARCA_PLANILHA, None)
+                reg["_editado"] = True
+                mexeu_ontem = True
+                encadeados.append((ck, ik, anterior))
+            elif isinstance(velho, dict) and velho.get("inicial") is not None:
+                vals["inicial"] = velho["inicial"]
+            # O inverso: final corrigido num dia cujo seguinte tem o inicial
+            # gravado igual ao final antigo (dia vindo da planilha) — o inicial
+            # de amanha acompanha. Dia sem inicial gravado ja encadeia sozinho.
+            f_antes = velho.get("final") if isinstance(velho, dict) else None
+            f_novo = vals.get("final")
+            prox = ins_amanha.get(ik)
+            if (f_novo is not None and f_antes is not None
+                    and abs(numero(f_novo) - numero(f_antes)) > 1e-9
+                    and isinstance(prox, dict) and prox.get("inicial") is not None
+                    and abs(numero(prox["inicial"]) - numero(f_antes)) < 1e-6):
+                prox["inicial"] = round(numero(f_novo), 4)
+                prox.pop("uso", None)
+                prox.pop(MARCA_PLANILHA, None)
+                prox["_editado"] = True
+                encadeados.append((ck, ik, seguinte))
             if da_planilha(velho):
                 # Antes, insumo vindo da planilha era intocavel e a tela mandava
                 # o valor de volta para o vazio. Na pratica isso deixava a tela
@@ -711,7 +812,7 @@ def _gravar_dia_sem_trava(corpo):
                 # registro passa a ser do sistema, aparece como editado na tela,
                 # e o gravar() do importar_diario.py deixa de sobrescrever ele
                 # na proxima sincronizacao (ele so mexe no que esta marcado).
-                if mesmos_valores(velho, vals):
+                if mesmos_valores(velho, vals) and not editou_ini:
                     limpo["insumos"][ik] = velho       # abriu e salvou: nada mudou
                     continue
                 # O inicio contado na abertura nao esta na tela — preserva.
@@ -766,16 +867,24 @@ def _gravar_dia_sem_trava(corpo):
         if proc:
             limpo["processamento"] = proc
         dia[ck] = limpo
+        # O uso e gravado aqui, nao vem da tela. Ontem, quando o inicial
+        # corrigido mudou o final dele; amanha, porque o inicial de amanha e o
+        # final de hoje.
+        if mexeu_ontem:
+            recalcular_uso(dados, anterior, ck)
+        recalcular_uso(dados, data_iso, ck)
+        recalcular_uso(dados, seguinte, ck)
         # O equivalente nao vem da tela (linha calculada); e refeito aqui com
         # as libragens que acabaram de ser gravadas. O file que sobrou hoje
         # abre o dia seguinte, que tambem e refeito.
         recalcular_equivalente(dados, data_iso, ck)
-        amanha = (datetime.strptime(data_iso, "%Y-%m-%d")
-                  + timedelta(days=1)).strftime("%Y-%m-%d")
-        recalcular_equivalente(dados, amanha, ck)
+        recalcular_equivalente(dados, seguinte, ck)
+        if mexeu_ontem:
+            recalcular_equivalente(dados, anterior, ck)
     dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
-    return {"ok": True, "data": data_iso}
+    return {"ok": True, "data": data_iso,
+            "encadeados": [{"casa": c, "insumo": i, "data": d} for c, i, d in encadeados]}
 
 
 def _gravar_movimentacao_sem_trava(corpo):
@@ -840,6 +949,11 @@ def _gravar_movimentacao_sem_trava(corpo):
         campos["final"] = novo
     else:
         trocar_quantidade(campos, tipo, antes + qtd)
+    # dia sem contagem final ainda nao tinha uso para andar com a diferenca:
+    # refeito pela conta, aqui e no dia seguinte (cujo inicial e este final)
+    recalcular_uso(dados, data_iso, casa)
+    recalcular_uso(dados, (datetime.strptime(data_iso, "%Y-%m-%d")
+                           + timedelta(days=1)).strftime("%Y-%m-%d"), casa)
     if insumo in FATOR_LIBRA or insumo == "salmao_file":
         recalcular_equivalente(dados, data_iso, casa)
         if insumo == "salmao_file":    # a sobra de file abre o dia seguinte
@@ -2999,6 +3113,9 @@ def custos_de_compra(mes):
     """
     ordens = ler_ordens().get("ordens", {})
     ant = mes_anterior(mes)
+    chaves = {i["chave"] for i in INSUMOS}
+    # item incluido a mao na OC vem com chave "manual_N": o insumo sai do vinculo
+    por_produto = {_norm(p): ik for ik, nomes in ler_vinculos().items() for p in nomes}
     acum = {}
     for o in ordens.values():
         quando = (o.get("data") or "")[:7]
@@ -3011,7 +3128,11 @@ def custos_de_compra(mes):
                 continue
             alvo = acum.setdefault((uni, _norm(i.get("nome"))), {
                 "unidade": uni, "produto": i.get("nome"), "un": i.get("un") or "",
+                "chave": None,
                 "qtd": 0.0, "gasto": 0.0, "qtd_ant": 0.0, "gasto_ant": 0.0})
+            if not alvo["chave"]:
+                ik = i.get("chave")
+                alvo["chave"] = ik if ik in chaves else por_produto.get(_norm(i.get("nome")))
             if quando == mes:
                 alvo["qtd"] += q
                 alvo["gasto"] += q * pr
@@ -3019,18 +3140,103 @@ def custos_de_compra(mes):
                 alvo["qtd_ant"] += q
                 alvo["gasto_ant"] += q * pr
     fora = []
+    mov_ant = None
     for a in acum.values():
         atual = a["gasto"] / a["qtd"] if a["qtd"] else None
         antes = a["gasto_ant"] / a["qtd_ant"] if a["qtd_ant"] else None
+        origem_ant = "oc" if antes else None
+        if not antes and a["chave"]:
+            # Sem OC no mes anterior (as OCs so existem desde outubro), o
+            # custo vem das notas lancadas em Movimentacoes naquele mes.
+            if mov_ant is None:
+                mov_ant = compras_do_mes(ant)
+            antes = custo_mov_na_unidade_oc(mov_ant, _casa_da_unidade(a["unidade"]),
+                                            a["chave"], a["produto"], a["un"])
+            origem_ant = "movimentacoes" if antes else None
         fora.append({
             "unidade": a["unidade"], "produto": a["produto"], "un": a["un"],
             "qtd": round(a["qtd"], 3), "gasto": round(a["gasto"], 2),
             "custo_un": round(atual, 4) if atual else None,
             "custo_un_anterior": round(antes, 4) if antes else None,
+            "origem_anterior": origem_ant,
             "variacao": round((atual - antes) / antes, 4) if atual and antes else None,
         })
     fora.sort(key=lambda x: -(x["gasto"] or 0))
     return fora
+
+
+def compras_do_mes(mes):
+    """{(casa, insumo): {"gasto", "qtd", "kg"}} das notas de Movimentacoes no mes.
+
+    Mesma regra de compras_precificadas: so nota fiscal e compra; a
+    transferencia recebida de outra casa nao e preco pago. A quantidade fica na
+    unidade do CDE; "kg" so vale para o salmao, que e contado em peca e
+    comprado em quilo.
+    """
+    _, kg_peixe = conversao_file()
+    fora = {}
+    for iso, dia in carregar().items():
+        if not iso.startswith(mes) or not isinstance(dia, dict):
+            continue
+        for ck, lan in dia.items():
+            if not isinstance(lan, dict):
+                continue
+            for ik, campos in (lan.get("insumos") or {}).items():
+                if not isinstance(campos, dict):
+                    continue
+                preco = (campos.get("precos") or {}).get("entrada")
+                q = qtd_movimentacoes(campos, "entrada")
+                kg = numero((campos.get("kg") or {}).get("entrada"))
+                notas_e = (campos.get("notas") or {}).get("entrada") or []
+                if notas_e:
+                    nfs = [n for n in notas_e if not e_transferencia_recebida(n)]
+                    preco = preco_das_linhas(nfs)
+                    q = sum(numero(n.get("qtd")) for n in nfs)
+                    kg = sum(numero(n.get("kg")) for n in nfs) or kg
+                if preco is None or q <= 0:
+                    continue
+                if ik in FATOR_LIBRA and kg <= 0:
+                    # nota sem o peso: o peixe pesa o da compra (caixa / peixes),
+                    # proporcional a faixa pelo mesmo fator do equivalente
+                    kg = q * kg_peixe * FATOR_LIBRA[ik]
+                alvo = fora.setdefault((ck, ik), {"gasto": 0.0, "qtd": 0.0, "kg": 0.0})
+                alvo["gasto"] += q * float(preco)
+                alvo["qtd"] += q
+                alvo["kg"] += kg
+    return fora
+
+
+def custo_mov_na_unidade_oc(compras, ck, ik, produto, un_oc):
+    """Custo medio das compras de Movimentacoes, na unidade em que a OC compra.
+
+    Movimentacoes guarda preco na unidade do CDE (Kg, Pct de 5 kg, Bng; peca no
+    salmao); a OC esta na do catalogo (caixa de 15 kg, fardo de 30 kg). A
+    conversao e a mesma tabela de embalagens que a OC usa.
+    """
+    import re
+    if not ck:
+        return None
+    if ik == "salmao_equivalente":
+        # salmao e comprado em kg: a faixa do produto, ou todas as faixas
+        m = re.search(r"(\d\d)/(\d\d)", produto or "")
+        faixas = ["salmao_%s%s" % m.groups()] if m else []
+        partes = [compras.get((ck, f)) for f in faixas if compras.get((ck, f))]
+        if not partes:
+            # faixa que nao foi comprada no mes: o R$/kg das outras faixas
+            partes = [compras[(ck, f)] for f in FATOR_LIBRA if compras.get((ck, f))]
+        gasto, kg = sum(p["gasto"] for p in partes), sum(p["kg"] for p in partes)
+        conteudo, _ = embalagem(ik, un_oc, "Kg")
+        return gasto / kg * conteudo if kg > 0 and conteudo else None
+    # processado: a compra e o in natura (a lula chega crua e e processada na casa)
+    cru = (PROC_POR_CHAVE.get(ik) or {}).get("in_natura")
+    c = compras.get((ck, cru)) if cru else None
+    c = c or compras.get((ck, ik))
+    if not c or c["qtd"] <= 0:
+        return None
+    un_cde = next((i["un"] for i in INSUMOS if i["chave"] == ik), "")
+    # OC antiga, emitida na propria unidade do CDE ("Bng"): nada a converter
+    conteudo = 1.0 if _norm(un_oc) == _norm(un_cde) else embalagem(ik, un_oc, un_cde)[0]
+    return c["gasto"] / c["qtd"] * conteudo if conteudo else None
 
 
 _cache_compras = {"mtime": None, "linha": None}
@@ -3422,11 +3628,10 @@ def trocar_quantidade(campos, tipo, nova):
     """Troca a quantidade de UM movimento (entrada, transferencia, desperdicio)
     e deixa o resto do registro coerente com ela. Devolve a diferenca.
 
-    O uso do dia nao e apagado: em 24.006 de 24.008 registros ele e
-    inicial + entrada - transferencia - final, entao anda junto com a
-    diferenca (entrada soma, transferencia subtrai; o desperdicio nao entra no
-    uso). Apagar o uso — o que se fazia antes — tirava o consumo daquele dia
-    do painel e da Visao Geral.
+    O uso do dia nao e apagado: ele e inicial + entrada - transferencia -
+    perda - final (uso_do_dia), entao anda junto com a diferenca (entrada
+    soma; transferencia e perda subtraem). Apagar o uso — o que se fazia
+    antes — tirava o consumo daquele dia do painel e da Visao Geral.
 
     O registro deixa de ser da planilha e passa a editado: a sincronizacao
     preserva o que foi corrigido aqui em vez de voltar ao numero antigo.
@@ -3436,7 +3641,7 @@ def trocar_quantidade(campos, tipo, nova):
     delta = nova - antes
     if abs(delta) <= 0.0005:
         return 0.0
-    if campos.get("uso") is not None and tipo in ("entrada", "transferencia"):
+    if campos.get("uso") is not None and tipo in ("entrada", "transferencia", "desperdicio"):
         sinal = 1 if tipo == "entrada" else -1
         campos["uso"] = round(numero(campos["uso"]) + sinal * delta, 4)
     if da_planilha(campos):
@@ -4057,6 +4262,10 @@ if __name__ == "__main__":
         raise SystemExit(0)
     DADOS.mkdir(exist_ok=True)
     BACKUPS.mkdir(exist_ok=True)
+    # base de cada casa (dados/consolidado/CDE <ano> - <CASA>.xlsx), refeita
+    # sempre que o lancamentos.json muda — veja consolidar_cde.py
+    import consolidar_cde
+    consolidar_cde.vigiar_e_exportar()
     print("=" * 58)
     print("  CDE Web - Controle Diario de Estoque")
     print("  http://localhost:%d" % PORT)

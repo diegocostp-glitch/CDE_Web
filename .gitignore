@@ -19,6 +19,8 @@ dados/pedidos.json
 dados/pedidos-*.json
 # estoque e media congelados de cada pedido da Projecao (um arquivo por data)
 dados/projecao-congelada/
+# consolidado das abas diarias do CDE, um .xlsx por casa (faturamento incluso)
+dados/consolidado/
 dados/ordens.json
 dados/custos.json
 dados/*.tmp

@@ -928,7 +928,10 @@ function custosDeCompra() {
         <td class="calc">${fmt(c.qtd, 2)}</td>
         <td class="calc">${reais(c.gasto)}</td>
         <td class="calc">${c.custo_un === null ? "—" : reais(c.custo_un)}</td>
-        <td class="calc">${c.custo_un_anterior === null ? "—" : reais(c.custo_un_anterior)}</td>
+        <td class="calc" title="${c.origem_anterior === "movimentacoes"
+          ? "Notas fiscais lançadas em Movimentações no mês anterior, convertidas para a unidade da OC"
+          : c.origem_anterior === "oc" ? "Ordens de compra do mês anterior" : ""}">${
+          c.custo_un_anterior === null ? "—" : reais(c.custo_un_anterior)}</td>
         <td class="calc ${c.variacao !== null && c.variacao > 0 ? "neg" : ""}">${pct(c.variacao)}</td>
       </tr>`).join("")}</tbody></table>`;
 }

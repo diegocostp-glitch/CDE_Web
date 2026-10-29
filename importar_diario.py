@@ -55,6 +55,9 @@ MAPA = [
     ("LIBRA (14/16", "salmao_1416"),
     ("LIBRA (00/00", "salmao_1416"),      # faixa ainda nao nomeada na planilha
     ("FILE PRODUCAO", "salmao_file"),
+    ("RASPA DE SALMAO", "raspa_salmao"),
+    ("APARA DE SALMAO", "apara_salmao"),
+    ("PELE DE SALMAO", "pele_salmao"),
     ("CAMARAO G - S/RABO", "camarao_g"),
     ("CAMARAO M - S/RABO", "camarao_m"),
     ("CAMARAO P - S/RABO", "camarao_p"),
@@ -83,8 +86,7 @@ MAPA_PROCESSADO = [
 ]
 SUFIXO_IN_NATURA = "_in_natura"
 # Blocos que existem na planilha e nao entram no CDE Web
-IGNORAR = ["CAMARAO P - C/RABO", "RASPA DE SALMAO", "APARA DE SALMAO", "PELE DE SALMAO",
-           "CAMARAO P (GERAL)", "PROCESSAMENTO"]
+IGNORAR = ["CAMARAO P - C/RABO", "CAMARAO P (GERAL)", "PROCESSAMENTO"]
 # Rotulos do bloco PROCESSAMENTO -> campo. O rendimento que a planilha calcula
 # nao e lido: aqui ele sai de processado / in_natura, uma conta so.
 CAMPOS_PROC = [("PRODUTO IN NATURA", "in_natura"),
@@ -292,11 +294,15 @@ def ler_aba_dia(ws, iso):
                     campos[campo] = round(val, 4)
             uso_planilha = uso_do_titulo(titulo)
             if uso_planilha is not None:
-                campos["uso"] = round(uso_planilha, 4)
-                # conferencia: a conta do CDE bate com a da planilha?
-                meu = (campos.get("inicial", 0) + campos.get("entrada", 0)
-                       - campos.get("transferencia", 0) - campos.get("final", 0))
-                if abs(meu - uso_planilha) > 0.011:
+                # O uso gravado e a conta do CDE, nao o do titulo: na planilha a
+                # perda fica dentro do uso (nos subprodutos do salmao, fora), e
+                # para o CDE perda nao e consumo — veja uso_do_dia no server.py.
+                bruto = (campos.get("inicial", 0) + campos.get("entrada", 0)
+                         - campos.get("transferencia", 0) - campos.get("final", 0))
+                meu = bruto - campos.get("desperdicio", 0)
+                campos["uso"] = round(meu, 4)
+                # conferencia: a planilha fez uma das duas contas?
+                if min(abs(bruto - uso_planilha), abs(meu - uso_planilha)) > 0.011:
                     conferencias.append((chave, uso_planilha, round(meu, 3)))
     return iso, fat, insumos, conferencias, processamentos
 

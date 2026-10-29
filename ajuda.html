@@ -98,9 +98,10 @@ fecha o painel.</p>
 
 <h3>Consumo não é digitado — ele é deduzido</h3>
 <p>Ninguém informa "gastei 12 kg". O sistema chega nesse número pela contagem:</p>
-<p class="formula">Uso = Estoque inicial + Chegada − Transferência − Estoque final</p>
+<p class="formula">Uso = Estoque inicial + Chegada − Transferência − Perda − Estoque final</p>
 <p>A <strong>transferência</strong> é o que saiu de uma casa para outra. A <strong>perda</strong>
-(desperdício) é controlada à parte e <em>não</em> entra nesta conta.</p>
+(descarte, evento, teste de cardápio) também saiu do estoque, mas <em>não</em> é consumo:
+por isso é descontada do uso e controlada à parte.</p>
 <p class="nota-info">Consequência prática: se a contagem do final do dia estiver errada,
 o consumo daquele dia sai errado — e o desvio aparece no painel no dia seguinte.
 Quase todo desvio esquisito é erro de contagem, não de consumo.</p>
