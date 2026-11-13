@@ -43,6 +43,12 @@ DESTINO = RAIZ / "dados" / "lancamentos.json"
 BACKUPS = RAIZ / "backups"
 
 CASAS = ["SL", "DC", "DLU", "DLCN"]
+# A partir deste dia o lancamento e feito so no sistema, e as abas diarias
+# PUXAM os valores dele (consulta SISTEMA_CDE, veja consolidar_cde.py). Ler
+# esses dias de volta seria reimportar o proprio sistema — e, num dia ainda
+# nao lancado, gravar como digitado o zero que a formula mostra. Ficam de fora
+# e saem no relatorio, nunca em silencio.
+CORTE_SISTEMA = "2026-10-29"
 FATOR_LIBRA = {"salmao_0810": 1.00, "salmao_1012": 1.25, "salmao_1214": 1.48, "salmao_1416": 1.67}
 MARCA_PLANILHA = "_fonte"
 
@@ -442,6 +448,7 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
     meses = {mes_filtro} if isinstance(mes_filtro, str) else set(mes_filtro or ())
     dados, relato, divergencias, bloqueados, datas_erradas = {}, [], [], [], []
     pendentes = []                            # (casa, dia, insumo) sem estoque final
+    do_sistema = []                           # (casa, dia) a partir do CORTE_SISTEMA
 
     for arq in [Path(a) for a in arquivos]:
         casa = arq.parts[-3]
@@ -460,6 +467,9 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
             iso, divergiu = data_do_dia(arq, aba, wb[aba].cell(row=7, column=12).value)
             if divergiu:
                 datas_erradas.append("%s %s aba %s" % (casa, arq.parts[-2], aba))
+            if iso and iso >= CORTE_SISTEMA:
+                do_sistema.append((casa, iso))
+                continue
             iso, fat, insumos, confs, procs = ler_aba_dia(wb[aba], iso)
             if not iso or not fat:            # dia sem faturamento nao vale leitura
                 continue
@@ -499,7 +509,7 @@ def importar(arquivos=None, casa_filtro=None, mes_filtro=None):
         with open(DESTINO, encoding="utf-8") as f:
             gravados = json.load(f)
     somar_file(dados, gravados)
-    return dados, relato, divergencias, bloqueados, datas_erradas, pendentes
+    return dados, relato, divergencias, bloqueados, datas_erradas, pendentes, do_sistema
 
 
 def comparar_com_atual(novos):
@@ -601,7 +611,7 @@ def main():
         casa = sys.argv[sys.argv.index("--casa") + 1]
     if "--mes" in sys.argv:
         mes = sys.argv[sys.argv.index("--mes") + 1]
-    novos, relato, divergencias, bloqueados, datas_erradas, pendentes = importar(
+    novos, relato, divergencias, bloqueados, datas_erradas, pendentes, do_sistema = importar(
         casa_filtro=casa, mes_filtro=mes)
 
     print("PLANILHAS LIDAS")
@@ -610,6 +620,9 @@ def main():
     if bloqueados:
         print("  bloqueadas (abertas no Excel): " + ", ".join(bloqueados))
     print("\n%d dia(s) montado(s)" % len(novos))
+    if do_sistema:
+        print("\nA PARTIR DE %s O LANCAMENTO E DO SISTEMA (nao relidos): %d aba(s)"
+              % ("/".join(CORTE_SISTEMA.split("-")[::-1]), len(do_sistema)))
     if pendentes:
         print("\nSEM ESTOQUE FINAL (dia ainda sendo preenchido, ficou de fora): %d item(ns)"
               % len(pendentes))

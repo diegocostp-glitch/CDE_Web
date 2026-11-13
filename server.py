@@ -1241,7 +1241,8 @@ def sincronizar(mes=None, inicio=None, fim=None):
         ultimo = max(antes) if antes else hoje
         alvo = hoje[:7]
         filtro = meses_do_periodo(min(ultimo, hoje), max(ultimo, hoje))
-    novos, relato, _div, bloqueados, _datas, pendentes = imp.importar(mes_filtro=filtro)
+    novos, relato, _div, bloqueados, _datas, pendentes, do_sistema = imp.importar(
+        mes_filtro=filtro)
     if inicio:
         # A leitura e por arquivo (o mes inteiro); o recorte por DIA e aqui, para
         # um pedido de tres dias nao reescrever o mes todo.
@@ -1289,6 +1290,8 @@ def sincronizar(mes=None, inicio=None, fim=None):
             "pendentes": ["%s %s %s" % (casa, "/".join(iso.split("-")[::-1][:2]), ik)
                           for casa, iso, ik in pendentes
                           if not inicio or inicio <= iso <= fim][:40],
+            # Dias a partir do corte: a planilha so espelha o sistema, nao e relida.
+            "do_sistema": len(do_sistema), "corte_sistema": imp.CORTE_SISTEMA,
             "total_dias": len(depois), "ultimo_dia": max(depois) if depois else None}
 
 

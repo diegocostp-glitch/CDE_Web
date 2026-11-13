@@ -41,6 +41,62 @@ CABECALHO_DIA = ["data", "faturamento", "resp_unidade", "resp_sushibar", "resp_c
                  "anotacoes"]
 CABECALHO_PROC = ["data", "insumo", "in_natura", "processado", "perda", "rendimento"]
 
+# Aba PLANILHA: o mesmo movimento, no desenho da aba diaria das .xlsm — uma
+# linha por dia e uma coluna por CELULA de digitacao ("C17" = final do salmao
+# 08/10). As planilhas mensais puxam esta aba por Power Query (consulta
+# SISTEMA_CDE) e cada celula de entrada le a sua coluna pela data da aba (L7).
+# Assim a .xlsm nunca e gravada por programa: macros, graficos e consultas
+# ficam intactos, e a planilha so le.
+#
+# Cada bloco da aba diaria tem cinco linhas na mesma ordem: inicio, final,
+# chegada, transferencia e perda. Os blocos ficam nas colunas C, F, I e L.
+CAMPOS_BLOCO = ["inicial", "final", "chegada", "transferencia", "perda"]
+BLOCOS_PLANILHA = [
+    # linha do inicio, {coluna: insumo}
+    (16, {"C": "salmao_0810", "F": "salmao_1012", "I": "salmao_1214", "L": "salmao_1416"}),
+    (25, {"F": "raspa_salmao", "I": "apara_salmao", "L": "pele_salmao"}),
+    (34, {"C": "camarao_g", "F": "camarao_m", "I": "camarao_p"}),   # L34: P c/ rabo, fora do sistema
+    (43, {"C": "kani", "F": "anchova", "I": "nori", "L": "cream_cheese"}),
+    (52, {"C": "arroz", "F": "lula_in_natura", "I": "lula"}),
+    (61, {"C": "file_tilapia", "F": "polvo_in_natura", "I": "polvo"}),
+    (70, {"C": "patinho", "F": "atum_in_natura", "I": "atum"}),
+]
+# O file de producao so tem a sobra (C25), e o bloco PROCESSAMENTO de cada
+# item processado tem in natura e processado (L52/L53, L61/L62, L70/L71).
+CELULAS_EXTRAS = {"C25": ("salmao_file", "final")}
+CELULAS_PROC = {"L52": ("lula", "in_natura"), "L53": ("lula", "processado"),
+                "L61": ("polvo", "in_natura"), "L62": ("polvo", "processado"),
+                "L70": ("atum", "in_natura"), "L71": ("atum", "processado")}
+
+
+def celulas_da_planilha():
+    """{celula: (insumo, campo)} das celulas de digitacao da aba diaria."""
+    fora = {}
+    for linha, colunas in BLOCOS_PLANILHA:
+        for col, insumo in colunas.items():
+            for k, campo in enumerate(CAMPOS_BLOCO):
+                fora["%s%d" % (col, linha + k)] = (insumo, campo)
+    fora.update(CELULAS_EXTRAS)
+    return fora
+
+
+def linhas_da_planilha(mov, procs):
+    """(cabecalho, linhas) da aba PLANILHA, a partir do MOVIMENTO e do PROCESSAMENTO."""
+    celulas = celulas_da_planilha()
+    ordem = list(celulas) + list(CELULAS_PROC)
+    pos = {c: i for i, c in enumerate(CABECALHO_MOV)}
+    por_dia = {}
+    for m in mov:
+        dia = por_dia.setdefault(m[0], {})
+        for campo in CAMPOS_BLOCO:
+            dia[(m[1], campo)] = m[pos[campo]]
+    for p in procs:
+        dia = por_dia.setdefault(p[0], {})
+        dia[(p[1], "in_natura")], dia[(p[1], "processado")] = p[2], p[3]
+    alvo = dict(celulas, **CELULAS_PROC)
+    linhas = [[data] + [por_dia[data].get(alvo[c]) for c in ordem] for data in sorted(por_dia)]
+    return ["data"] + ordem, linhas
+
 
 # ------------------------------------------------------------------ exportacao
 def linhas_da_casa(dados, ck, ano, dias_planilha):
@@ -98,8 +154,9 @@ def gravar_xlsx(casa, ano, mov, dias, procs, arquivo):
     from openpyxl.worksheet.table import Table, TableStyleInfo
 
     wb = Workbook()
+    cab_planilha, grade = linhas_da_planilha(mov, procs)
     abas = [("MOVIMENTO", CABECALHO_MOV, mov), ("DIAS", CABECALHO_DIA, dias),
-            ("PROCESSAMENTO", CABECALHO_PROC, procs)]
+            ("PROCESSAMENTO", CABECALHO_PROC, procs), ("PLANILHA", cab_planilha, grade)]
     for i, (nome, cab, linhas) in enumerate(abas):
         ws = wb.active if i == 0 else wb.create_sheet()
         ws.title = nome
@@ -128,7 +185,10 @@ def gravar_xlsx(casa, ano, mov, dias, procs, arquivo):
                   ["Regra", "inicial = final do dia anterior, salvo correcao na conferencia; "
                             "uso = inicial + chegada - transferencia - perda - final "
                             "(perda nao e consumo). "
-                            "origem: planilha (historico das .xlsm), sistema ou editado no sistema."]]:
+                            "origem: planilha (historico das .xlsm), sistema ou editado no sistema."],
+                  ["PLANILHA", "Uma linha por dia, uma coluna por celula de digitacao da aba "
+                               "diaria (C17 = final do salmao 08/10). E a aba que as planilhas "
+                               "mensais puxam pela consulta SISTEMA_CDE."]]:
         sobre.append(linha)
     sobre.column_dimensions["A"].width = 14
     sobre.column_dimensions["B"].width = 110

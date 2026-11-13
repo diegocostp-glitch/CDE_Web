@@ -614,9 +614,15 @@ async function sincronizar(periodo) {
         + ` (${pend.slice(0, 4).join(", ")}${pend.length > 4 ? "…" : ""}) — entram`
         + " quando o final for preenchido e você sincronizar de novo."
       : "";
+    // Do corte em diante a planilha espelha o sistema: reler seria importar o
+    // próprio sistema de volta. Diz que esses dias foram pulados de propósito.
+    const notaSist = d.do_sistema
+      ? ` A partir de ${brData(d.corte_sistema)} o lançamento é feito aqui: as planilhas`
+        + " só espelham o sistema e não foram relidas."
+      : "";
     aviso((n || a
       ? `${n} dia(s) novo(s) e ${a} atualizado(s)${onde} — de ${lidas}.`
-      : `Nada novo${onde} em ${lidas} — já estava tudo aqui.`) + nota + notaPend,
+      : `Nada novo${onde} em ${lidas} — já estava tudo aqui.`) + nota + notaPend + notaSist,
       pend.length ? "mau" : "bom");
     estado("Sincronizado", "ok");
     await carregarDia($("#data").value);
