@@ -2,7 +2,7 @@
 """Onde cada relatório é gravado, e com que nome.
 
 Todos os relatórios prontos moram numa pasta só, `Relatórios/`, na raiz do
-projeto — uma subpasta numerada por TIPO de relatório, para quem abre o
+projeto — junto com este gerador, em `Relatórios/_Gerador/` — uma subpasta numerada por TIPO de relatório, para quem abre o
 explorador saber o que é cada arquivo sem abri-lo:
 
     Relatórios/
@@ -22,8 +22,8 @@ concordarem. O nome do insumo é o que a operação usa — "Peixe Branco", não
 """
 import os
 
-RAIZ_RELATORIOS = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                               '..', 'Relatórios'))
+# Este gerador mora em Relatórios/_Gerador: a pasta dos relatórios é a de cima.
+RAIZ_RELATORIOS = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 MES_NOME = {1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
             7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro',

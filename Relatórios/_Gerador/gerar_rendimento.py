@@ -24,7 +24,7 @@ import argparse, json, os, re, sys, datetime
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
-sys.path.insert(1, os.path.dirname(AQUI))
+sys.path.insert(1, os.path.dirname(os.path.dirname(AQUI)))   # raiz do projeto, onde mora server.py
 from organizacao import RAIZ_RELATORIOS, arquivo_rendimento   # noqa: E402
 from gerar_relatorio_coef import (                              # noqa: E402
     CASAS, NOMES_CASA, MESES, MES_ABR, find_browser, render_pdf)
@@ -119,7 +119,7 @@ def main():
     hoje = datetime.date.today()
     ap.add_argument('--de', default='%d-01' % hoje.year)
     ap.add_argument('--ate', default=None, help='último mês, AAAA-MM (padrão: último mês com dado)')
-    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', 'dados')))
+    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', '..', 'dados')))
     ap.add_argument('--saida', default=RAIZ_RELATORIOS)
     ap.add_argument('--modelo', default=os.path.join(AQUI, 'modelo_coef.html'))
     ap.add_argument('--no-pdf', action='store_true')

@@ -96,7 +96,17 @@
 
   let aberto = false, tela = "menu";
 
-  function montar() {
+  async function montar() {
+    // Com login, cada atalho so aparece para quem pode usa-lo; sem nenhum, o
+    // botao nem aparece. O servidor recusaria de qualquer jeito (acesso.py).
+    const eu = window.CDE_EU ? await window.CDE_EU : null;
+    if (eu && eu.login) {
+      const p = eu.permissoes;
+      if (p.lancamento !== "editar" && p.movimentacoes !== "editar") delete ACOES.movimentacao;
+      if (p.ordens !== "editar" && p.importar !== "editar") delete ACOES.ordem;
+      if (p.conversao === "nenhum") delete ACOES.salmao;
+      if (!Object.keys(ACOES).length) return;
+    }
     document.body.insertAdjacentHTML("beforeend", `
       <button class="acao-botao" id="acao-botao" title="Ações rápidas" aria-label="Ações rápidas">
         ${svg(ICONE.mais, 22)}

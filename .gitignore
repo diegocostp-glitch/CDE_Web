@@ -22,6 +22,17 @@ dados/projecao-congelada/
 # consolidado das abas diarias do CDE, um .xlsx por casa (faturamento incluso)
 dados/consolidado/
 dados/ordens.json
+# ordens por PC (ordens-<computador>.json): mesma estrutura do ordens.json
+dados/ordens-*.json
+# copias de seguranca do lancamentos.json feitas antes de uma correcao a mao
+dados/lancamentos.*.json
+# contagens diaria e semanal: estoque de cada casa, mesma natureza do lancamento
+dados/contagens.json
+# usuarios (hash das senhas e permissoes) e sessoes abertas: nunca no repositorio
+dados/usuarios.json
+dados/sessoes.json
+# fila do faturamento que ainda vai para a planilha Faturamento - 2026
+dados/faturamento-pendente.json
 dados/custos.json
 dados/*.tmp
 dados/*.json.antes-da-importacao
@@ -33,19 +44,19 @@ conversos salmao.xlsx
 # São cópias inteiras dos arquivos acima, com os mesmos dados dentro.
 backups/
 
-# --- relatorios de coeficiente: fonte versiona, saida e preco nao -------------
-# Os relatorios trazem faturamento diario por casa, consumo e custo unitario —
-# exatamente o que as regras acima protegem, so que em HTML e PDF. E sao
-# regeneraveis: 124 arquivos e 230 MB saem de seis arquivos de fonte mais os
-# dados. Versionar o produto ao lado da receita nao acrescenta nada e leva o
-# faturamento junto.
-relatorios-coef/saida/
-# Desde 16/10/2026 todo relatorio pronto mora em Relatórios/ (ver
-# relatorios-coef/organizacao.py) — a mesma protecao vale para a pasta nova.
-Relat*rios/
+# --- relatorios: o gerador versiona, os relatorios prontos e o preco nao ------
+# Desde 28/10/2026 tudo de relatorio mora em Relatórios/: os prontos (1. a 9.),
+# as planilhas de entrada (_Entradas) e o gerador (_Gerador, que antes era
+# relatorios-coef/). Os prontos trazem faturamento diario por casa, consumo e
+# custo unitario — exatamente o que as regras acima protegem, so que em HTML e
+# PDF — e sao regeneraveis a partir do gerador mais os dados. Por isso a pasta
+# fica fora, menos o gerador e o indice.
+Relat*rios/*
+!Relat*rios/LEIA-ME.md
+!Relat*rios/_Gerador/
 # Preco negociado por insumo, casa e mes. Mesma natureza de dados/custos.json,
 # que ja esta ignorado acima.
-relatorios-coef/custos_mensais.json
+Relat*rios/_Gerador/custos_mensais.json
 # Planilhas de preco unitario da empresa, usadas como entrada do relatorio.
 Custo Unit*.xlsx
 PRE*OS.xlsx
@@ -107,3 +118,7 @@ desktop.ini
 # continuam no disco e dentro do OneDrive — quem tem acesso à pasta continua
 # tendo acesso a eles.
 # ============================================================================
+
+# log do servidor escrito pelo vigia_servidor.pyw
+logs/
+dados/recebimentos.json

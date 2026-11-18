@@ -11,15 +11,15 @@ Menor = mais eficiente. Queda = ganho de eficiência.
 ## Uso
 
 ```bash
-cd relatorios-coef
+cd "Relatórios/_Gerador"
 python gerar_relatorio_coef.py --mes 2026-08 --insumo salmao_equivalente
 ```
 
-- Lê os dados de `../dados/lancamentos.json`, as metas de `../dados/metas.json` e o
-  custo unitário por casa de `../dados/custos.json`.
-- Gera `../Relatórios/1. Consumo Mensal por Insumo/<AAAA-MM Mês>/Consumo <Mês> <Ano> - <Insumo>.html`
+- Lê os dados de `../../dados/lancamentos.json`, as metas de `../../dados/metas.json` e o
+  custo unitário por casa de `../../dados/custos.json`.
+- Gera `../1. Consumo Mensal por Insumo/<AAAA-MM Mês>/Consumo <Mês> <Ano> - <Insumo>.html`
   e `.pdf`. Pasta e nome de todos os relatórios saem de `organizacao.py`; o índice
-  das pastas está em `../Relatórios/LEIA-ME.md`.
+  das pastas está em `../LEIA-ME.md`.
 - PDF renderizado via Chrome/Edge headless (use `--no-pdf` para pular).
 
 ### Opções
@@ -29,8 +29,8 @@ python gerar_relatorio_coef.py --mes 2026-08 --insumo salmao_equivalente
 | `--mes` | (obrigatório) | mês do relatório, `AAAA-MM` |
 | `--insumo` | `salmao_equivalente` | chave do insumo |
 | `--comparativo` | mês anterior | mês de comparação `AAAA-MM` |
-| `--dados` | `../dados` | pasta dos JSONs |
-| `--saida` | `../Relatórios` | pasta de saída |
+| `--dados` | `../../dados` | pasta dos JSONs |
+| `--saida` | `..` (a própria pasta Relatórios) | pasta de saída |
 | `--template` | `./modelo_coef.html` | template HTML |
 | `--piso` | `0.10` | piso de faturamento do dia, como fração da mediana da casa (`0` desliga) |
 | `--no-pdf` | — | não gerar PDF |

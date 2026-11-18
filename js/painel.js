@@ -2,7 +2,7 @@
 // CDE Web - painel de desvios. O servidor calcula; aqui filtramos e desenhamos.
 // ============================================================================
 let DADOS = null;
-let VISAO = "tabela";
+let VISAO = "resumo";            // a aba Resumo do dia abre primeiro: e o dia de ontem
 let DET = { insumo: null, casa: null, semana: null, n: 7 };
 const $ = (s) => document.querySelector(s);
 const fmt = (n, c = 2) => (n === null || n === undefined) ? "—"
@@ -112,6 +112,7 @@ function filtradas() {
 }
 
 function desenhar() {
+  if (VISAO === "resumo") return;   // o resumo tem tela propria (painel-resumo.js)
   const linhas = filtradas();
   const base = filtradasSemSituacao();
   const conta = {};
@@ -414,11 +415,18 @@ $("#sino-btn").onclick = (e) => {
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".sino")) $("#sino-lista").hidden = true;
 });
+// O Resumo do dia esconde o periodo, o placar e a tabela: ele e de um dia so.
+function aplicarVisao() {
+  const resumo = VISAO === "resumo";
+  document.querySelectorAll(".so-periodo").forEach((el) => { el.hidden = resumo; });
+  $("#resumo").hidden = !resumo;
+  if (resumo) { if (!RESUMO) carregarResumo(); } else { desenhar(); }
+}
 document.querySelectorAll("#visoes button").forEach((b) => {
   b.onclick = () => {
     VISAO = b.dataset.v;
     document.querySelectorAll("#visoes button").forEach((x) => x.classList.toggle("ativo", x === b));
-    desenhar();
+    aplicarVisao();
   };
 });
 $("#det-fechar").onclick = () => { $("#detalhe").hidden = true; };
@@ -426,3 +434,4 @@ $("#det-fechar").onclick = () => { $("#detalhe").hidden = true; };
 ["#inicio", "#fim"].forEach((s) => { $(s).onchange = carregar; });
 $("#ultimos30").onclick = () => { $("#inicio").value = ""; $("#fim").value = ""; carregar(); };
 carregar();
+// aplicarVisao() roda no fim do painel-resumo.js, que carrega depois deste

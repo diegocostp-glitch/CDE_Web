@@ -408,7 +408,7 @@ function camposOC(l) {
       <label class="campo"><span>Frete</span><select data-oc="frete">${opc(FRETES, d.frete)}</select></label>
       <label class="campo"><span>Prazo (faturado)</span><input data-oc="prazoFaturado" value="${esc(d.prazoFaturado)}"></label>
       <label class="campo"><span>Prazo de entrega</span><input data-oc="prazoEntrega" value="${esc(d.prazoEntrega)}"></label>
-      <label class="campo"><span>Entrega na transportadora</span><input data-oc="transportadora" value="${esc(d.transportadora)}" placeholder="dd/mm/aaaa"></label>
+      <label class="campo"><span>Entrega na transportadora</span><input data-oc="transportadora" value="${esc(d.transportadora)}" placeholder="dd/mm/aaaa"></label>${camposAssinaturaOC(d)}
     </div>
   </details>`;
 }

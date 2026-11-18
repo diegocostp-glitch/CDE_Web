@@ -7,13 +7,21 @@ Mesmo padrao do Gerador de OCs: biblioteca padrao do Python, sem npm, sem build.
   http://NOME-DO-PC:8935         nos outros PCs da rede
 
 Guarda os lancamentos em dados/lancamentos.json e le o faturamento da
-planilha Faturamento - 2026.xlsx (somente leitura, nunca escreve nela).
+planilha Faturamento - 2026.xlsx. O faturamento digitado na tela volta para a
+planilha pelo Excel, em segundo plano (veja faturamento_planilha.py).
 """
 import http.server, json, os, socket, shutil, threading, time, traceback
+import acesso
 from datetime import datetime, timedelta
 from pathlib import Path
 
 PORT = 8935
+# O sistema tem UM servidor, neste PC. A pasta chega aos outros PCs pelo
+# OneDrive: se cada um subisse o proprio servidor, gravaria na sua copia dos
+# dados e ninguem veria o lancamento do outro (e o OneDrive criava arquivos de
+# conflito, como pedidos-COMPRADORSB.json). Nos outros PCs o server.py so
+# redireciona para ca — veja servir_redirecionamento.
+SERVIDOR = "DESKTOP-LC0FQC1"
 RAIZ = Path(__file__).parent
 DADOS = RAIZ / "dados"
 ARQ = DADOS / "lancamentos.json"
@@ -69,12 +77,17 @@ INSUMOS = [
     # na casa (a raspa no sushibar, apara e pele na cozinha). Nao sao comprados
     # nem entram no equivalente: so_lancamento os deixa fora do coeficiente,
     # do painel e da projecao, que medem o salmao pelo equivalente.
+    # fora_movimentacoes: nao aparecem na tela de Movimentacoes — nao tem
+    # nota, preco nem fornecedor, e so poluiam a lista e o placar.
     {"chave": "raspa_salmao", "nome": "Raspa de salmão", "un": "Kg",
-     "grupo": "Salmão — subprodutos", "so_lancamento": True},
+     "grupo": "Salmão — subprodutos", "so_lancamento": True,
+     "fora_movimentacoes": True},
     {"chave": "apara_salmao", "nome": "Apara de salmão", "un": "Kg",
-     "grupo": "Salmão — subprodutos", "so_lancamento": True},
+     "grupo": "Salmão — subprodutos", "so_lancamento": True,
+     "fora_movimentacoes": True},
     {"chave": "pele_salmao",  "nome": "Pele de salmão",  "un": "Kg",
-     "grupo": "Salmão — subprodutos", "so_lancamento": True},
+     "grupo": "Salmão — subprodutos", "so_lancamento": True,
+     "fora_movimentacoes": True},
     {"chave": "camarao_g",   "nome": "Camarão G",        "un": "Kg",  "grupo": "Camarão"},
     {"chave": "camarao_m",    "nome": "Camarão M",        "un": "Kg",  "grupo": "Camarão"},
     {"chave": "camarao_p",    "nome": "Camarão P (sem rabo)", "un": "Kg", "grupo": "Camarão"},
@@ -619,6 +632,8 @@ def montar_dia(data_iso):
     _est, usos = estoque_e_media(data_iso, ler_compras().get("janela_media_dias", 14))
     _est, usos30 = estoque_e_media(data_iso, 30)
 
+    import faturamento_planilha
+    na_fila = faturamento_planilha.situacao(data_iso)
     saida = {"data": data_iso, "casas": {}}
     for casa in CASAS:
         ck = casa["chave"]
@@ -698,6 +713,12 @@ def montar_dia(data_iso):
                 "chave": ik, "nome": ins["nome"], "un": ins["un"], "grupo": ins["grupo"],
                 "derivado": bool(ins.get("derivado")),
                 "inicial": round(inicial, 3),
+                # A tela mostra o final de ontem numa coluna propria, ao lado
+                # do inicial, para a conferencia da manha comparar os dois. O
+                # inicial so vem preenchido quando o dia tem um gravado (da
+                # planilha ou digitado); sem ele a caixa fica para a contagem.
+                "final_ontem": passado.get("final"),
+                "inicial_gravado": atual.get("inicial") is not None,
                 "final": final, "entrada": entrada,
                 "transferencia": transferencia, "desperdicio": desperdicio,
                 "uso": round(uso, 3) if tem_uso else None,
@@ -718,11 +739,36 @@ def montar_dia(data_iso):
         saida["casas"][ck] = {
             "nome": casa["nome"],
             "faturamento": faturamento,
+            "total_pedidos": lan_hoje.get("total_pedidos"),
+            "total_descontos": lan_hoje.get("total_descontos"),
             "faturamento_da_planilha": fat.get(ck) is not None,
+            # digitado aqui e ainda nao gravado na planilha: {"valor", "erro"}
+            "faturamento_pendente": na_fila.get(ck),
             "insumos": linhas,
             "processamento": processamento_do_dia(lan_hoje),
         }
     return saida
+
+
+def faturamento_do_dia(lan, casa=""):
+    """Faturamento = total de pedidos - total de descontos, quando os pedidos vem.
+
+    A tela ja mostra a conta, mas quem manda e o servidor: e este numero que
+    vai para o coeficiente, a Visao Geral e a planilha de faturamento. Sem o
+    total de pedidos (dia antigo, vindo da planilha), vale o faturamento
+    digitado, como antes.
+    """
+    pedidos = lan.get("total_pedidos")
+    if pedidos in (None, ""):
+        return lan.get("faturamento")
+    total = numero(pedidos) - numero(lan.get("total_descontos"))
+    if total < 0:
+        def reais(v):
+            return ("{:,.2f}".format(v)).replace(",", "_").replace(".", ",").replace("_", ".")
+        raise ValueError("%s: o total de descontos (R$ %s) é maior que o total de "
+                         "pedidos (R$ %s)" % (casa, reais(numero(lan.get("total_descontos"))),
+                                              reais(numero(pedidos))))
+    return round(total, 2)
 
 
 def _gravar_dia_sem_trava(corpo):
@@ -740,7 +786,10 @@ def _gravar_dia_sem_trava(corpo):
         ins_ontem = ((dados.get(anterior) or {}).get(ck) or {}).get("insumos") or {}
         ins_amanha = ((dados.get(seguinte) or {}).get(ck) or {}).get("insumos") or {}
         mexeu_ontem = False
-        limpo = {"faturamento": lan.get("faturamento"), "insumos": {}}
+        limpo = {"faturamento": faturamento_do_dia(lan, ck), "insumos": {}}
+        for campo in ("total_pedidos", "total_descontos"):
+            if lan.get(campo) not in (None, ""):
+                limpo[campo] = round(numero(lan[campo]), 2)
         for ik, campos in (lan.get("insumos") or {}).items():
             # Linha CALCULADA nao se grava. A tela manda de volta o array
             # inteiro de insumos, inclusive as derivadas que ela mesma acabou
@@ -772,7 +821,11 @@ def _gravar_dia_sem_trava(corpo):
             # final): diferenca abaixo do arredondamento nao e correcao.
             editou_ini = ini_tela not in (None, "") and \
                 abs(numero(ini_tela) - numero(ini_antes)) > 0.00051
-            if editou_ini:
+            if editou_ini and not corpo.get("regravar_ontem", True):
+                # A tela perguntou e a resposta foi nao mexer em ontem: o
+                # inicial vale so para hoje e a diferenca fica a vista.
+                vals["inicial"] = round(numero(ini_tela), 4)
+            elif editou_ini:
                 vals["inicial"] = round(numero(ini_tela), 4)
                 ontem_ck = dados.setdefault(anterior, {}).setdefault(ck, {})
                 reg = ontem_ck.setdefault("insumos", {}).setdefault(ik, {})
@@ -884,7 +937,45 @@ def _gravar_dia_sem_trava(corpo):
     dia["_gravado_em"] = datetime.now().isoformat(timespec="seconds")
     salvar(dados)
     return {"ok": True, "data": data_iso,
-            "encadeados": [{"casa": c, "insumo": i, "data": d} for c, i, d in encadeados]}
+            "encadeados": [{"casa": c, "insumo": i, "data": d} for c, i, d in encadeados],
+            "faturamento_planilha": levar_faturamento_a_planilha(data_iso, corpo)}
+
+
+# Piso do faturamento que vai para a planilha: a mesma regua da leitura do
+# coeficiente (10% da mediana da casa). R$ 20,80 no lugar de R$ 16.513 ja
+# aconteceu; gravado na planilha, o erro passaria tambem para as .xlsm.
+PISO_FATURAMENTO = 0.10
+
+
+def levar_faturamento_a_planilha(data_iso, corpo):
+    """Pede a gravacao, na planilha, do faturamento que difere do que esta nela.
+
+    Devolve, por casa, o que aconteceu: "pedido" (na fila), ou o motivo de nao
+    ter ido. Casa sem faturamento ou com o mesmo valor da planilha nao aparece.
+    """
+    import faturamento_planilha as fp
+    da_planilha = ler_faturamento()
+    no_dia = da_planilha.get(data_iso, {})
+    pendente = fp.situacao(data_iso)
+    fora = {}
+    for ck, lan in (corpo.get("casas") or {}).items():
+        valor = numero(faturamento_do_dia(lan, ck))
+        if valor <= 0:
+            continue
+        atual = no_dia.get(ck)
+        if ck not in pendente and atual is not None and abs(atual - valor) < 0.005:
+            continue
+        historico = sorted(v[ck] for v in da_planilha.values() if v.get(ck))
+        mediana = historico[len(historico) // 2] if historico else 0
+        if mediana and valor < PISO_FATURAMENTO * mediana:
+            def reais(v):
+                return ("{:,.2f}".format(v)).replace(",", "_").replace(".", ",").replace("_", ".")
+            fora[ck] = ("não foi para a planilha: R$ %s está abaixo de 10%% da mediana "
+                        "da casa (R$ %s). Confira o valor." % (reais(valor), reais(mediana)))
+            continue
+        fp.enfileirar(data_iso, ck, valor)
+        fora[ck] = "pedido"
+    return fora
 
 
 def _gravar_movimentacao_sem_trava(corpo):
@@ -1133,6 +1224,266 @@ def analisar(inicio, fim):
                                -(l["impacto_reais"] or 0), -abs(l["z30"])))
     resumo = {s: sum(1 for l in linhas if l["situacao"] == s) for s in ordem}
     return {"inicio": inicio, "fim": fim, "resumo": resumo, "linhas": linhas}
+
+
+# --------------------------------------------------------------- resumo do dia
+# Regua do resumo do dia. Um dia so oscila muito; por isso "subiu/baixou" pede
+# as DUAS coisas: variacao grande em % e distancia real da media (z). So a %
+# acusava item de consumo pequeno (0,1 kg para 0,2 kg = +100%) todo dia.
+RESUMO_JANELA = 28          # dias de historico antes do dia, para a media
+RESUMO_VAR = 0.25           # 25% acima/abaixo da media
+RESUMO_Z = 1.0
+RESUMO_FORA_VAR = 0.60      # muito fora: pede conferencia imediata
+RESUMO_FORA_Z = 2.5
+
+
+def resumo_do_dia(data_iso=None):
+    """Resumo de um dia (padrao: ontem) para a aba Resumo do dia do Painel.
+
+    Compara o coeficiente de cada insumo em cada casa (uso por R$ 1.000 de
+    faturamento) com a media dos 28 dias anteriores — o coeficiente, e nao o
+    uso cru, porque um sabado vende o dobro de uma terca e consumir o dobro
+    nao e desvio. Junta numa lista so o que precisa de conferencia: casa sem
+    lancamento, sem faturamento, uso negativo, contagem faltando, consumo
+    zerado e consumo muito fora do padrao, cada um com a pista do que olhar.
+    """
+    if not data_iso:
+        data_iso = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+    dia_dt = datetime.strptime(data_iso, "%Y-%m-%d")
+    vespera = (dia_dt - timedelta(days=1)).strftime("%Y-%m-%d")
+    ini_base = (dia_dt - timedelta(days=RESUMO_JANELA)).strftime("%Y-%m-%d")
+    semana = DIAS_SEMANA[dia_dt.weekday()]
+
+    dados = carregar()
+    custos, catalogo = ler_custos(), precos_do_catalogo()
+    base = series_do_periodo(ini_base, vespera)
+    nomes = {i["chave"]: i for i in INSUMOS}
+    casas = [c["chave"] for c in CASAS]
+    nome_casa = {c["chave"]: c["nome"] for c in CASAS}
+    painel = [i["chave"] for i in INSUMOS if not i.get("so_lancamento")]
+    hoje = dados.get(data_iso) or {}
+
+    # ---------------------------------------------------------- faturamento
+    fat_casas = []
+    for ck in casas:
+        lan = hoje.get(ck) if isinstance(hoje.get(ck), dict) else {}
+        fat = numero(lan.get("faturamento"))
+        mesmos = []
+        for k in range(1, 6):
+            iso = (dia_dt - timedelta(days=7 * k)).strftime("%Y-%m-%d")
+            f = numero(((dados.get(iso) or {}).get(ck) or {}).get("faturamento"))
+            if f > 0:
+                mesmos.append(f)
+            if len(mesmos) == 4:
+                break
+        f_vesp = numero(((dados.get(vespera) or {}).get(ck) or {}).get("faturamento"))
+        ref = media(mesmos) if mesmos else 0
+        fat_casas.append({
+            "casa": ck, "casa_nome": nome_casa[ck], "faturamento": round(fat, 2),
+            "media_mesmo_dia": round(ref, 2) if ref else None,
+            "n_mesmo_dia": len(mesmos),
+            "var_mesmo_dia": round(fat / ref - 1, 4) if ref and fat > 0 else None,
+            "vespera": round(f_vesp, 2) if f_vesp else None,
+            "var_vespera": round(fat / f_vesp - 1, 4) if f_vesp and fat > 0 else None,
+            "lancou": bool(lan.get("insumos")),
+        })
+
+    # ---------------------------------------------------------- itens
+    itens, divergencias = [], []
+    custo_cache = {}
+
+    def custo(ik, ck):
+        if (ik, ck) not in custo_cache:
+            custo_cache[(ik, ck)] = custo_unitario(ik, ck, custos, catalogo, data_iso)[0]
+        return custo_cache[(ik, ck)]
+
+    def diverg(prioridade, tipo, ck, ik, titulo, detalhe, olhar, reais=None):
+        divergencias.append({
+            "prioridade": prioridade, "tipo": tipo, "casa": ck,
+            "casa_nome": nome_casa.get(ck, ck) if ck else "",
+            "insumo": nomes[ik]["nome"] if ik else "", "insumo_chave": ik or "",
+            "titulo": titulo, "detalhe": detalhe, "olhar": olhar,
+            "reais": round(reais, 2) if reais is not None else None})
+
+    def q(v, un):
+        return ("{:,.%df}" % (0 if un in ("Pct", "Bng", "Un") else 3)).format(numero(v)) \
+            .replace(",", "_").replace(".", ",").replace("_", ".") + " " + un
+
+    for ck in casas:
+        lan = hoje.get(ck) if isinstance(hoje.get(ck), dict) else {}
+        fat = numero(lan.get("faturamento"))
+        ins = lan.get("insumos") or {}
+        if not ins:
+            diverg(1, "sem_lancamento", ck, None, "Contagem do dia não lançada",
+                   "Nenhum insumo lançado em %s." % dia_dt.strftime("%d/%m"),
+                   "Lançar a contagem final do dia na tela de Lançamento. Sem ela "
+                   "o consumo do dia não existe e o dia seguinte começa errado.")
+            continue
+        if fat <= 0:
+            diverg(1, "sem_faturamento", ck, None, "Sem faturamento no dia",
+                   "Insumos lançados, mas o faturamento está zerado.",
+                   "Preencher o faturamento: sem ele não há coeficiente e o dia "
+                   "fica fora do painel e da Visão Geral.")
+        ontem_ins = ((dados.get(vespera) or {}).get(ck) or {}).get("insumos") or {}
+        for ik in painel:
+            c = ins.get(ik)
+            un = nomes[ik]["un"]
+            pontos = base.get((ik, ck), [])
+            coefs = [p[2] for p in pontos]
+            m, dp = media(coefs), desvio(coefs)
+            if not isinstance(c, dict) or c.get("final") in (None, ""):
+                if ik not in DERIVADOS and len(coefs) >= 5:
+                    diverg(2, "sem_contagem", ck, ik, "Contagem final em branco",
+                           "O item costuma ter consumo, mas ficou sem contagem final.",
+                           "Conferir se o item foi contado e lançar a contagem final.")
+                continue
+            uso = c.get("uso")
+            ini = c.get("inicial")
+            if ini in (None, ""):
+                ini = (ontem_ins.get(ik) or {}).get("final")
+            mov = {"inicial": numero(ini), "entrada": numero(c.get("entrada")),
+                   "transferencia": numero(c.get("transferencia")),
+                   "perda": numero(c.get("desperdicio")), "final": numero(c.get("final"))}
+            conta = "inicial %s + chegada %s − transferência %s − perda %s − final %s" % (
+                q(mov["inicial"], un), q(mov["entrada"], un), q(mov["transferencia"], un),
+                q(mov["perda"], un), q(mov["final"], un))
+            if uso is None:
+                continue
+            uso = numero(uso)
+            pu = custo(ik, ck)
+            if mov["perda"] > 0:
+                diverg(3, "perda", ck, ik, "Perda registrada",
+                       "%s de perda." % q(mov["perda"], un),
+                       "Conferir o motivo anotado (descarte, evento, teste).",
+                       mov["perda"] * pu if pu else None)
+            if uso < 0:
+                diverg(1, "uso_negativo", ck, ik, "Consumo negativo",
+                       "Consumo de %s: %s." % (q(uso, un), conta),
+                       "O estoque final ficou maior que o inicial mais as chegadas. "
+                       "Falta lançar uma chegada ou transferência recebida, ou a "
+                       "contagem (de ontem ou de hoje) está errada.")
+                itens.append({"insumo_chave": ik, "casa": ck, "uso": round(uso, 4),
+                              "coef": None, "media": round(m, 4) if coefs else None,
+                              "var": None, "z": None, "estado": "Divergência",
+                              "esperado": None, "excesso": None, "reais": None,
+                              "custo_un": pu or None, **mov})
+                continue
+            coef = uso / fat * 1000 if fat > 0 else None
+            esperado = m * fat / 1000 if fat > 0 and coefs else None
+            excesso = uso - esperado if esperado is not None else None
+            reais = excesso * pu if excesso is not None and pu else None
+            # Item que sai em LOTE (kani, anchova, in natura que vai para o
+            # processamento): dias sem consumo intercalados com dias de muito.
+            # Contra a media de todos os dias, todo dia de lote "subia" e todo
+            # dia parado "zerava". Para ele a regua e a media dos dias em que
+            # saiu, e dia parado e normal.
+            positivos = [x for x in coefs if x > 0]
+            freq = len(positivos) / len(coefs) if coefs else 0
+            lote = bool(coefs) and freq < 0.7
+            m_ref, dp_ref = (media(positivos), desvio(positivos)) if lote else (m, dp)
+            var = (coef / m_ref - 1) if coef is not None and m_ref > 0 else None
+            z = (coef - m_ref) / dp_ref if coef is not None and dp_ref > 0 else None
+            tinha = mov["inicial"] + mov["entrada"] > 0
+            estado = "No padrão"
+            if len(coefs) < 5 or coef is None or m <= 0:
+                estado = "Sem base"
+            elif uso == 0 and not tinha:
+                estado = "Sem estoque"
+            elif uso == 0:
+                estado = "No padrão" if lote else "Zerado"
+            elif var is not None and var >= RESUMO_VAR and (z or 0) >= RESUMO_Z:
+                estado = "Subiu"
+            elif var is not None and var <= -RESUMO_VAR and (z or 0) <= -RESUMO_Z:
+                estado = "Baixou"
+            ref_txt = (q(m_ref * fat / 1000, un) + (" (média dos dias em que saiu)" if lote
+                                                     else " esperados")) if fat > 0 else ""
+            itens.append({"insumo_chave": ik, "casa": ck, "uso": round(uso, 4),
+                          "coef": round(coef, 4) if coef is not None else None,
+                          "media": round(m, 4) if coefs else None,
+                          "var": round(var, 4) if var is not None else None,
+                          "z": round(z, 2) if z is not None else None, "estado": estado,
+                          "esperado": round(esperado, 4) if esperado is not None else None,
+                          "excesso": round(excesso, 4) if excesso is not None else None,
+                          "reais": round(reais, 2) if reais is not None else None,
+                          "custo_un": pu or None, "lote": lote, **mov})
+            if estado == "Sem estoque" and not lote:
+                diverg(2, "sem_estoque", ck, ik, "Sem estoque",
+                       "Começou e terminou o dia em zero; costuma sair %s." % q(esperado, un),
+                       "Item de uso diário sem estoque: conferir se houve ruptura, se a "
+                       "chegada ficou sem lançar ou se o item passou a vir de outra casa.")
+            if estado == "Zerado":
+                diverg(2, "zerado", ck, ik, "Consumo zerado",
+                       "Nenhum consumo, quando a média seria %s. %s." % (q(esperado, un), conta),
+                       "Conferir se a contagem final não repetiu a de ontem (copiada "
+                       "sem contar) ou se o item realmente não saiu.")
+            elif estado in ("Subiu", "Baixou") and (abs(var) >= RESUMO_FORA_VAR
+                                                    or abs(z or 0) >= RESUMO_FORA_Z):
+                if estado == "Subiu" and lote:
+                    pista = ("Item que sai em lote: conferir se foi aberta embalagem ou feito "
+                             "processamento maior que o normal, e a contagem final.")
+                elif estado == "Subiu":
+                    pista = ("Conferir a contagem final (pode ter ficado baixa) e se houve "
+                             "perda ou transferência não lançada.")
+                    if mov["entrada"] > 0:
+                        pista = ("Houve chegada no dia: conferir se a quantidade da nota "
+                                 "foi lançada certa. " + pista)
+                else:
+                    pista = ("Conferir a contagem final (pode ter ficado alta) e se uma "
+                             "chegada foi lançada a mais.")
+                    if mov["entrada"] > 0:
+                        pista = ("Houve chegada no dia: conferir se não foi lançada em "
+                                 "dobro. " + pista)
+                diverg(2 if estado == "Subiu" else 3, "fora_padrao", ck, ik,
+                       "Consumo muito acima da média" if estado == "Subiu"
+                       else "Consumo muito abaixo da média",
+                       "%s contra %s (%s%.0f%%). %s." % (
+                           q(uso, un), ref_txt, "+" if var > 0 else "",
+                           var * 100, conta), pista, reais)
+
+    # ---------------------------------------------------------- por insumo (rede)
+    rede = []
+    for ik in painel:
+        linhas = [i for i in itens if i["insumo_chave"] == ik and i["coef"] is not None
+                  and i["esperado"] is not None]
+        if not linhas:
+            continue
+        uso = sum(i["uso"] for i in linhas)
+        esp = sum(i["esperado"] for i in linhas)
+        reais = sum(i["reais"] or 0 for i in linhas)
+        custo_dia = sum(i["uso"] * (i["custo_un"] or 0) for i in linhas)
+        rede.append({"insumo_chave": ik, "insumo": nomes[ik]["nome"], "un": nomes[ik]["un"],
+                     "uso": round(uso, 4), "esperado": round(esp, 4),
+                     "var": round(uso / esp - 1, 4) if esp > 0 else None,
+                     "reais": round(reais, 2), "custo_dia": round(custo_dia, 2),
+                     "casas": {i["casa"]: {"var": i["var"], "estado": i["estado"],
+                                           "uso": i["uso"]} for i in linhas}})
+    for i in itens:
+        i["insumo"] = nomes[i["insumo_chave"]]["nome"]
+        i["un"] = nomes[i["insumo_chave"]]["un"]
+        i["casa_nome"] = nome_casa[i["casa"]]
+
+    divergencias.sort(key=lambda d: (d["prioridade"], -abs(d["reais"] or 0)))
+    fat_total = sum(f["faturamento"] for f in fat_casas)
+    ref_total = sum(f["media_mesmo_dia"] or 0 for f in fat_casas if f["faturamento"] > 0)
+    custo_total = sum(r["custo_dia"] for r in rede)
+    custo_esp = sum((i["esperado"] or 0) * (i["custo_un"] or 0) for i in itens
+                    if i["coef"] is not None)
+    datas = sorted(k for k, v in dados.items()
+                   if k <= data_iso and any(isinstance(x, dict) and x.get("insumos")
+                                            for x in v.values()))
+    return {
+        "data": data_iso, "semana": semana, "janela": RESUMO_JANELA,
+        "ultimo_completo": datas[-1] if datas else None,
+        "faturamento": {"total": round(fat_total, 2),
+                        "media_mesmo_dia": round(ref_total, 2) if ref_total else None,
+                        "var": round(fat_total / ref_total - 1, 4) if ref_total else None,
+                        "casas": fat_casas},
+        "custo": {"dia": round(custo_total, 2), "esperado": round(custo_esp, 2),
+                  "var": round(custo_total / custo_esp - 1, 4) if custo_esp else None},
+        "contagem": {e: sum(1 for i in itens if i["estado"] == e)
+                     for e in ("Subiu", "Baixou", "Zerado", "Sem estoque", "Divergência", "No padrão", "Sem base")},
+        "rede": rede, "itens": itens, "divergencias": divergencias,
+    }
 
 
 def ocorrencias_do_dia(insumo, casa, n=7, semana=None):
@@ -1755,6 +2106,13 @@ def projetar(data_iso, dias_cobrir):
     fora["congelado_em"] = (congelado or {}).get("_em")
 
     dados_lanc = carregar()
+    fat_planilha = ler_faturamento()
+
+    def fat_do_dia(iso, ck):
+        # o lancado no dia; dia antigo sem ele, o da planilha de faturamento
+        v = numero(((dados_lanc.get(iso) or {}).get(ck) or {}).get("faturamento"))
+        return round(v or numero((fat_planilha.get(iso) or {}).get(ck)), 2)
+
     for ck in casas:
         linhas = []
         guardado = (salvos.get(ck) or {}).get("insumos") or {}
@@ -1780,7 +2138,12 @@ def projetar(data_iso, dias_cobrir):
                 "processamento": b["processamento"],
                 "estoque": round(b["estoque"], 3), "estoque_de": b["estoque_de"],
                 "media_diaria": round(media, 4), "dias_com_uso": n_dias,
-                "historico": [{"data": iso, "uso": round(u, 3)} for iso, u in historico],
+                # o faturamento do dia vai junto so para o calendario poder
+                # mostrar o coeficiente (consumo por R$ 1.000); o pedido
+                # continua saindo da media de consumo
+                "historico": [{"data": iso, "uso": round(u, 3),
+                               "fat": fat_do_dia(iso, ck)}
+                              for iso, u in historico],
                 "dias_media": escolha, "dias_media_padrao": b["dias_media_padrao"],
                 # transito de entrada (pedido que vai chegar, transferencia
                 # recebida) e de saida (transferencia para outra casa); no
@@ -2445,6 +2808,8 @@ def gravar_ordem(corpo):
         o["itens"] = limpos
     o["alterada_em"] = datetime.now().isoformat(timespec="seconds")
     salvar_ordens(todas)
+    with _lock_rec:
+        sincronizar_recebimento(o)
     return {"ok": True, "ordem": o}
 
 
@@ -2458,6 +2823,15 @@ def listar_ordens(situacao=None):
         # Ordens gravadas antes do modulo completo nao tem o campo: todas
         # vinham da Projecao, que era a unica porta de entrada.
         o.setdefault("origem", "projecao")
+    recs = ler_recebimentos().get("recebimentos", {})
+    for o in fora:
+        r = recs.get(o["id"])
+        if r:
+            o["recebimento"] = {"situacao": r["situacao"],
+                                "divergente": bool((r.get("conferencia") or {}).get("divergente"))}
+        elif o.get("situacao") == "gerada" and (o.get("data") or "") >= RECEBIMENTO_DESDE \
+                and any(item_salmao(i) for i in o.get("itens", [])):
+            o["recebimento"] = {"situacao": "aguardando_real", "divergente": False}
     return {"ordens": fora, "pendentes": sum(1 for o in fora if o.get("situacao") == "pendente")}
 
 
@@ -2561,6 +2935,8 @@ def criar_ordem(corpo):
     if corpo.get("numero_oc"):
         ordens[oid]["numero_oc"] = str(corpo["numero_oc"])
     salvar_ordens(todas)
+    with _lock_rec:
+        sincronizar_recebimento(ordens[oid])
     return {"ok": True, "id": oid, "ordem": ordens[oid]}
 
 
@@ -2579,6 +2955,221 @@ def criar_ordens_lote(corpo):
         except ValueError as e:
             recusadas.append({"fornecedor": item.get("fornecedor") or "(sem nome)", "motivo": str(e)})
     return {"ok": True, "criadas": feitas, "recusadas": recusadas}
+
+
+
+# --------------------------------------------------------------- recebimento do salmao
+# O salmao nunca chega na quantidade pedida: o fornecedor fecha caixas de peso
+# variavel e manda o pedido real (romaneio/NF) depois da OC. Por isso a OC com
+# salmao gera uma Ordem de Recebimento, que vive em tres passos:
+#
+#   aguardando_real        OC gerada; esperando o fornecedor dizer o que manda
+#   aguardando_recebimento pedido real lancado; a loja confere com este documento
+#   conferido              loja conferiu; divergencias ficam registradas
+#
+# A OC continua sendo o que foi PEDIDO; a ordem de recebimento e o que foi
+# ENVIADO e o que CHEGOU. Os tres numeros ficam lado a lado de proposito.
+ARQ_RECEBIMENTOS = DADOS / "recebimentos.json"
+RECEBIMENTO_DESDE = "2026-11-18"     # ordens geradas antes disso nao ganham recebimento
+TOL_KG = 0.1                         # diferenca de balanca que nao e divergencia
+_lock_rec = threading.Lock()
+
+
+def ler_recebimentos():
+    if not ARQ_RECEBIMENTOS.exists():
+        return {"recebimentos": {}}
+    with open(ARQ_RECEBIMENTOS, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def salvar_recebimentos(todos):
+    ARQ_RECEBIMENTOS.parent.mkdir(exist_ok=True)
+    tmp = ARQ_RECEBIMENTOS.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(todos, f, ensure_ascii=False, indent=1)
+    trocar(tmp, ARQ_RECEBIMENTOS)
+
+
+def item_salmao(i):
+    """Item de salmao na OC: vindo da Projecao (chave salmao_*) ou digitado/importado."""
+    return str(i.get("chave") or "").startswith("salmao") or "SALMAO" in _norm(i.get("nome"))
+
+
+def _kg_pedido(i):
+    if _norm(i.get("un_cde")) == "KG" and i.get("qtd_cde") is not None:
+        return round(numero(i.get("qtd_cde")), 3)
+    if _norm(i.get("un")) == "KG":
+        return round(numero(i.get("qtd")), 3)
+    return None
+
+
+def _itens_recebimento(ordem, antigos=None):
+    antigos = {x["chave"]: x for x in (antigos or [])}
+    itens = []
+    for i in ordem.get("itens", []):
+        if not item_salmao(i):
+            continue
+        a = antigos.get(i.get("chave"), {})
+        itens.append({
+            "chave": i.get("chave"), "nome": i.get("nome"),
+            "pedido_qtd": numero(i.get("qtd")), "pedido_un": i.get("un"),
+            "pedido_kg": _kg_pedido(i),
+            "real_kg": a.get("real_kg"), "real_peixes": a.get("real_peixes"),
+            "real_caixas": a.get("real_caixas"), "real_calibre": a.get("real_calibre"),
+            "rec_kg": a.get("rec_kg"), "rec_peixes": a.get("rec_peixes"),
+            "rec_caixas": a.get("rec_caixas"), "obs": a.get("obs", ""),
+        })
+    return itens
+
+
+def sincronizar_recebimento(ordem, todos=None):
+    """Cria (ou refresca) a ordem de recebimento de uma OC gerada com salmao.
+
+    Enquanto o pedido real nao foi lancado, os itens acompanham a OC; depois
+    disso o documento e da loja e nao muda mais sozinho. Devolve True se mexeu.
+    """
+    if ordem.get("situacao") != "gerada" or (ordem.get("data") or "") < RECEBIMENTO_DESDE:
+        return False
+    if not any(item_salmao(i) for i in ordem.get("itens", [])):
+        return False
+    proprio = todos is None
+    if proprio:
+        todos = ler_recebimentos()
+    recs = todos.setdefault("recebimentos", {})
+    r = recs.get(ordem["id"])
+    if r and r.get("situacao") != "aguardando_real":
+        return False
+    base = r or {"id": ordem["id"], "situacao": "aguardando_real",
+                 "criado_em": datetime.now().isoformat(timespec="seconds"),
+                 "pedido_real": {"documento": "", "previsto": "", "obs": ""},
+                 "conferencia": {"obs": ""}}
+    base.update({"ordem_id": ordem["id"], "numero_oc": ordem.get("numero_oc"),
+                 "data": ordem.get("data"), "casa": ordem.get("casa"),
+                 "casa_nome": ordem.get("casa_nome"), "fornecedor": ordem.get("fornecedor"),
+                 "itens": _itens_recebimento(ordem, (r or {}).get("itens"))})
+    recs[ordem["id"]] = base
+    if proprio:
+        salvar_recebimentos(todos)
+    return True
+
+
+def _divergencias(r):
+    """O que a loja recebeu e nao bate com o pedido real do fornecedor."""
+    out = []
+    for i in r.get("itens", []):
+        for campo, rotulo, tol in (("kg", "kg", TOL_KG), ("peixes", "peixes", 0), ("caixas", "caixas", 0)):
+            real, rec = i.get("real_" + campo), i.get("rec_" + campo)
+            if real is None or rec is None:
+                continue
+            if abs(numero(rec) - numero(real)) > tol + 1e-9:
+                out.append({"chave": i["chave"], "nome": i["nome"], "campo": rotulo,
+                            "real": numero(real), "recebido": numero(rec),
+                            "diferenca": round(numero(rec) - numero(real), 3)})
+    return out
+
+
+def listar_recebimentos(situacao=None):
+    with _lock_rec:
+        todos = ler_recebimentos()
+        mexeu = False
+        for o in ler_ordens().get("ordens", {}).values():
+            if o.get("id") not in todos.get("recebimentos", {}):
+                mexeu |= sincronizar_recebimento(o, todos)
+        if mexeu:
+            salvar_recebimentos(todos)
+    lista = [r for r in todos.get("recebimentos", {}).values()
+             if not situacao or r.get("situacao") == situacao]
+    for r in lista:
+        r["divergencias"] = _divergencias(r)
+    lista.sort(key=lambda r: (r.get("situacao") == "conferido", r.get("data", ""),
+                              r.get("casa", "")), reverse=False)
+    # mais recente primeiro dentro de cada grupo
+    abertos = sorted([r for r in lista if r["situacao"] != "conferido"],
+                     key=lambda r: (r.get("data", ""), r.get("casa", "")), reverse=True)
+    fechados = sorted([r for r in lista if r["situacao"] == "conferido"],
+                      key=lambda r: (r.get("data", ""), r.get("casa", "")), reverse=True)
+    return {"recebimentos": abertos + fechados,
+            "aguardando_real": sum(1 for r in lista if r["situacao"] == "aguardando_real"),
+            "aguardando_recebimento": sum(1 for r in lista if r["situacao"] == "aguardando_recebimento")}
+
+
+def _num_ou_nada(v):
+    if v in (None, ""):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    t = str(v).strip().replace(" ", "")
+    if "," in t:
+        t = t.replace(".", "").replace(",", ".")
+    try:
+        return float(t)
+    except ValueError:
+        raise ValueError("número inválido: " + str(v))
+
+
+def gravar_recebimento(corpo, usuario=None):
+    """Acoes: real (lanca o pedido real), conferir (loja confirma), reabrir, salvar."""
+    rid = corpo.get("id")
+    acao = corpo.get("acao") or "salvar"
+    quem = (usuario or {}).get("nome") or (usuario or {}).get("usuario") or ""
+    agora = datetime.now().isoformat(timespec="seconds")
+    with _lock_rec:
+        todos = ler_recebimentos()
+        r = todos.get("recebimentos", {}).get(rid)
+        if not r:
+            raise ValueError("ordem de recebimento não encontrada")
+        por_chave = {i["chave"]: i for i in r["itens"]}
+        etapa = "real" if acao == "real" or (acao == "salvar" and r["situacao"] == "aguardando_real") \
+            else "rec"
+        if r["situacao"] == "conferido" and acao != "reabrir":
+            raise ValueError("recebimento já conferido — reabra para alterar")
+        for vindo in corpo.get("itens", []):
+            i = por_chave.get(vindo.get("chave"))
+            if not i:
+                continue
+            if etapa == "real":
+                for c in ("kg", "peixes", "caixas"):
+                    if "real_" + c in vindo:
+                        i["real_" + c] = _num_ou_nada(vindo["real_" + c])
+                if "real_calibre" in vindo:
+                    i["real_calibre"] = (vindo["real_calibre"] or "").strip()
+            else:
+                for c in ("kg", "peixes", "caixas"):
+                    if "rec_" + c in vindo:
+                        i["rec_" + c] = _num_ou_nada(vindo["rec_" + c])
+                if "obs" in vindo:
+                    i["obs"] = (vindo["obs"] or "").strip()
+        if "pedido_real" in corpo and etapa == "real":
+            r["pedido_real"].update({k: (corpo["pedido_real"].get(k) or "").strip()
+                                     for k in ("documento", "previsto", "obs")
+                                     if k in corpo["pedido_real"]})
+        if "conferencia" in corpo and etapa == "rec":
+            r["conferencia"]["obs"] = (corpo["conferencia"].get("obs") or "").strip()
+
+        if acao == "real":
+            if any(i.get("real_kg") is None for i in r["itens"]):
+                raise ValueError("informe os kg enviados de cada item do pedido real")
+            r["situacao"] = "aguardando_recebimento"
+            r["pedido_real"].update({"lancado_em": agora, "lancado_por": quem})
+        elif acao == "conferir":
+            if r["situacao"] != "aguardando_recebimento":
+                raise ValueError("lance o pedido real antes de conferir o recebimento")
+            if any(i.get("rec_kg") is None for i in r["itens"]):
+                raise ValueError("informe os kg recebidos de cada item")
+            r["situacao"] = "conferido"
+            r["conferencia"].update({"conferido_em": agora, "conferido_por": quem,
+                                     "divergente": bool(_divergencias(r))})
+        elif acao == "reabrir":
+            volta = corpo.get("para") or ("aguardando_recebimento" if r["situacao"] == "conferido"
+                                          else "aguardando_real")
+            if volta not in ("aguardando_real", "aguardando_recebimento"):
+                raise ValueError("etapa inválida")
+            r["situacao"] = volta
+            r.setdefault("historico", []).append({"em": agora, "por": quem, "reaberto_para": volta})
+        r["alterado_em"] = agora
+        salvar_recebimentos(todos)
+    r["divergencias"] = _divergencias(r)
+    return {"ok": True, "recebimento": r}
 
 
 
@@ -2999,10 +3590,14 @@ def overview(mes=None):
     # Sem o recorte, a curva do bloco desmentia a própria variação ao lado: o
     # camarão M subia 3% contra o mesmo trecho de julho, mas o último ponto da
     # curva era agosto com 17 dias contra julho com 31 — e o desenho descia.
+    #
+    # A serie TERMINA no mes escolhido. Antes ela ia ate o ultimo mes com
+    # lancamento: olhando outubro, o ultimo ponto era novembro com dois dias, e
+    # a curva despencava ao lado de um faturamento que tinha subido 10%.
     serie = []
     consumo_mes, consumo_mes_p = {}, {}
     consumo_mes_p_casa = {}                  # (insumo, casa) -> {mes: qtd no trecho}
-    for m in meses[-12:]:
+    for m in [x for x in meses if x <= mes][-12:]:
         f_m, mv_m = totais_do_mes(m)
         f_p, mv_p = totais_do_mes(m, dia_limite) if parcial else (f_m, mv_m)
         valor = valor_p = 0.0
@@ -3404,7 +3999,7 @@ def movimentacoes(inicio, fim, casa=None, insumo=None, tipo=None, limite=400,
                 # das libragens, que ja estao listadas uma por uma. Aparecendo
                 # tambem, ele dobrava a quantidade do placar e — pior, agora que
                 # existe preco — dobraria o valor do periodo.
-                if ins.get("derivado"):
+                if ins.get("derivado") or ins.get("fora_movimentacoes"):
                     continue
                 precos = campos.get("precos") or {}
                 for t in TIPOS_ESTOQUE:
@@ -3895,6 +4490,260 @@ class Servidor(http.server.ThreadingHTTPServer):
         super().server_bind()
 
 
+# ------------------------------------------------------------ contagens
+# Conferencia de estoque fora do Lancamento Diario, no formato das fichas de
+# papel (Ideias/Templates): a diaria tem inicial, entrada, saida, desperdicio
+# com motivo e final contado, mais o filetamento do salmao e o processamento;
+# a semanal so a quantidade contada e a observacao. As listas sao proprias de
+# cada contagem — nao mexem no consumo nem no coeficiente do CDE.
+#
+# Tudo mora em dados/contagens.json:
+#   {"diaria":  {"itens": [{id, nome, un, grupo, emb, fator, casas, nota, pai}],
+#                "registros": {data: {casa: REGISTRO}}},
+#    "semanal": {... registros pela SEGUNDA-FEIRA da semana ...}}
+#   REGISTRO = {"resp", "fat", "obs",
+#               "itens": {id: {ini, ent, sai, desp, mot, fin} | {qtd, obs}},
+#               "filetamento": {calibre: {peixes, peso, ...}},
+#               "processamento": {item: {in_natura, processado, obs}}}
+# Toda quantidade fica na UNIDADE do item: o que foi contado em embalagem a
+# tela ja converte pelo fator antes de gravar.
+# Item retirado da lista sai so da lista: as contagens antigas dele ficam.
+ARQ_CONTAGENS = DADOS / "contagens.json"
+TIPOS_CONTAGEM = ("diaria", "semanal")
+# entp = entrada de processamento: o que o filetamento e o processamento do dia
+# produziram, separado da entrada de nota fiscal e transferencia (ent).
+CAMPOS_CONTAGEM = {"diaria": ("ini", "ent", "entp", "sai", "desp", "fin"), "semanal": ("qtd",)}
+TEXTOS_CONTAGEM = {"diaria": ("mot",), "semanal": ("obs",)}
+# Mesmas linhas da ficha diaria impressa (js/contagem-comum.js).
+CALIBRES_FILETAMENTO = ("salmao_0810", "salmao_1012", "salmao_1214", "salmao_1416")
+CAMPOS_FILETAMENTO = ("peixes", "peso", "com_pele", "limpo", "raspa", "apara", "pele", "descarte")
+PROCESSADOS_CONTAGEM = ("anel_lula", "lombo_atum", "polvo")
+_lock_contagem = threading.Lock()
+
+
+def _registro_antigo(reg):
+    """Contagem gravada antes das fichas era {id: qtd}; vira o formato novo."""
+    if not isinstance(reg, dict) or "itens" in reg:
+        return reg
+    return {"itens": {k: {"fin": v, "qtd": v} for k, v in reg.items()}}
+
+
+def _ler_contagens():
+    d = {}
+    if ARQ_CONTAGENS.exists():
+        with open(ARQ_CONTAGENS, encoding="utf-8") as f:
+            d = json.load(f)
+    for t in TIPOS_CONTAGEM:
+        d.setdefault(t, {})
+        d[t].setdefault("itens", [])
+        d[t].setdefault("registros", {})
+        for por_casa in d[t]["registros"].values():
+            for ck in list(por_casa):
+                por_casa[ck] = _registro_antigo(por_casa[ck])
+    return d
+
+
+def _gravar_contagens(d):
+    DADOS.mkdir(exist_ok=True)
+    tmp = ARQ_CONTAGENS.with_suffix(".%d.tmp" % threading.get_ident())
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False, indent=1)
+    trocar(tmp, ARQ_CONTAGENS)
+
+
+def _tipo_contagem(tipo):
+    if tipo not in TIPOS_CONTAGEM:
+        raise ValueError("tipo de contagem desconhecido: %r" % tipo)
+    return tipo
+
+
+def _chave_periodo(tipo, data):
+    """Data do registro. Na semanal, qualquer dia da semana cai na segunda-feira:
+    contar na terca ou na quinta e a MESMA contagem da semana, nao uma nova."""
+    try:
+        dia = datetime.strptime(str(data or "")[:10], "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("data invalida: %r" % data)
+    if tipo == "semanal":
+        dia -= timedelta(days=dia.weekday())
+    return dia.strftime("%Y-%m-%d")
+
+
+def ler_contagem(tipo, data):
+    tipo = _tipo_contagem(tipo)
+    chave = _chave_periodo(tipo, data or datetime.now().strftime("%Y-%m-%d"))
+    d = _ler_contagens()[tipo]
+    regs = d["registros"]
+    # A contagem anterior e a ultima registrada ANTES deste periodo, por casa:
+    # um domingo sem contagem nao pode deixar a segunda sem comparacao (nem a
+    # diaria sem o inicial, que e o final da contagem anterior).
+    anteriores = {}
+    for c in CASAS:
+        ck = c["chave"]
+        for k in sorted((k for k in regs if k < chave), reverse=True):
+            if ((regs[k].get(ck) or {}).get("itens")):
+                anteriores[ck] = {"data": k, "itens": regs[k][ck]["itens"]}
+                break
+    fim = None
+    if tipo == "semanal":
+        fim = (datetime.strptime(chave, "%Y-%m-%d") + timedelta(days=6)).strftime("%Y-%m-%d")
+    return {"tipo": tipo, "data": chave, "fim": fim, "casas": CASAS,
+            "itens": d["itens"], "registros": regs.get(chave, {}),
+            "anteriores": anteriores}
+
+
+def _qtd_contagem(v, rotulo):
+    """Quantidade de ficha: vazio e 'nao anotado'; negativa e digito trocado."""
+    if v in (None, ""):
+        return None
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        raise ValueError("quantidade invalida em %s: %r" % (rotulo, v))
+    if n < 0:
+        raise ValueError("quantidade negativa em %s" % rotulo)
+    return n
+
+
+def _texto(v, limite=300):
+    return " ".join(str(v or "").split())[:limite]
+
+
+def _bloco(origem, chaves, campos, textos, rotulo):
+    """Limpa um bloco {chave: {campo: valor}}; linha sem nada anotado sai."""
+    fora = {}
+    for k, vals in (origem or {}).items():
+        if k not in chaves or not isinstance(vals, dict):
+            continue
+        linha = {}
+        for c in campos:
+            n = _qtd_contagem(vals.get(c), "%s %s/%s" % (rotulo, k, c))
+            if n is not None:
+                linha[c] = n
+        for c in textos:
+            t = _texto(vals.get(c))
+            if t:
+                linha[c] = t
+        if linha:
+            fora[k] = linha
+    return fora
+
+
+def gravar_contagem(corpo):
+    tipo = _tipo_contagem(corpo.get("tipo"))
+    chave = _chave_periodo(tipo, corpo.get("data"))
+    casa = corpo.get("casa")
+    if casa not in [c["chave"] for c in CASAS]:
+        raise ValueError("casa desconhecida: %r" % casa)
+    reg = corpo.get("registro") or {}
+    with _lock_contagem:
+        tudo = _ler_contagens()
+        ids = {i["id"] for i in tudo[tipo]["itens"]}
+        itens = _bloco(reg.get("itens"), ids, CAMPOS_CONTAGEM[tipo], TEXTOS_CONTAGEM[tipo], "item")
+        # Desperdicio sem motivo nao entra: a ficha pede o motivo sempre, e um
+        # numero solto de perda nao diz a diretoria o que corrigir.
+        sem_motivo = [k for k, v in itens.items() if v.get("desp") and not v.get("mot")]
+        if sem_motivo:
+            raise ValueError("desperdicio sem motivo: %s" % ", ".join(sem_motivo))
+        limpo = {"itens": itens}
+        if tipo == "diaria":
+            limpo["filetamento"] = _bloco(reg.get("filetamento"), CALIBRES_FILETAMENTO,
+                                          CAMPOS_FILETAMENTO, (), "filetamento")
+            limpo["processamento"] = _bloco(reg.get("processamento"), PROCESSADOS_CONTAGEM,
+                                            ("in_natura", "processado"), ("obs",), "processamento")
+            fat = _qtd_contagem(reg.get("fat"), "faturamento")
+            if fat is not None:
+                limpo["fat"] = fat
+        for c in ("resp", "obs"):
+            t = _texto(reg.get(c), 600)
+            if t:
+                limpo[c] = t
+        limpo = {k: v for k, v in limpo.items() if v not in ({}, None, "")}
+        dia = tudo[tipo]["registros"].setdefault(chave, {})
+        if limpo:
+            dia[casa] = limpo
+        else:
+            dia.pop(casa, None)
+            if not dia:
+                tudo[tipo]["registros"].pop(chave, None)
+        _gravar_contagens(tudo)
+    return {"ok": True, "data": chave, "casa": casa, "itens": len(limpo.get("itens", {}))}
+
+
+def gravar_itens_contagem(corpo):
+    """Regrava a lista inteira do tipo — a tela e a fonte, nao um diff."""
+    tipo = _tipo_contagem(corpo.get("tipo"))
+    itens = corpo.get("itens")
+    if not isinstance(itens, list):
+        raise ValueError("corpo sem a lista de itens")
+    chaves_casas = [c["chave"] for c in CASAS]
+    with _lock_contagem:
+        tudo = _ler_contagens()
+        # Id de item novo nunca reaproveita um id que ja existiu: herdaria as
+        # contagens antigas do item retirado.
+        ja_existiu = {i["id"] for i in tudo[tipo]["itens"]}
+        for por_casa in tudo[tipo]["registros"].values():
+            for reg in por_casa.values():
+                ja_existiu.update((reg or {}).get("itens", {}))
+        atuais = {i["id"] for i in tudo[tipo]["itens"]}
+        usados, nomes, codigos, saida = set(), set(), {}, []
+        for it in itens:
+            nome = _texto(it.get("nome"), 120)
+            if not nome:
+                continue
+            # O mesmo nome pode repetir embaixo de primarios diferentes ("Camarao
+            # Temperado" sai do M e do P): repetido e so dentro do mesmo primario.
+            chave_nome = (_norm(it.get("pai")), _norm(nome))
+            if chave_nome in nomes:
+                raise ValueError("item repetido na lista: %s" % nome)
+            nomes.add(chave_nome)
+            iid = str(it.get("id") or "").strip()
+            if iid not in atuais or iid in usados:
+                base = "".join(ch if ch.isalnum() else "_" for ch in _norm(nome).lower()).strip("_")[:40] or "item"
+                base = "_".join(p for p in base.split("_") if p)
+                iid, n = base, 2
+                while iid in usados or iid in ja_existiu:
+                    iid = "%s_%d" % (base, n)
+                    n += 1
+            usados.add(iid)
+            emb = _texto(it.get("emb"), 30)
+            fator = _qtd_contagem(it.get("fator"), "fator de " + nome) if emb else None
+            if emb and not fator:
+                raise ValueError("%s: diga quanto vem em 1 %s" % (nome, emb))
+            # Casas: vazio = as quatro. Lista com as quatro tambem vira vazio,
+            # para casa nova entrar sem precisar reabrir cada item.
+            casas = [c for c in chaves_casas if c in (it.get("casas") or [])]
+            if len(casas) == len(chaves_casas):
+                casas = []
+            item = {"id": iid, "nome": nome, "un": _texto(it.get("un"), 20),
+                    "grupo": _texto(it.get("grupo"), 60)}
+            if emb:
+                item.update(emb=emb, fator=fator)
+            if casas:
+                item["casas"] = casas
+            nota = _texto(it.get("nota"), 80)
+            if nota:
+                item["nota"] = nota
+            # Codigo do produto no ERP: liga a linha da contagem ao item do
+            # estoque. Um codigo e um produto so; subproduto (camarao cozido,
+            # file de salmao) nao tem codigo proprio e fica em branco.
+            codigo = _texto(it.get("codigo"), 20)
+            if codigo:
+                if codigo in codigos:
+                    raise ValueError("codigo %s repetido: %s e %s" % (codigo, codigos[codigo], nome))
+                codigos[codigo] = nome
+                item["codigo"] = codigo
+            # Item primario do subproduto (o salmao inteiro do file, da raspa...):
+            # so muda o desenho — o subproduto aparece recuado embaixo dele.
+            pai = _texto(it.get("pai"), 120)
+            if pai and _norm(pai) != _norm(nome):
+                item["pai"] = pai
+            saida.append(item)
+        tudo[tipo]["itens"] = saida
+        _gravar_contagens(tudo)
+    return {"ok": True, "itens": saida}
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=str(RAIZ), **kw)
@@ -3923,15 +4772,118 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         n = int(self.headers.get("Content-Length") or 0)
         return json.loads(self.rfile.read(n) or b"{}")
 
-    def do_GET(self):
-        rota = self.path.split("?")[0]
-        # A porta de entrada do sistema e a Visao Geral: quem abre o endereco
-        # quer o retrato do dia, nao a tela de digitacao. O lancamento diario
-        # continua em index.html, no menu.
-        if rota in ("/", "/index"):
-            self.path = "/overview.html"
-            return super().do_GET()
+    # ------------------------------------------------------------ porteiro
+    # Toda pagina e toda chamada passam por aqui antes de qualquer outra coisa.
+    # Regras e usuarios em acesso.py.
+    def _ip(self):
+        ip = self.client_address[0]
+        return ip[7:] if ip.startswith("::ffff:") else ip
+
+    def _local(self):
+        return self._ip() in ("127.0.0.1", "::1")
+
+    def _token(self):
+        from http.cookies import SimpleCookie
         try:
+            c = SimpleCookie(self.headers.get("Cookie") or "")
+            return c[acesso.COOKIE].value if acesso.COOKIE in c else ""
+        except Exception:
+            return ""
+
+    def _redirecionar(self, destino, cookie=None):
+        self.send_response(302)
+        self.send_header("Location", destino)
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    @staticmethod
+    def _estatico_permitido(rota):
+        """So o que as telas usam sai pelo servidor de arquivos: .html, .js,
+        .css e imagens da raiz, de js/ e de css/. Antes qualquer arquivo da
+        pasta saia — inclusive dados/lancamentos.json, com o faturamento."""
+        from urllib.parse import unquote
+        r = unquote(rota)
+        if ".." in r or "\\" in r:
+            return False
+        nome = r.rsplit("/", 1)[-1]
+        ext = nome.rsplit(".", 1)[-1].lower() if "." in nome else ""
+        if ext not in ("html", "js", "css", "png", "jpg", "jpeg", "svg", "ico", "woff", "woff2"):
+            return False
+        partes = r.strip("/").split("/")
+        return len(partes) == 1 or partes[0] in ("js", "css")
+
+    def _porteiro(self, metodo):
+        """Devolve (seguir, usuario). Quando seguir e False a resposta ja foi dada."""
+        rota = self.path.split("?")[0]
+        if metodo == "GET" and not rota.startswith("/api/") and rota not in ("/", "/index") \
+                and not self._estatico_permitido(rota):
+            self._erro(404, "não encontrado")
+            return False, None
+        if metodo == "POST":
+            # outro site nao grava aqui, mesmo que o navegador tenha a sessao
+            origem = self.headers.get("Origin")
+            if origem and origem.split("://", 1)[-1] != (self.headers.get("Host") or ""):
+                self._erro(403, "origem não permitida")
+                return False, None
+        if rota in acesso.PUBLICAS or rota in ("/api/login", "/api/estado", "/api/primeiro-acesso"):
+            return True, None
+        ligado = acesso.login_ligado()
+        u = acesso.sessao(self._token()) if ligado else None
+        if ligado and u is None:
+            if rota.startswith("/api/"):
+                self._erro(401, "sessão encerrada: entre de novo")
+            else:
+                from urllib.parse import quote
+                self._redirecionar("/login.html?volta=" + quote(self.path, safe=""))
+            return False, None
+        if rota.startswith("/api/"):
+            if rota in ("/api/usuarios", "/api/senha") and u is None:
+                self._erro(403, "crie o primeiro administrador para usar esta função")
+                return False, None
+            motivo = acesso.pode_api(u, metodo, rota)
+            if motivo:
+                self._erro(403, motivo)
+                return False, None
+            if metodo == "POST" or rota == "/api/sincronizar":
+                acesso.registrar(u and u["usuario"], self._ip(), metodo, rota)
+            return True, u
+        pagina = rota.strip("/") if rota not in ("/", "/index") else ""
+        if u and acesso.precisa_trocar(u["usuario"]) and pagina.endswith(".html") \
+                and pagina != "senha.html":
+            self._redirecionar("/senha.html?primeira=1")
+            return False, None
+        if pagina == "":
+            # A porta de entrada e a Visao Geral; quem nao a ve cai na
+            # primeira tela liberada para ele.
+            alvo = "overview.html" if acesso.pode_pagina(u, "overview.html") \
+                else acesso.primeira_pagina(u)
+            self.path = "/" + alvo
+            return True, u
+        if pagina.endswith(".html") and not acesso.pode_pagina(u, pagina):
+            self._redirecionar("/" + acesso.primeira_pagina(u))
+            return False, None
+        return True, u
+
+    def do_GET(self):
+        seguir, eu = self._porteiro("GET")
+        if not seguir:
+            return
+        rota = self.path.split("?")[0]
+        try:
+            if rota == "/api/estado":
+                return self._json(200, {"login": acesso.login_ligado(),
+                                        "primeiro_acesso": not acesso.usuarios(),
+                                        "local": self._local()})
+            if rota == "/api/eu":
+                if eu is None:
+                    return self._json(200, {"login": False})
+                return self._json(200, dict(eu, login=True,
+                                            telas=[{"id": t["id"], "rotulo": t["rotulo"]}
+                                                   for t in acesso.TELAS]))
+            if rota == "/api/usuarios":
+                return self._json(200, acesso.para_tela())
             if rota == "/api/parametros":
                 return self._json(200, parametros_para_tela())
             if rota == "/api/config":
@@ -3951,6 +4903,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if rota == "/api/painel":
                 pad_i, pad_f = periodo_padrao()
                 return self._json(200, analisar(q.get("inicio") or pad_i, q.get("fim") or pad_f))
+            if rota == "/api/resumo-dia":
+                return self._json(200, resumo_do_dia(q.get("data") or None))
             if rota == "/api/projecao":
                 return self._json(200, projetar(
                     q.get("data") or (periodo_padrao()[1]),
@@ -3967,6 +4921,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                         "arquivo": str(REGISTRO_OC)})
             if rota == "/api/ordens":
                 return self._json(200, listar_ordens(q.get("situacao")))
+            if rota == "/api/recebimentos":
+                return self._json(200, listar_recebimentos(q.get("situacao")))
             if rota == "/api/ocs/proximo":
                 from urllib.parse import unquote
                 uni = unquote(q.get("unidade") or "")
@@ -3994,6 +4950,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, ocorrencias_do_dia(
                     q.get("insumo"), q.get("casa"), int(q.get("n") or 7),
                     unquote(q.get("semana") or "") or None))
+            if rota == "/api/contagem":
+                return self._json(200, ler_contagem(q.get("tipo"), q.get("data")))
             if rota == "/api/serie":
                 pad_i, pad_f = periodo_padrao()
                 s = series_do_periodo(q.get("inicio") or pad_i, q.get("fim") or pad_f)
@@ -4004,8 +4962,42 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except Exception:
             return self._erro(500, traceback.format_exc())
 
+    def _json_cookie(self, obj, cookie):
+        corpo = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(corpo)))
+        self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+        self.wfile.write(corpo)
+
     def do_POST(self):
+        seguir, eu = self._porteiro("POST")
+        if not seguir:
+            return
         try:
+            if self.path == "/api/login":
+                c = self._corpo()
+                token, u = acesso.entrar(c.get("usuario"), c.get("senha"), self._ip())
+                return self._json_cookie(
+                    dict(u, ok=True),
+                    "%s=%s; HttpOnly; SameSite=Strict; Path=/; Max-Age=%d"
+                    % (acesso.COOKIE, token, acesso.DURACAO_SESSAO))
+            if self.path == "/api/sair":
+                acesso.sair(self._token())
+                return self._json_cookie({"ok": True}, "%s=; HttpOnly; SameSite=Strict; "
+                                                       "Path=/; Max-Age=0" % acesso.COOKIE)
+            if self.path == "/api/primeiro-acesso":
+                if not self._local():
+                    return self._erro(403, "o primeiro administrador só pode ser criado "
+                                           "no próprio PC do servidor")
+                return self._json(200, acesso.primeiro_admin(self._corpo()))
+            if self.path == "/api/senha":
+                c = self._corpo()
+                return self._json(200, acesso.trocar_senha(eu["usuario"], c.get("atual"),
+                                                           c.get("nova"), self._token()))
+            if self.path == "/api/usuarios":
+                return self._json(200, acesso.administrar(self._corpo(), eu["usuario"]))
             if self.path == "/api/dia":
                 return self._json(200, gravar_dia(self._corpo()))
             if self.path == "/api/movimentacao":
@@ -4028,12 +5020,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, gravar_ordem(self._corpo()))
             if self.path == "/api/ordem/nova":
                 return self._json(200, criar_ordem(self._corpo()))
+            if self.path == "/api/recebimento":
+                return self._json(200, gravar_recebimento(self._corpo(), eu))
             if self.path == "/api/ordens/lote":
                 return self._json(200, criar_ordens_lote(self._corpo()))
             if self.path == "/api/parametros":
                 return self._json(200, gravar_parametros(self._corpo()))
             if self.path == "/api/base":
                 return self._json(200, gravar_base(self._corpo()))
+            if self.path == "/api/contagem":
+                return self._json(200, gravar_contagem(self._corpo()))
+            if self.path == "/api/contagem/itens":
+                return self._json(200, gravar_itens_contagem(self._corpo()))
             if self.path == "/api/vinculos":
                 return self._json(200, gravar_vinculos(self._corpo().get("vinculos")))
             if self.path == "/api/ocs/reservar":
@@ -4258,7 +5256,51 @@ def gravar_notas(corpo):
         return _gravar_notas_sem_trava(corpo)
 
 
+def servir_redirecionamento():
+    """Fora do PC do servidor: ocupa a porta so para mandar ao servidor central.
+
+    Quem abrir http://localhost:8935 (favorito antigo, atalho, Abrir.bat velho)
+    cai no servidor de verdade, e nada aqui le ou grava a copia local dos
+    dados. O 307 mantem o metodo: uma aba antiga que tente gravar e mandada
+    para o servidor central, e o navegador barra — melhor que gravar aqui.
+    """
+    destino = "http://%s:%d" % (SERVIDOR, PORT)
+
+    class Redireciona(http.server.BaseHTTPRequestHandler):
+        def _ir(self):
+            self.send_response(307)
+            self.send_header("Location", destino + self.path)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        do_GET = do_POST = do_PUT = do_DELETE = do_HEAD = _ir
+
+        def log_message(self, *a):
+            pass
+
+    print("=" * 58)
+    print("  Este PC (%s) NAO e o servidor do CDE Web." % socket.gethostname())
+    print("  Abra: %s" % destino)
+    print("  Esta janela so redireciona o localhost para o servidor.")
+    print("=" * 58)
+    try:
+        Servidor(("::", PORT), Redireciona).serve_forever()
+    except OSError:
+        Servidor.address_family = socket.AF_INET
+        Servidor(("", PORT), Redireciona).serve_forever()
+
+
 if __name__ == "__main__":
+    if socket.gethostname().upper() != SERVIDOR.upper():
+        if ja_rodando():
+            print("Ja ha um servidor LOCAL na porta %d neste PC — feche a janela "
+                  "dele (ou reinicie o PC) e use http://%s:%d" % (PORT, SERVIDOR, PORT))
+            raise SystemExit(1)
+        try:
+            servir_redirecionamento()
+        except KeyboardInterrupt:
+            pass
+        raise SystemExit(0)
     if ja_rodando():
         print("O servidor ja esta rodando nesta maquina (porta %d)." % PORT)
         print("Abra http://localhost:%d no navegador." % PORT)
@@ -4269,6 +5311,9 @@ if __name__ == "__main__":
     # sempre que o lancamentos.json muda — veja consolidar_cde.py
     import consolidar_cde
     consolidar_cde.vigiar_e_exportar()
+    # faturamento digitado na tela -> Faturamento - <ano>.xlsx, pelo Excel
+    import faturamento_planilha
+    faturamento_planilha.vigiar(FATURAMENTO, int(FATURAMENTO.stem.split()[-1]))
     print("=" * 58)
     print("  CDE Web - Controle Diario de Estoque")
     print("  http://localhost:%d" % PORT)

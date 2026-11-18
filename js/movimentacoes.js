@@ -110,7 +110,9 @@ async function montarFiltros() {
       cfg.casas.map((c) => `<option value="${c.chave}">${esc(c.nome)}</option>`).join("");
     // Linha derivada fica fora: o equivalente 08/10 e a soma das libragens,
     // que ja estao na lista uma por uma (o servidor tambem nao o lista).
-    montarMultiInsumo(cfg.insumos.filter((i) => !i.derivado));
+    // Raspa, apara e pele de salmão também: subprodutos sem nota nem preço,
+    // que o servidor deixa fora desta tela (fora_movimentacoes).
+    montarMultiInsumo(cfg.insumos.filter((i) => !i.derivado && !i.fora_movimentacoes));
     $("#f-casa").onchange = carregar;
   }
   if (!$("#f-tipo").options.length) {
@@ -723,7 +725,7 @@ function montarNota() {
   // Agrupado como no lançamento diário; a linha derivada (equivalente) não
   // recebe nota — chegada de salmão se lança na libragem que chegou.
   const grupos = [];
-  CFG.insumos.filter((i) => !i.derivado).forEach((i) => {
+  CFG.insumos.filter((i) => !i.derivado && !i.fora_movimentacoes).forEach((i) => {
     let g = grupos.find((x) => x.nome === i.grupo);
     if (!g) { g = { nome: i.grupo, itens: [] }; grupos.push(g); }
     g.itens.push(i);

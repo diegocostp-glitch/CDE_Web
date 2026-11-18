@@ -137,7 +137,7 @@ def main():
     ap.add_argument('--ate', required=True, help='último mês, AAAA-MM')
     ap.add_argument('--insumo', default='salmao_equivalente',
                     help='chave do insumo, ou "todos" para o painel do periodo')
-    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', 'dados')))
+    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', '..', 'dados')))
     ap.add_argument('--saida', default=RAIZ_RELATORIOS)
     ap.add_argument('--modelo', default=os.path.join(AQUI, 'modelo_coef.html'))
     ap.add_argument('--piso', type=float, default=0.10)

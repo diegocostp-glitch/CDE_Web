@@ -314,8 +314,9 @@
 
     // === ASSINATURAS ===
     const aprov = [
-      ["Emitida por", caixaTitulo(un.contato), "Comprador"],
-      ["Aprovada por", GERENTE_SUPRIMENTOS, "Gerente Suprimentos"],
+      // escolhidos no bloco da OC; vazio = o padrão de antes
+      ["Emitida por", String(oc.emitidaPor || "").trim() || caixaTitulo(un.contato), "Comprador"],
+      ["Aprovada por", String(oc.aprovadaPor || "").trim() || GERENTE_SUPRIMENTOS, "Gerente Suprimentos"],
       ["Recebida por", "", "Nome, data e hora"],
     ];
     const wA = (W - 2 * 5.8) / 3;

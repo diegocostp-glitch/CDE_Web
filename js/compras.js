@@ -72,6 +72,7 @@ async function carregar() {
     return;
   }
   sujo = false; estado("");
+  await carregarACaminho();
   const cfg = PROJ.config;
   // Cada data é um pedido: o que já foi salvo volta com os dias com que foi
   // salvo; pedido novo começa no padrão de Parâmetros.
@@ -83,7 +84,7 @@ async function carregar() {
   $("#janela-txt").textContent = em
     ? `Estoque e média congelados em ${brDate(em.slice(0, 10))} às ${em.slice(11, 16)}` +
       ` · lançamento corrigido depois não muda este pedido`
-    : `Média diária dos últimos ${PROJ.janela_media_dias} dias, ou dos dias escolhidos no item` +
+    : `Média diária do período escolhido, ou dos dias marcados no item` +
       ` · estoque do último lançamento`;
   if (!$("#responsavel").options.length) {
     $("#responsavel").innerHTML = '<option value="">—</option>' +
@@ -140,6 +141,41 @@ function mediaDe(ins) {
   const alvo = new Set(ins.dias_media);
   const usos = (ins.historico || []).filter((h) => alvo.has(h.data)).map((h) => h.uso);
   return { media: usos.length ? usos.reduce((a, b) => a + b, 0) / usos.length : 0, n: usos.length };
+}
+
+// Período alternativo da média: os dias com consumo lançado nos últimos N dias
+// antes da data do pedido. Mesma regra da janela padrão do servidor
+// (base_do_item: dia >= data - janela), só que com N escolhido na tela. Vira
+// uma lista de dias_media, que já é salva com o pedido e congelada com ele.
+const PERIODO_ALTERNATIVO = 28;
+function diasDaJanela(ins, n) {
+  const d = new Date(PROJ.data + "T12:00:00");
+  d.setDate(d.getDate() - n);
+  const ini = d.toISOString().slice(0, 10);
+  return (ins.historico || []).filter((h) => h.data >= ini && h.data < PROJ.data)
+    .map((h) => h.data).sort().reverse();
+}
+const mesmosDias = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+// "padrao", "28" ou "" (dias escolhidos à mão) para um item
+function periodoDe(ins) {
+  if (!Array.isArray(ins.dias_media)) return "padrao";
+  const sel = ins.dias_media.slice().sort().reverse();
+  return mesmosDias(sel, diasDaJanela(ins, PERIODO_ALTERNATIVO)) ? String(PERIODO_ALTERNATIVO) : "";
+}
+// O seletor da barra mostra o período da casa aberta; com itens misturados,
+// aparece "Dias escolhidos por item".
+function sincronizarPeriodo() {
+  const sel = $("#periodo-media");
+  if (!sel || !PROJ) return;
+  const pad = PROJ.janela_media_dias;
+  const ops = [["padrao", `Últimos ${pad} dias (padrão)`]];
+  if (pad !== PERIODO_ALTERNATIVO) ops.push([String(PERIODO_ALTERNATIVO), `Últimos ${PERIODO_ALTERNATIVO} dias`]);
+  const its = PROJ.casas[CASA].insumos.filter((i) => (i.historico || []).length);
+  const vals = new Set(its.map(periodoDe));
+  const atual = vals.size === 1 ? [...vals][0] : "";
+  if (atual === "") ops.push(["", "Dias escolhidos por item"]);
+  sel.innerHTML = ops.map(([v, r]) => `<option value="${v}"${v === atual ? " selected" : ""}` +
+    `${v === "" ? " disabled" : ""}>${r}</option>`).join("");
 }
 
 // ------------------------------------------------------------------ cálculo
@@ -206,15 +242,23 @@ function dicaEstoque(i) {
          `${fmt(p.estoque_processado, 3)} processado ÷ ${fmt(p.rendimento * 100, 2)}%`;
 }
 
+// Ajuste do pedido: o número digitado vai para o pedido no lugar do calculado
+// (o mesmo qtd_manual do resumo). Mostrado sem separador de milhar, como se digita.
+const temManual = (v) => v !== null && v !== undefined && v !== "";
+const txtManual = (v) => temManual(v)
+  ? Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3, useGrouping: false }) : "";
+
 function desenhar() {
+  sincronizarPeriodo();
   const casa = PROJ.casas[CASA];
-  const cab = ["Insumo", "Estoque", "Trânsito entrada", "Trânsito saída", "Média/dia", "Fator", "Duração",
-               "Dias a cobrir", "Pedido", "Fornecedor"];
+  const cab = ["Insumo", "Estoque", "Trânsito entrada", "Trânsito saída", "Média/dia",
+               "Consumo nos dias da média", "Fator", "Duração",
+               "Dias a cobrir", "Pedido", "Ajuste", "Fornecedor"];
   $("#tela").innerHTML =
     `<section class="cartao">
       <div class="cabeca"><h2>${casa.nome}</h2>
         <span class="fonte">Estoque do último lançamento de cada item</span></div>
-      <div class="rolagem"><table><thead><tr>${cab.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <div class="rolagem"><table class="tabela-proj"><thead><tr>${cab.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
       <tbody>${casa.insumos.map((i) => `
         <tr data-k="${i.chave}">
           <td>${i.nome} <span class="un">(${i.un})</span>${selo(i)}</td>
@@ -222,6 +266,7 @@ function desenhar() {
           ${celTransito(i, "transito", "Pedido ou transferência que ainda vai chegar")}
           ${celTransito(i, "transito_saida", "Transferência para outra casa que ainda vai sair")}
           <td class="calc media"></td>
+          <td class="tend"></td>
           <td><input data-c="fator" type="text" inputmode="decimal" value="${i.fator ?? 1}" style="width:64px"></td>
           <td class="calc dur"></td>
           ${CASA === CASA_DIAS
@@ -230,6 +275,12 @@ function desenhar() {
                  title="Dias a cobrir deste item — vale também para as outras casas. Vazio: usa o padrão do topo"></td>`
             : `<td class="calc cobrir" title="Digitado na ${PROJ.casas[CASA_DIAS].nome} (SL) — vale para as quatro casas"></td>`}
           <td class="calc ped"></td>
+          <td class="ajuste-cel"><input data-c="ajuste" class="qtd-resumo" type="text" inputmode="decimal"
+               value="${txtManual(i.qtd_manual)}" placeholder="${i.conversao ? "kg" : "—"}"
+               title="${i.conversao
+                 ? "Em kg de peixe inteiro, a mesma unidade do Pedido — não em peixes. Vai para a ordem no lugar do calculado. Vazio: vale o calculado"
+                 : "Quantidade que vai no pedido no lugar da calculada. Vazio: vale o calculado"}">
+            <span class="un"></span></td>
           <td><select data-c="fornecedor"><option value="">Selecione</option>${
             fornecedoresDe(i).map((f) =>
               `<option${f === i.fornecedor ? " selected" : ""}>${f}</option>`).join("")}</select></td>
@@ -252,6 +303,48 @@ function fornecedoresDe(i) {
 
 // Célula de trânsito. No salmão vem com a libragem ao lado e, embaixo, quanto
 // aquilo dá em equivalente 08/10 (preenchido no recalcular).
+// Salmão a caminho: o pedido real (espelho do fornecedor) lançado no
+// Recebimento de Salmão e ainda não conferido pela loja. Aparece como tag
+// embaixo do Trânsito entrada — só para leitura: NÃO preenche a célula, não
+// entra no disponível nem na duração. Quem decide digitar o trânsito é quem
+// faz o pedido. Vale para pedidos de datas anteriores à desta projeção (o
+// pedido de terça aparece na projeção seguinte) dos últimos 14 dias.
+let A_CAMINHO = [];
+async function carregarACaminho() {
+  A_CAMINHO = [];
+  try {
+    const r = await fetch("/api/recebimentos?situacao=aguardando_recebimento", { cache: "no-store" });
+    if (!r.ok) return;
+    const ini = new Date(PROJ.data + "T12:00:00"); ini.setDate(ini.getDate() - 14);
+    const desde = ini.toISOString().slice(0, 10);
+    A_CAMINHO = ((await r.json()).recebimentos || [])
+      .filter((x) => x.data < PROJ.data && x.data >= desde);
+  } catch (e) { /* sem acesso ao recebimento: sem tag */ }
+}
+
+function tagACaminho(casa) {
+  const lista = A_CAMINHO.filter((x) => x.casa === casa);
+  if (!lista.length) return "";
+  const libra = (cal) => {
+    const d = String(cal || "").replace(/\D/g, "");
+    return (PROJ.libragens || []).find((l) => String(l.nome || "").replace(/\D/g, "") === d && d);
+  };
+  return lista.map((x) => {
+    const linhas = x.itens.filter((i) => i.real_kg != null).map((i) => {
+      const l = libra(i.real_calibre);
+      const px = i.real_peixes != null ? `${fmt(i.real_peixes, 0)} px${i.real_calibre ? " " + i.real_calibre : ""}` : "";
+      const eq = l && i.real_peixes != null && l.fator !== 1 ? ` ≈ ${fmt(i.real_peixes * l.fator, 2)} eq. 08/10` : "";
+      const nome = /file|filé/i.test(i.nome) ? "filé " : "";
+      return `${nome}${fmt(i.real_kg, 3)} kg${px ? " · " + px : ""}${eq}`;
+    });
+    return `<a class="tag-caminho" href="recebimento.html?id=${encodeURIComponent(x.id)}"
+      title="Pedido real lançado no Recebimento de Salmão, ainda não conferido pela loja.
+Só informativo: não está no trânsito e não muda a duração do estoque.">
+      A caminho · OC ${x.numero_oc ? "nº " + escapa(x.numero_oc) : "—"} de ${brDate(x.data).slice(0, 5)}${
+        x.pedido_real && x.pedido_real.previsto ? " · chega " + brDate(x.pedido_real.previsto).slice(0, 5) : ""}<br>${linhas.join("<br>")}</a>`;
+  }).join("");
+}
+
 function celTransito(i, campo, dica) {
   const input = `<input data-c="${campo}" type="text" inputmode="decimal" value="${i[campo] == null ? "" : fmt(i[campo], 3)}" title="${dica}"`;
   if (i.chave !== CHAVE_SALMAO || !(PROJ.libragens || []).length) return `<td>${input}></td>`;
@@ -259,7 +352,7 @@ function celTransito(i, campo, dica) {
   return `<td>${input} style="width:56px">
     <select data-c="${campo}_tam" title="Libragem que está ${campo === "transito" ? "chegando" : "saindo"}">${
       PROJ.libragens.map((l) => `<option value="${l.chave}"${l.chave === tam ? " selected" : ""}>${l.nome}</option>`).join("")}</select>
-    <span class="msg-conv eq-${campo}"></span></td>`;
+    <span class="msg-conv eq-${campo}"></span>${campo === "transito" ? tagACaminho(CASA) : ""}</td>`;
 }
 
 // Os dias que formam a média do item, num calendário de segunda a domingo:
@@ -268,21 +361,105 @@ function celTransito(i, campo, dica) {
 // põe na conta um dia parecido com o que vem.
 const UN_INTEIRA = ["Px", "Pxs", "Pct", "Bng"];
 
+// O que o calendário mostra em cada dia: o consumo (como sempre) ou o
+// coeficiente de consumo — consumo ÷ faturamento do dia × 1.000, a régua do
+// CDE. Só muda a leitura: o pedido continua saindo da média de consumo. A
+// escolha é de quem lê, fica no navegador e vale para todos os itens.
+const VER_KEY = "cde_projecao_calendario_v1";
+let VER_DIAS = "consumo";
+try { if (localStorage.getItem(VER_KEY) === "coef") VER_DIAS = "coef"; } catch (e) { /* sem storage */ }
+const coefDia = (h) => h.fat > 0 ? h.uso / h.fat * 1000 : null;
+// Faturamento do dia ao lado do consumo/coeficiente, curto para caber na
+// linha do dia: R$ 18,8 mil. O valor inteiro fica na dica do mouse.
+const fatCurto = (v) => v > 0 ? "R$ " + fmt(v / 1000, 1) + " mil" : "sem fat.";
+
+function coefDosDias(ins, marcados) {
+  let uso = 0, fat = 0, n = 0;
+  (ins.historico || []).forEach((h) => {
+    if (marcados.has(h.data) && h.fat > 0) { uso += h.uso; fat += h.fat; n++; }
+  });
+  return { coef: fat > 0 ? uso / fat * 1000 : null, n, fatMedio: n ? fat / n : null };
+}
+
+// Dia fora do padrão: a 2 desvios ou mais da média dos dias de comparação —
+// a mesma régua do Painel (Atenção). O próprio dia fica fora da média e do
+// desvio dele, senão um pico puxaria a régua para perto de si e se esconderia.
+//   consumo     — comparado com os mesmos dias da semana do calendário: sábado
+//                 consome mais que terça e isso não é anormal;
+//   coeficiente — comparado com todos os dias com faturamento: ele já desconta
+//                 o movimento do dia.
+// Menos de 4 dias de comparação: pouco para chamar alguém de anormal. E item
+// que quase não varia (salmão) passaria dos 2 desvios com 15% de diferença:
+// só é "muito alto/baixo" a partir de 25% de distância da média.
+const LIMITE_DESVIOS = 2, MIN_COMPARACAO = 4, MIN_VARIACAO = 0.25;
+const DIAS_SEMANA = ["domingos", "segundas", "terças", "quartas", "quintas", "sextas", "sábados"];
+const diaSemana = (iso) => new Date(iso + "T00:00:00Z").getUTCDay();
+
+function foraDoPadrao(ins, modo) {
+  const hist = (ins.historico || []).map((h) => ({ data: h.data,
+    v: modo === "coef" ? coefDia(h) : h.uso })).filter((h) => h.v !== null);
+  const fora = new Map();
+  hist.forEach((h) => {
+    const outros = hist.filter((o) => o.data !== h.data &&
+      (modo === "coef" || diaSemana(o.data) === diaSemana(h.data))).map((o) => o.v);
+    if (outros.length < MIN_COMPARACAO) return;
+    const m = outros.reduce((a, b) => a + b, 0) / outros.length;
+    const dp = Math.sqrt(outros.reduce((a, b) => a + (b - m) ** 2, 0) / outros.length);
+    if (!dp || Math.abs(h.v - m) < LIMITE_DESVIOS * dp) return;
+    if (Math.abs(h.v - m) < MIN_VARIACAO * Math.abs(m)) return;
+    fora.set(h.data, { alto: h.v > m, media: m, n: outros.length,
+      grupo: modo === "coef" ? "dias" : DIAS_SEMANA[diaSemana(h.data)] });
+  });
+  return fora;
+}
+
 function blocoDias(ins) {
   const hist = ins.historico || [];
   if (!hist.length) return `<p class="fonte">Sem consumo lançado nos últimos ${PROJ.historico_dias} dias.</p>`;
   const marcados = new Set(diasEscolhidos(ins));
   const janela = new Set(ins.dias_media_padrao || []);
   const m = mediaDe(ins);
+  const coef = VER_DIAS === "coef";
+  const c = coefDosDias(ins, marcados);
   // o equivalente de salmão sai fracionado (11,6 peixes): uma casa basta
   const dec = UN_INTEIRA.includes(ins.un) ? 1 : 2;
+  const valorDia = (h) => {
+    if (!coef) return `${fmt(h.uso, dec)} ${ins.un}`;
+    const k = coefDia(h);
+    return k === null ? "sem fat." : fmt(k, 3);
+  };
+  const fora = foraDoPadrao(ins, coef ? "coef" : "consumo");
+  const dicaDia = (h) => {
+    if (h.uso < 0) return "Consumo negativo: divergência de contagem em dia de recebimento. Marcado, ele rebaixa a média.";
+    const f = fora.get(h.data);
+    const alerta = f ? `Fora do padrão, muito ${f.alto ? "alto" : "baixo"}: ` +
+      `${fmt(Math.abs((coef ? coefDia(h) : h.uso) / f.media - 1) * 100, 0)}% ${f.alto ? "acima" : "abaixo"} ` +
+      `da média ${/^(segundas|terças|quartas|quintas|sextas)$/.test(f.grupo) ? "das outras" : "dos outros"} ${f.n} ${f.grupo} (${coef ? fmt(f.media, 3) + " por R$ 1.000" : fmt(f.media, dec) + " " + ins.un})` : "";
+    if (!coef) {
+      const fatTxt = h.fat > 0 ? `Faturamento do dia: R$ ${fmt(h.fat, 2)}` : "Sem faturamento lançado no dia";
+      return alerta ? alerta + "&#10;" + fatTxt : fatTxt;
+    }
+    const conta = coefDia(h) === null ? `Consumo ${fmt(h.uso, dec)} ${ins.un} · sem faturamento lançado no dia`
+      : `Consumo ${fmt(h.uso, dec)} ${ins.un} ÷ faturamento R$ ${fmt(h.fat, 2)} × 1.000 = ${fmt(coefDia(h), 3)} ${ins.un} por R$ 1.000`;
+    return alerta ? alerta + "&#10;" + conta : conta;
+  };
   return `<div class="dias-caixa">
     <div class="dias-topo">
+      <div class="segmentado segmentado-mini" role="group" aria-label="O que cada dia mostra">
+        <button type="button" class="dias-ver${coef ? "" : " ativo"}" data-ver="consumo">Consumo</button>
+        <button type="button" class="dias-ver${coef ? " ativo" : ""}" data-ver="coef"
+          title="Consumo do dia ÷ faturamento do dia × 1.000. Só para leitura: o pedido continua pela média de consumo">Coeficiente</button>
+      </div>
       <span>Média de <strong>${m.n}</strong> dia(s): <strong>${fmt(m.media, 3)} ${ins.un}/dia</strong>
-        ${Array.isArray(ins.dias_media) ? '<span class="selo-mini aviso">dias escolhidos</span>'
-          : `<span class="selo-mini">últimos ${PROJ.janela_media_dias} dias</span>`}</span>
+        ${coef ? `· coeficiente${c.n < m.n ? ` de ${c.n} dia(s) com faturamento` : ""}:
+          <strong>${c.coef === null ? "sem faturamento" : fmt(c.coef, 3) + " " + ins.un + " por R$ 1.000"}</strong>` : ""}
+        ${c.fatMedio ? `· faturamento médio: <strong>R$ ${fmt(c.fatMedio, 2)}/dia</strong>` : ""}
+        ${periodoDe(ins) === "padrao" ? `<span class="selo-mini">últimos ${PROJ.janela_media_dias} dias</span>`
+          : periodoDe(ins) ? `<span class="selo-mini">últimos ${PERIODO_ALTERNATIVO} dias</span>`
+          : '<span class="selo-mini aviso">dias escolhidos</span>'}</span>
       <span style="flex:1"></span>
       <button type="button" class="botao-mini dias-acao" data-acao="padrao" data-k="${ins.chave}">Voltar aos últimos ${PROJ.janela_media_dias} dias</button>
+      ${PROJ.janela_media_dias !== PERIODO_ALTERNATIVO ? `<button type="button" class="botao-mini dias-acao" data-acao="alt" data-k="${ins.chave}">Últimos ${PERIODO_ALTERNATIVO} dias</button>` : ""}
       <button type="button" class="botao-mini dias-acao" data-acao="nenhum" data-k="${ins.chave}">Desmarcar todos</button>
       <button type="button" class="botao-mini dias-acao" data-acao="todos-itens" data-k="${ins.chave}"
         title="Usa estes mesmos dias em todos os itens de ${PROJ.casas[CASA].nome}">Usar estes dias em todos os itens da casa</button>
@@ -293,13 +470,19 @@ function blocoDias(ins) {
         if (!dia) return '<div class="dia-vazio"></div>';
         const h = hist.find((x) => x.data === dia);
         if (!h) return `<div class="dia-vazio sem-uso" title="Sem consumo lançado"><span class="dia-data">${diaMes(dia)}</span></div>`;
-        return `<label class="dia-chip${marcados.has(h.data) ? " marcado" : ""}${janela.has(h.data) ? " janela" : ""}${h.uso < 0 ? " neg" : ""}"${
-          h.uso < 0 ? ' title="Consumo negativo: divergência de contagem em dia de recebimento. Marcado, ele rebaixa a média."' : ""}>
+        const dica = dicaDia(h);
+        return `<label class="dia-chip${marcados.has(h.data) ? " marcado" : ""}${janela.has(h.data) ? " janela" : ""}${h.uso < 0 ? " neg" : ""}${
+          coef && coefDia(h) === null ? " sem-fat" : ""}${fora.has(h.data) ? " fora" : ""}"${dica ? ` title="${dica}"` : ""}>
           <span class="dia-data">${diaMes(h.data)}</span>
-          <span class="dia-uso">${fmt(h.uso, dec)} ${ins.un}</span>
+          <span class="dia-uso">${valorDia(h)}</span>
+          <span class="dia-fat">${fatCurto(h.fat)}</span>
           <input type="checkbox" data-dia="${h.data}" data-k="${ins.chave}"${marcados.has(h.data) ? " checked" : ""}>
         </label>`;
       }).join("")}</div>
+    <p class="fonte dias-legenda"><span class="dia-fora-amostra">vermelho</span>: ${
+      coef ? "coeficiente" : "consumo"} fora do padrão, muito alto ou muito baixo — a 2 desvios ou mais e 25% ou mais longe da média
+      ${coef ? "dos outros dias" : "dos mesmos dias da semana"}. ${fora.size
+        ? `${fora.size} dia(s) neste calendário; passe o mouse para ver de quanto.` : "Nenhum dia neste calendário."}</p>
   </div>`;
 }
 
@@ -320,6 +503,67 @@ function semanasDe(hist) {
     d.setUTCDate(d.getUTCDate() + 1);
   }
   return out;
+}
+
+// ------------------------------------------------------------------ tendência
+// Curva do consumo nos dias que formam a média e se ele está subindo ou caindo.
+// A comparação é entre a metade mais recente desses dias e a mais antiga: com
+// 14 dias, os 7 últimos contra os 7 anteriores. Média estável esconde consumo
+// que dobrou na última semana — e é isso que muda o pedido seguinte.
+const LIMIAR_ESTAVEL = 0.05;        // até 5% para mais ou para menos: estável
+
+function tendencia(ins) {
+  const marcados = new Set(diasEscolhidos(ins));
+  const pts = (ins.historico || []).filter((h) => marcados.has(h.data))
+    .sort((a, b) => a.data.localeCompare(b.data));
+  const metade = Math.floor(pts.length / 2);
+  if (metade < 2) return { pts, variacao: null };
+  const media = (l) => l.reduce((s, h) => s + h.uso, 0) / l.length;
+  const antes = media(pts.slice(0, metade)), depois = media(pts.slice(-metade));
+  return { pts, metade, antes, depois,
+           variacao: antes > 0 ? (depois - antes) / antes : null };
+}
+
+function celTendencia(ins) {
+  const t = tendencia(ins);
+  if (t.pts.length < 2) return '<span class="fonte">—</span>';
+  // consumo subindo é gasto a mais: vermelho, como no Painel; caindo, verde
+  // metade antiga sem consumo e a recente com: subiu, sem percentual que caiba
+  const doZero = t.variacao === null && t.metade >= 2 && t.depois > 0;
+  const tom = doZero ? "ruim"
+    : t.variacao === null || Math.abs(t.variacao) < LIMIAR_ESTAVEL ? "neutro"
+    : t.variacao > 0 ? "ruim" : "bom";
+  const texto = t.variacao === null
+    ? (t.metade < 2 ? "Poucos dias" : doZero ? "Subiu" : "Sem consumo")
+    : tom === "neutro" ? "Estável"
+    : `${t.variacao > 0 ? "Subiu" : "Caiu"} ${fmt(Math.abs(t.variacao) * 100, 0)}%`;
+  const dica = t.variacao === null && t.metade < 2
+    ? "Menos de 4 dias na média: pouco para dizer se subiu ou caiu"
+    : `Média dos ${t.metade} dias mais recentes: ${fmt(t.depois, 3)} ${ins.un}/dia · ` +
+      `dos ${t.metade} anteriores: ${fmt(t.antes, 3)} ${ins.un}/dia`;
+  return `<div class="tend-cel">${curvaConsumo(t.pts, ins.un, tom)}
+    <span class="tend-txt ${tom}" title="${dica}">${texto}</span></div>`;
+}
+
+// Sparkline: uma série, sem eixo. Cada dia tem uma faixa de passar o mouse
+// mais larga que o ponto, com a data e o consumo.
+function curvaConsumo(pts, un, tom) {
+  const W = 64, H = 26, P = 3;
+  const vals = pts.map((h) => h.uso);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const x = (i) => P + (i * (W - 2 * P)) / (pts.length - 1);
+  const y = (v) => H - P - ((v - lo) / (hi - lo || 1)) * (H - 2 * P);
+  const linha = pts.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.uso).toFixed(1)}`).join(" ");
+  const faixa = (W - 2 * P) / (pts.length - 1);
+  const dec = UN_INTEIRA.includes(un) ? 1 : 2;
+  const ult = pts.length - 1;
+  return `<svg class="tend-curva ${tom}" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+      aria-label="Consumo de ${diaMes(pts[0].data)} a ${diaMes(pts[ult].data)}">
+    <path d="${linha}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${x(ult).toFixed(1)}" cy="${y(pts[ult].uso).toFixed(1)}" r="2.5"/>
+    ${pts.map((h, i) => `<rect x="${(x(i) - faixa / 2).toFixed(1)}" y="0" width="${faixa.toFixed(1)}" height="${H}"
+        fill="transparent"><title>${diaMes(h.data)}: ${fmt(h.uso, dec)} ${un}</title></rect>`).join("")}
+  </svg>`;
 }
 
 function redesenharDias(ins) {
@@ -355,6 +599,7 @@ function recalcular() {
     tr.querySelector(".media").innerHTML = `${fmt(m.media, 3)}
       <button type="button" class="botao-mini abrir-dias${Array.isArray(ins.dias_media) ? " ajustado" : ""}"
         data-k="${ins.chave}" title="Escolher os dias que formam a média">${m.n} dia${m.n === 1 ? "" : "s"}</button>`;
+    tr.querySelector(".tend").innerHTML = celTendencia(ins);
     const tdC = tr.querySelector(".cobrir");
     if (tdC) tdC.textContent = diasDe(ins.chave) + " d";
     const inC = tr.querySelector('[data-c="dias"]');
@@ -362,12 +607,20 @@ function recalcular() {
     const tdD = tr.querySelector(".dur"), tdP = tr.querySelector(".ped");
     tdD.textContent = r.duracao === Infinity ? "sem consumo" : fmt(r.duracao, 1) + " d";
     tdD.className = "calc dur" + (isFinite(r.duracao) && r.duracao < 3 ? " neg" : "");
-    if (r.pedido <= 0.0005) {
+    // Pedido mostra sempre o calculado; com ajuste, fica riscado e a coluna
+    // Ajuste carrega o número que vai valer.
+    const inA = tr.querySelector('[data-c="ajuste"]');
+    if (inA) {
+      if (document.activeElement !== inA) inA.value = txtManual(ins.qtd_manual);
+      inA.classList.toggle("ajustada", r.ajustado);
+      inA.nextElementSibling.textContent = r.un_pedido;
+    }
+    if (r.calculado <= 0.0005) {
       tdP.innerHTML = '<span class="selo bom">Não pedir</span>';
     } else {
-      tdP.innerHTML = `<strong>${fmt(r.pedido, 3)}</strong>
+      tdP.innerHTML = `<strong${r.ajustado ? ' class="riscado" title="Calculado — vale o ajuste ao lado"' : ""}>${fmt(r.calculado, 3)}</strong>
         <span class="un">${r.un_pedido}</span>` +
-        (ins.conversao ? `<span class="msg-conv">${fmt(r.qtd, 3)} ${ins.un} × ${fmt(r.conv, 3)} kg
+        (ins.conversao && !r.ajustado ? `<span class="msg-conv">${fmt(r.qtd, 3)} ${ins.un} × ${fmt(r.conv, 3)} kg
            <span title="peso da caixa ÷ peixes por caixa">(${ins.conversao.kg_por_caixa} kg ÷ ${ins.conversao.peixes_por_caixa} px)</span></span>` : "");
     }
     tdP.className = "calc ped";
@@ -818,6 +1071,11 @@ function ligarTabela() {
       const v = e.target.value.trim();
       ins.dias_item = v === "" ? null : Math.min(60, Math.max(1, num(v) || 1));
     }
+    if (e.target.dataset.c === "ajuste") {
+      const ins = insumo(e.target.closest("tr").dataset.k);
+      const v = e.target.value.trim();
+      ins.qtd_manual = v === "" ? null : Math.max(0, num(v));
+    }
     marcarSujo(); recalcular();
   });
   tela.addEventListener("change", (e) => {
@@ -848,12 +1106,21 @@ function ligarTabela() {
       if (linha) { linha.hidden = !ins._diasAbertos; if (ins._diasAbertos) redesenharDias(ins); }
       return;
     }
+    // Consumo / Coeficiente: só a leitura muda, nada fica sujo para salvar.
+    const ver = e.target.closest(".dias-ver");
+    if (ver) {
+      VER_DIAS = ver.dataset.ver;
+      try { localStorage.setItem(VER_KEY, VER_DIAS); } catch (er) { /* sem storage */ }
+      PROJ.casas[CASA].insumos.filter((i) => i._diasAbertos).forEach(redesenharDias);
+      return;
+    }
     const b = e.target.closest(".dias-acao");
     if (!b) return;
     const casa = PROJ.casas[CASA];
     const ins = insumo(b.dataset.k);
     if (b.dataset.acao === "padrao") ins.dias_media = null;
     else if (b.dataset.acao === "nenhum") ins.dias_media = [];
+    else if (b.dataset.acao === "alt") ins.dias_media = diasDaJanela(ins, PERIODO_ALTERNATIVO);
     else if (b.dataset.acao === "todos-itens") {
       // Mesmos dias de calendário para todos — feriado é feriado para a casa
       // inteira. Dia sem consumo lançado num item simplesmente não conta nele.
@@ -864,7 +1131,7 @@ function ligarTabela() {
       aviso(`Dias de ${ins.nome} aplicados aos ${casa.insumos.length} itens de ${casa.nome}.`, "bom");
       marcarSujo(); desenhar(); return;
     }
-    marcarSujo(); redesenharDias(ins); recalcular();
+    marcarSujo(); redesenharDias(ins); recalcular(); sincronizarPeriodo();
   });
 }
 
@@ -898,6 +1165,17 @@ function enterDesce(e) {
   document.addEventListener("keydown", enterDesce);
   $("#data").onchange = carregar;
   // Padrão do pedido: vale para os itens sem dias próprios digitados na SL.
+  // Período da média para o pedido inteiro: todos os itens de todas as casas.
+  $("#periodo-media").onchange = () => {
+    const v = $("#periodo-media").value;
+    guardarLinhas();
+    Object.values(PROJ.casas).forEach((c) => c.insumos.forEach((ins) => {
+      ins.dias_media = v === "padrao" ? null : diasDaJanela(ins, Number(v));
+    }));
+    aviso(v === "padrao" ? `Média dos últimos ${PROJ.janela_media_dias} dias em todos os itens.`
+      : `Média dos últimos ${v} dias em todos os itens de todas as casas.`, "bom");
+    marcarSujo(); desenhar();
+  };
   $("#dias").onchange = () => {
     DIAS = num($("#dias").value) || 7;
     marcarSujo(); recalcular();

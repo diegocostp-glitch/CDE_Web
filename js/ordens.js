@@ -19,6 +19,9 @@
 // vivem em js/comum.js — compartilhados com Cadastros e Importar OC.
 // ============================================================================
 let ORDENS = [], ABERTA = null;
+// Ordens pendentes marcadas para ação em lote. Guarda o id, e não o objeto:
+// sobrevive ao carregar() e aos filtros; o que sumiu da lista sai sozinho.
+const SELECAO = new Set();
 const NOVA = { fornecedor: null, itens: [] };   // rascunho do painel de nova ordem
 
 // ------------------------------------------------------------------ carregar
@@ -80,7 +83,13 @@ function desenhar() {
       (semCad ? ` · ${semCad} sem cadastro de fornecedor` : "")
     : "";
 
+  // Selecionada que saiu da tela (filtro, gerada, excluída) deixa de valer: a
+  // ação em lote só age sobre o que a pessoa está vendo marcado.
+  const pendVisiveis = new Set(lista.filter((o) => o.situacao === "pendente").map((o) => o.id));
+  [...SELECAO].forEach((id) => { if (!pendVisiveis.has(id)) SELECAO.delete(id); });
+
   if (!lista.length) {
+    desenharLote();
     $("#lista").innerHTML = '<p class="vazio">Nenhuma ordem nesta situação.<br>' +
       'Use <strong>+ Nova ordem</strong> para montar uma agora, ou traga o pedido da ' +
       '<a href="compras.html">Projeção de Compras</a> ou de <a href="importar.html">Importar OC</a>.</p>';
@@ -88,6 +97,23 @@ function desenhar() {
   }
   $("#lista").innerHTML = lista.map(cartao).join("");
   lista.forEach((o) => ligar(o.id));
+  desenharLote();
+}
+
+// OC de salmão gerada: o fornecedor ainda manda o pedido real (as caixas têm
+// peso variável) e a loja confere a chegada pela ordem de recebimento.
+const ETAPA_REC = {
+  aguardando_real: ["aviso", "Aguardando pedido real"],
+  aguardando_recebimento: ["info", "Aguardando recebimento"],
+  conferido: ["bom", "Recebido"],
+};
+function seloRecebimento(o) {
+  const r = o.recebimento;
+  if (!r) return "";
+  const [cls, txt] = r.situacao === "conferido" && r.divergente ? ["ruim", "Recebido com divergência"]
+    : ETAPA_REC[r.situacao] || ["neutro", r.situacao];
+  return `<a class="selo ${cls}" href="recebimento.html?id=${encodeURIComponent(o.id)}"
+    title="Ordem de recebimento do salmão — abrir" onclick="event.stopPropagation()">${txt}</a>`;
 }
 
 function cartao(o) {
@@ -96,8 +122,13 @@ function cartao(o) {
   const selo = o.situacao === "gerada"
     ? '<span class="selo bom">Gerada</span>'
     : '<span class="selo aviso">Pendente</span>';
-  return `<section class="cartao ordem" data-id="${esc(o.id)}">
+  const marcar = o.situacao === "pendente"
+    ? `<label class="ordem-marca" title="Selecionar para ação em lote">
+        <input type="checkbox" data-sel="${esc(o.id)}"${SELECAO.has(o.id) ? " checked" : ""}></label>`
+    : "";
+  return `<section class="cartao ordem${SELECAO.has(o.id) ? " selecionada" : ""}" data-id="${esc(o.id)}">
     <div class="cabeca ordem-cabeca" data-abrir="${esc(o.id)}">
+      ${marcar}
       <div class="ordem-tit">
         <h2>${esc(o.fornecedor)}</h2>
         <span class="fonte">${esc(o.casa_nome)} · pedido de ${brDate(o.data)} · ${o.itens.length} item(ns)</span>
@@ -108,6 +139,7 @@ function cartao(o) {
       </div>
       ${SELO_ORIGEM[o.origem || "projecao"] || ""}
       ${selo}
+      ${seloRecebimento(o)}
       ${o.sem_cadastro ? '<span class="selo ruim" title="Este fornecedor não está vinculado a um cadastro">Sem cadastro</span>' : ""}
       <span class="ordem-chev">${aberta ? "▾" : "▸"}</span>
     </div>
@@ -226,7 +258,7 @@ function camposOC(o) {
         <input data-oc="transportadora" type="text" placeholder="dd/mm/aaaa" value="${esc(d.transportadora || "")}"></label>
       <label class="campo"><span>Nº da OC (vazio = automático)</span>
         <input data-oc="numero_manual" type="number" min="1" placeholder="automático"
-               value="${esc(d.numero_manual || "")}"></label>
+               value="${esc(d.numero_manual || "")}"></label>${camposAssinaturaOC(d)}
     </div>
   </details>`;
 }
@@ -235,8 +267,15 @@ function camposOC(o) {
 function ligar(id) {
   const cart = document.querySelector(`.ordem[data-id="${CSS.escape(id)}"]`);
   if (!cart) return;
-  cart.querySelector("[data-abrir]").onclick = () => {
+  cart.querySelector("[data-abrir]").onclick = (e) => {
+    if (e.target.closest(".ordem-marca")) return;     // marcar não abre a ordem
     ABERTA = ABERTA === id ? null : id; desenhar();
+  };
+  const sel = cart.querySelector("[data-sel]");
+  if (sel) sel.onchange = () => {
+    sel.checked ? SELECAO.add(id) : SELECAO.delete(id);
+    cart.classList.toggle("selecionada", sel.checked);
+    desenharLote();
   };
   const corpoEl = cart.querySelector(".ordem-corpo");
   if (!corpoEl) return;
@@ -445,6 +484,151 @@ async function excluir(o) {
     aviso("Ordem excluída.", "bom");
     await carregar();
   } catch (e) { aviso("Não consegui excluir: " + e.message, "mau"); }
+}
+
+// ============================================================================
+// AÇÃO EM LOTE — várias ordens pendentes de uma vez.
+//
+// Trabalha com o que está GRAVADO de cada ordem, não com o que está digitado
+// num cartão aberto: as ordens selecionadas normalmente estão fechadas, sem
+// formulário na tela. Por isso os dados da OC repetem os padrões de camposOC
+// (Boleto, 1x, CIF, prazos do cadastro) — a OC em lote sai igual à que sairia
+// abrindo a ordem e clicando em Gerar OC sem mexer em nada.
+// ============================================================================
+const pendentesVisiveis = () => visiveis().filter((o) => o.situacao === "pendente");
+const selecionadas = () => ORDENS.filter((o) => SELECAO.has(o.id));
+const totalDaOrdem = (o) => o.itens.reduce((t, i) => t + num(i.qtd) * num(i.preco), 0);
+
+function desenharLote() {
+  const el = $("#lote");
+  const pend = pendentesVisiveis();
+  el.hidden = !pend.length;
+  if (!pend.length) { el.innerHTML = ""; return; }
+  const sel = selecionadas();
+  const todas = sel.length === pend.length;
+  const valor = sel.reduce((s, o) => s + totalDaOrdem(o), 0);
+  el.innerHTML = `
+    <label class="lote-todas"><input type="checkbox" id="lote-todas"${todas ? " checked" : ""}>
+      Selecionar todas as pendentes (${pend.length})</label>
+    <span class="fonte">${sel.length
+      ? `${sel.length} selecionada(s)${valor > 0 ? " · R$ " + fmt(valor) : ""}`
+      : "marque as ordens pendentes para agir em várias de uma vez"}</span>
+    <span style="flex:1"></span>
+    ${sel.length ? `<button class="botao" id="lote-limpar">Limpar seleção</button>
+      <button class="botao excluir" id="lote-excluir">Excluir selecionadas</button>
+      <button class="botao primario" id="lote-gerar">Gerar ${sel.length} OC(s)</button>` : ""}`;
+  const chk = $("#lote-todas");
+  chk.indeterminate = sel.length > 0 && !todas;
+  chk.onchange = () => {
+    if (chk.checked) pend.forEach((o) => SELECAO.add(o.id)); else SELECAO.clear();
+    desenhar();
+  };
+  if (!sel.length) return;
+  $("#lote-limpar").onclick = () => { SELECAO.clear(); desenhar(); };
+  $("#lote-excluir").onclick = excluirLote;
+  $("#lote-gerar").onclick = gerarLote;
+}
+
+function ocGravada(o) {
+  const f = fornecedorPorChave(o.fornecedor_base) || {};
+  const d = o.oc || {};
+  return {
+    dataEmissao: d.dataEmissao || hojeBR(), dataEntrega: d.dataEntrega || "",
+    horario: d.horario || "", pagamento: d.pagamento || "Boleto",
+    parcelas: d.parcelas || "1x", frete: d.frete || "CIF",
+    prazoFaturado: d.prazoFaturado ?? f.prazoFat ?? "",
+    prazoEntrega: d.prazoEntrega ?? f.prazoEntrega ?? "",
+    transportadora: d.transportadora || "", numero_manual: d.numero_manual || "",
+    emitidaPor: d.emitidaPor || "", aprovadaPor: d.aprovadaPor || GERENTE_SUPRIMENTOS,
+  };
+}
+
+const itensGravados = (o) => o.itens.map((i) => ({
+  chave: i.chave, nome: i.nome, un: i.un, qtd: num(i.qtd), preco: num(i.preco),
+  origem: i.origem || "manual" }));
+
+// O que impede a ordem de virar OC — as mesmas travas do Gerar OC individual.
+function bloqueioDaOrdem(o) {
+  const itens = itensGravados(o).filter((i) => i.qtd > 0);
+  if (!itens.length) return "nenhum item com quantidade";
+  if (!o.unidade_oc) return "sem unidade compradora";
+  const pend = pendenciasDaOC(o.fornecedor_base, itens);
+  return pend.length ? pend.join(", ") : null;
+}
+
+async function gerarLote() {
+  const sel = selecionadas();
+  const prontas = sel.filter((o) => !bloqueioDaOrdem(o));
+  const travadas = sel.filter((o) => bloqueioDaOrdem(o));
+  if (!prontas.length) {
+    aviso("Nenhuma das selecionadas pode virar OC — " + travadas.map((o) =>
+      o.fornecedor + ": " + bloqueioDaOrdem(o)).join(" · "), "mau");
+    return;
+  }
+  const aberta = ABERTA && SELECAO.has(ABERTA);
+  if (!confirm(`Gerar ${prontas.length} OC(s)? Cada uma reserva um número e baixa o PDF.` +
+      (travadas.length ? `\n\n${travadas.length} ficam de fora por pendência:\n` +
+        travadas.map((o) => "• " + o.fornecedor + " — " + bloqueioDaOrdem(o)).join("\n") : "") +
+      (aberta ? "\n\nA ordem que está aberta sai como está GRAVADA: salve antes se mexeu nela." : "") +
+      "\n\nSe o navegador perguntar, permita baixar vários arquivos.")) return;
+
+  const feitas = [], falhas = [];
+  for (const o of prontas) {
+    estado(`Gerando ${feitas.length + falhas.length + 1} de ${prontas.length}…`);
+    try {
+      const d = ocGravada(o);
+      // Uma reserva por ordem, como no Gerar OC individual: respeita o número
+      // manual de cada uma e não deixa número reservado sem PDF se uma falhar.
+      const [numero] = await reservarNumerosOC(o.unidade_oc,
+        [{ fornecedor: o.fornecedor, data: d.dataEmissao }], d.numero_manual);
+      const obs = [obsDoFornecedor(o.fornecedor_base), (o.obs || "").trim()].filter(Boolean).join(" | ");
+      const doc = montarPDF(Object.assign({}, d, {
+        numero, unidade: unidadePorChave(o.unidade_oc) || {},
+        fornecedor: fornecedorPorChave(o.fornecedor_base) || {},
+        fornecedorNome: o.fornecedor, obs, itens: itensGravados(o),
+      }), false);
+      doc.save(nomeArquivoOC(numero, o.unidade_oc, o.fornecedor) + ".pdf");
+      const r = await (await fetch("/api/ordem", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: o.id, situacao: "gerada", numero_oc: numero, oc: d }) })).json();
+      if (!r.ok) throw new Error(r.erro || "erro no servidor");
+      feitas.push(o.fornecedor + " nº " + numero);
+      SELECAO.delete(o.id);
+      if (ABERTA === o.id) ABERTA = null;
+    } catch (e) {
+      falhas.push(o.fornecedor + ": " + e.message);
+    }
+  }
+  estado(falhas.length ? "Lote com falhas" : "OCs geradas", falhas.length ? "erro" : "ok");
+  aviso(`${feitas.length} OC(s) gerada(s)` +
+    (falhas.length ? ` · ${falhas.length} falharam — ${falhas.join(" · ")}` : "") +
+    (travadas.length ? ` · ${travadas.length} continuam pendentes por pendência de cadastro ou preço` : "") + ".",
+    falhas.length ? "mau" : "bom");
+  await carregar();
+}
+
+async function excluirLote() {
+  const sel = selecionadas();
+  const semProjecao = sel.filter((o) => (o.origem || "projecao") !== "projecao").length;
+  if (!confirm(`Excluir ${sel.length} ordem(ns) pendente(s)?\n\n` +
+      sel.map((o) => `• ${o.fornecedor} (${o.casa_nome}, ${brDate(o.data)})`).join("\n") +
+      (semProjecao ? `\n\n${semProjecao} não vêm da Projeção — não há como recriá-las automaticamente.` : "") +
+      "\nItens incluídos à mão serão perdidos.")) return;
+  let ok = 0;
+  const falhas = [];
+  for (const o of sel) {
+    try {
+      const r = await (await fetch("/api/ordem", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: o.id, excluir: true }) })).json();
+      if (!r.ok) throw new Error(r.erro || "erro no servidor");
+      ok++; SELECAO.delete(o.id);
+      if (ABERTA === o.id) ABERTA = null;
+    } catch (e) { falhas.push(o.fornecedor + ": " + e.message); }
+  }
+  aviso(`${ok} ordem(ns) excluída(s)` + (falhas.length ? ` · falharam: ${falhas.join(" · ")}` : "") + ".",
+    falhas.length ? "mau" : "bom");
+  await carregar();
 }
 
 // ============================================================================

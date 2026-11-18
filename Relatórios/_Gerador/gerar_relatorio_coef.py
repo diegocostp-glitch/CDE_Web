@@ -30,7 +30,7 @@ Uso:
 Padrões:
   - comparativo = mês anterior
   - fonte de dados = ./dados (ao lado do script) ou --dados <pasta>
-  - saída = ../Relatórios (ou --saida <pasta>) — ver organizacao.py
+  - saída = Relatórios/, a pasta de cima (ou --saida <pasta>) — ver organizacao.py
   - PDF via Chrome/Edge headless (use --no-pdf para pular)
 """
 import argparse, json, os, sys, glob, subprocess, calendar, datetime, statistics
@@ -522,7 +522,7 @@ def main():
     ap.add_argument('--mes', required=True, help='mês do relatório, AAAA-MM (ex.: 2026-08)')
     ap.add_argument('--insumo', default='salmao_equivalente', help='chave do insumo (ex.: salmao_equivalente, camarao_m)')
     ap.add_argument('--comparativo', help='mês comparativo AAAA-MM (padrão: mês anterior)')
-    ap.add_argument('--dados', default=os.path.normpath(os.path.join(here, '..', 'dados')), help='pasta dos JSONs do CDE Web')
+    ap.add_argument('--dados', default=os.path.normpath(os.path.join(here, '..', '..', 'dados')), help='pasta dos JSONs do CDE Web')
     ap.add_argument('--saida', default=RAIZ_RELATORIOS, help='pasta de saída')
     ap.add_argument('--template', default=os.path.join(here, 'modelo_coef.html'), help='template HTML')
     ap.add_argument('--custos-mensais', dest='custos_mensais',
@@ -566,7 +566,7 @@ def main():
     for d in data['inconsistentes']:
         print(f'AVISO: {d["data"]} {d["casa"]} com consumo NEGATIVO ({d["cons"]:.3f}) — '
               f'divergência de contagem; fica no total do mês, mas sai das leituras por dia.')
-    raiz = os.path.normpath(os.path.join(here, '..'))
+    raiz = os.path.normpath(os.path.join(here, '..', '..'))   # raiz do projeto
     prop, prop_erro = metas_propostas(raiz, args.insumo)
     data['propostas'] = prop
     data['propostasErro'] = prop_erro

@@ -236,7 +236,7 @@ def main():
     ap = argparse.ArgumentParser(description='Relatório financeiro consolidado (CDE Web).')
     ap.add_argument('--de', default='2026-01')
     ap.add_argument('--ate', default='2026-08')
-    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', 'dados')))
+    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', '..', 'dados')))
     ap.add_argument('--saida', default=RAIZ_RELATORIOS)
     ap.add_argument('--modelo', default=os.path.join(AQUI, 'modelo_coef.html'))
     ap.add_argument('--piso', type=float, default=0.10)

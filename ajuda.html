@@ -36,6 +36,7 @@
     <a href="#rotina">10. A rotina completa</a>
     <a href="#problemas">11. Quando dá problema</a>
     <a href="#arquivos">12. Onde ficam os dados</a>
+    <a href="#login">13. Login e permissões</a>
   </nav>
 
   <div class="manual">
@@ -203,14 +204,22 @@ R$ 300 o quilo, então esses casos ficam de fora e o item aparece marcado como
 <ol>
   <li>Confira a <strong>data</strong> no alto — ela vem no dia de hoje.</li>
   <li>Para cada casa e insumo, preencha as colunas na ordem em que elas aparecem, que é a
-      ordem em que os números acontecem no balcão: <strong>inicial</strong> (vem do dia
-      anterior, calculado), <strong>entrada</strong> (chegada), <strong>saída</strong>
+      ordem em que os números acontecem no balcão: a coluna com a <strong>data de ontem</strong>
+      (ex.: 30/10) mostra o final do dia anterior, só para comparar; o <strong>inicial</strong>
+      é a contagem da manhã, digitada (vazio, vale o final de ontem). Se o inicial divergir
+      do final de ontem, ao salvar o sistema pergunta se o final de ontem deve ser regravado
+      com o mesmo número — Cancelar grava o inicial só no dia aberto. Depois vêm
+      <strong>entrada</strong> (chegada), <strong>saída</strong>
       (transferência para outra casa), <strong>desperdício</strong> e <strong>final</strong>
       (a contagem). A coluna de <strong>uso</strong> se calcula sozinha.</li>
   <li>O <strong>faturamento (bruto)</strong> vem da planilha de controle diário
       automaticamente. É o bruto de propósito: é o número que a planilha das casas registra
       e a base de todo coeficiente do sistema. Sem ele, o coeficiente do dia não é
-      calculado.</li>
+      calculado. O que for digitado ou corrigido aqui é gravado de volta na planilha
+      Faturamento - 2026, alguns segundos depois de salvar. Se ela estiver aberta em outro
+      lugar, o aviso embaixo do campo diz que ficou pendente e o sistema tenta de novo
+      sozinho. Valor abaixo de 10% da mediana da casa não vai para a planilha até ser
+      conferido.</li>
   <li>Clique em <strong>Salvar</strong>.</li>
 </ol>
 
@@ -278,6 +287,22 @@ antes tudo caía em "entrada" e a coluna de saída ficava sempre vazia.</p>
 <section class="cartao" id="painel">
 <h2>4. Painel de Consumo</h2>
 <p>Responde a uma pergunta: <em>onde estamos gastando acima da meta, e quanto isso custa?</em></p>
+
+<h3>Resumo do dia (a primeira aba)</h3>
+<p>Abre sempre no <strong>dia anterior</strong> e serve para a conferência da manhã. Cada insumo de
+cada casa é comparado com a média dela nos 28 dias anteriores, pelo consumo por R$ 1.000
+faturados, para que um dia de venda alta não pareça desvio.</p>
+<ul>
+  <li><strong>Números do dia:</strong> faturamento da rede contra as mesmas semanas anteriores,
+    custo dos insumos contra o esperado, quantos itens subiram e baixaram, e as pendências.</li>
+  <li><strong>O que olhar primeiro:</strong> as pendências em ordem — <em>Resolver agora</em>
+    (casa sem contagem, sem faturamento, consumo negativo), <em>Conferir hoje</em> (consumo muito
+    fora da média, zerado, sem estoque, contagem em branco) e <em>Para saber</em> (perdas e quedas).
+    Cada uma traz a conta do dia e a pista do que conferir, com o botão que abre o lançamento.</li>
+  <li><strong>Itens que saem em lote</strong> (kani, anchova, lula para processar) são comparados
+    com a média dos dias em que saíram; dia parado não conta como zerado.</li>
+  <li>Clique num item para ver as casas; clique numa célula para abrir a série de 30 dias.</li>
+</ul>
 
 <h3>A situação vem da média, não do último dia</h3>
 <p>Um único dia ruim não significa problema — pode ser contagem, pode ser um evento.
@@ -416,6 +441,11 @@ lançamentos corrigidos.</p>
   <tbody>
     <tr><td>Estoque</td><td>último lançamento daquele insumo naquela casa</td></tr>
     <tr><td>Média diária</td><td>consumo médio da janela configurada (padrão: 14 dias)</td></tr>
+    <tr><td>Consumo nos dias da média</td><td>a curva do consumo dia a dia, só nos dias que formam a
+      média, e se ele <strong>subiu</strong> ou <strong>caiu</strong>: a metade mais recente desses
+      dias contra a mais antiga (com 14 dias, os 7 últimos contra os 7 anteriores). Até 5% para
+      mais ou para menos é <strong>estável</strong>. Subir é vermelho, porque é gasto a mais.
+      Passar o mouse na curva mostra a data e o consumo de cada dia</td></tr>
     <tr><td><strong>Trânsito entrada</strong></td><td><strong>você</strong> — o que já foi pedido (ou vem transferido de outra casa) e ainda não chegou</td></tr>
     <tr><td><strong>Trânsito saída</strong></td><td><strong>você</strong> — o que vai sair desta casa numa transferência para outra; é descontado do estoque</td></tr>
     <tr><td><strong>Libragem do trânsito</strong></td><td><strong>você</strong>, só no salmão — o tamanho que está chegando ou saindo (08/10, 10/12, 12/14, 14/16). A quantidade é digitada em peixes daquele tamanho e o sistema converte para o equivalente 08/10</td></tr>
@@ -716,6 +746,49 @@ estiver inacessível — o indicador em Cadastros avisa qual das duas está em u
 continua funcionando exatamente como antes, na pasta dele, e nada nele foi alterado —
 o módulo de OCs foi <strong>copiado</strong> para cá, não movido. Copie as duas pastas de vez
 em quando para ter backup.</p>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="login">
+<h2>13. Login e permissões</h2>
+<p>Cada pessoa entra com o próprio usuário e senha e vê só as telas liberadas para ela. Vale em
+todos os computadores e no celular.</p>
+<ul>
+  <li><strong>Primeiro acesso:</strong> no PC do servidor, abra <span class="cod">http://localhost:8935/login.html</span>
+    e crie o administrador. Até ele existir, o sistema abre sem login; a partir dele, todo
+    acesso pede senha.</li>
+  <li><strong>Cadastrar pessoas:</strong> menu <strong>Usuários</strong> → <strong>Novo usuário</strong>.
+    Escolha o perfil (Diretor, Gerente, Analista pleno, Analista júnior, Auxiliar de suprimentos),
+    ajuste tela a tela e dê uma senha provisória. No primeiro acesso a pessoa troca pela dela.</li>
+  <li><strong>Em cada tela:</strong> <em>Sem acesso</em> (some do menu), <em>Só ver</em> (abre, mas não salva;
+    aparece a faixa "Modo consulta") ou <em>Ver e editar</em>. Quem confere é o servidor, não só o menu.</li>
+  <li><strong>Esqueceu a senha:</strong> o administrador abre a pessoa em Usuários e usa
+    <strong>Redefinir senha</strong>. Ninguém consegue ler senhas: elas ficam guardadas embaralhadas.</li>
+  <li><strong>Saiu da empresa ou perdeu o celular:</strong> desmarque <strong>Ativo</strong>. A pessoa sai na hora,
+    em todos os aparelhos.</li>
+  <li><strong>Sessão:</strong> dura 7 dias por navegador. Em PC compartilhado, use <strong>Sair</strong> no fim do turno.</li>
+  <li><strong>Segurança:</strong> 5 senhas erradas seguidas travam o login por 15 minutos. Toda gravação
+    fica registrada com o nome de quem fez em <span class="cod">logs/acessos.log</span>.</li>
+</ul>
+</section>
+
+<!-- ==================================================================== -->
+<section class="cartao" id="recebimento">
+<h2>14. Recebimento de Salmão</h2>
+<p>O salmão nunca chega na quantidade pedida: as caixas têm peso variável. Por isso a OC com salmão
+ganha uma <strong>ordem de recebimento</strong>, no menu Compras → <strong>Recebimento de Salmão</strong>.</p>
+<ol>
+  <li><strong>OC gerada:</strong> ao gerar a OC com salmão (inteiro ou filé) em Ordens de Compras, a ordem de recebimento
+    nasce sozinha com a tag <em>Aguardando pedido real</em>. A tag aparece também no cartão da OC.</li>
+  <li><strong>Pedido real:</strong> quando o fornecedor mandar o romaneio ou a nota, abra a ordem e lance o documento,
+    a chegada prevista e, por item, os kg, peixes, caixas e calibre enviados. <strong>Lançar pedido real</strong>
+    muda a tag para <em>Aguardando recebimento</em>.</li>
+  <li><strong>Na loja:</strong> use <strong>Imprimir documento</strong> para levar a folha da conferência, pese e conte o
+    que chegou e lance em Recebido. A tela mostra na hora o que faltou ou sobrou em relação ao enviado
+    (tolerância de 0,1 kg na balança).</li>
+  <li><strong>Confirmar recebimento:</strong> fecha a ordem como <em>Conferido</em>, ou <em>Com divergência</em> quando
+    não bateu, registrando quem conferiu e quando. Errou? <strong>Reabrir conferência</strong>.</li>
+</ol>
 </section>
 
   </div>

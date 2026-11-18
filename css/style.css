@@ -373,6 +373,15 @@ body.dark .painel-periodo, body.mono .painel-periodo { box-shadow:0 14px 36px rg
    tres caixas de digitacao da tela seguem a mesma regua. O faturamento e
    dinheiro e fica com duas casas, nao com tres. */
 .fat input { width:140px; text-align:center; font-variant-numeric:tabular-nums }
+/* Pedidos - descontos = faturamento: tres caixas lado a lado, rotulo em cima.
+   Quebra de linha em tela estreita em vez de empurrar a pagina para o lado. */
+.fat { flex-wrap:wrap; justify-content:flex-end; align-items:flex-end }
+.fat label { display:flex; flex-direction:column; gap:4px }
+.fat .op { font-size:16px; color:var(--tinta-3); padding-bottom:8px }
+/* Faturamento calculado: e resultado, nao digitacao — fica em negrito e sem
+   cara de caixa editavel. So tokens existentes, que o body.mono ja redefine. */
+.fat input.calculado { font-weight:600; background:var(--campo); cursor:default }
+.fat input[data-motivo] { border-color:var(--ruim); color:var(--ruim) }
 .tela-lancamento .campo input[type="date"] { text-align:center }
 .filtros { display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px }
 .filtros .fonte { margin-left:auto }
@@ -394,11 +403,21 @@ td { color:var(--tinta) }
 td input { width:94px; text-align:right; background:var(--campo); border:1px solid var(--borda);
   border-radius:8px; padding:7px 9px; color:var(--tinta) }
 td input:focus { outline:2px solid var(--laranja); outline-offset:-1px; background:var(--card) }
-.msg-neg { color:var(--ruim); font-size:10.5px; display:block }
 /* Contagem final suspeita (uso muito acima da média): a célula acende para ser
    conferida antes de salvar — possível final zerado ou dígito trocado. */
 input.suspeito { border-color:var(--ruim) !important; background:var(--ruim-bg) !important;
   color:var(--ruim); font-weight:600 }
+/* Célula com erro identificado: o motivo fica no pop-up (js/app.js,
+   ligarPopupMotivo), aberto ao passar o mouse. */
+[data-motivo] { cursor:help }
+.pop-motivo { position:fixed; z-index:1000; max-width:280px; padding:7px 10px;
+  background:var(--card); color:var(--tinta); border:1px solid var(--ruim);
+  border-radius:6px; font-size:12px; line-height:1.4; pointer-events:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.18) }
+.pop-motivo[hidden] { display:none }
+/* Inicial contado diferente do final de ontem: não é erro, é ajuste a conferir.
+   Só borda e peso, com variáveis que já têm valor nos três temas. */
+input.diverge { border-color:var(--laranja) !important; font-weight:600 }
 /* Valor de perda nao e valor de compra: fica em tom apagado para ninguem
    somar as duas colunas de olho. --tinta-2 tem valor nos tres temas. */
 .tabela-extrato td.total.perda { color:var(--tinta-2) }
@@ -533,6 +552,17 @@ body.mono :is(select, input[type="date"], input[type="number"]) { color-scheme:d
 .add-item { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;
   margin:16px 0 0; padding:14px; background:var(--campo); border-radius:var(--raio-p) }
 .ordem-acoes { display:flex; align-items:center; gap:11px; margin-top:18px; flex-wrap:wrap }
+/* Importar das lojas (js/contagem-importar.js): uma divergência por linha,
+   erro (o CDE recusa) em --ruim e alerta em --aviso — no mono viram claridade. */
+.imp-tabela td, .imp-tabela th { text-align:left }
+.imp-tabela th:first-child, .imp-tabela td:first-child { width:40px; min-width:0 }
+.imp-tabela th:nth-child(3), .imp-tabela td:nth-child(3),
+.imp-tabela th:nth-child(4), .imp-tabela td:nth-child(4) { width:140px }
+.imp-tabela th.col-texto, .imp-tabela td.col-texto { width:auto; min-width:260px }
+.imp-tabela { min-width:880px }
+.imp-div span { display:block; font-size:12px; line-height:1.45 }
+.imp-erro { color:var(--ruim); font-weight:600 }
+.imp-alerta { color:var(--aviso) }
 .ordem-acoes .excluir { color:var(--ruim); border-color:transparent }
 .ordem-acoes .excluir:hover { border-color:var(--ruim); background:var(--ruim-bg) }
 
@@ -643,6 +673,9 @@ body.mono .sb-marca { filter:grayscale(1) }
    meio dos calculados e ninguém lembra que foi mexido */
 .qtd-resumo.ajustada { border-color:var(--aviso); background:var(--aviso-bg);
   color:var(--aviso); font-weight:600 }
+.ajuste-cel { white-space:nowrap }
+.ajuste-cel .qtd-resumo { width:84px }
+.ped .riscado { text-decoration:line-through; color:var(--tinta-3); font-weight:400 }
 
 /* ==================================================================
    MÓDULO DE ORDENS DE COMPRA — telas trazidas do Gerador de OCs
@@ -1264,7 +1297,7 @@ table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
 .botao-mini.dias-acao { font-size:10.5px; padding:2px 8px; border-radius:20px;
   border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--card) }
 .botao-mini.dias-acao:hover { border-color:var(--laranja); color:var(--laranja); background:var(--card) }
-.dias-grade { display:grid; grid-template-columns:repeat(7, minmax(122px, 1fr)); gap:6px; max-width:1040px }
+.dias-grade { display:grid; grid-template-columns:repeat(7, minmax(168px, 1fr)); gap:6px; max-width:1320px }
 .dia-cab { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--tinta-3);
   text-align:center; padding-bottom:2px }
 .dia-vazio.sem-uso { border:1px dashed var(--borda); border-radius:8px; padding:5px 8px;
@@ -1279,6 +1312,16 @@ table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
 .dia-chip.marcado { border:1px solid var(--tinta-2); color:var(--tinta) }
 .dia-chip.marcado .dia-uso { font-weight:600 }
 .dia-chip.neg .dia-uso { color:var(--ruim) }
+/* Consumo / Coeficiente no topo do calendário: o segmentado das telas, menor */
+.segmentado-mini { padding:2px }
+.segmentado-mini button { padding:3px 10px; font-size:11px; border-radius:6px }
+.dia-chip.sem-fat .dia-uso { color:var(--tinta-3); font-style:italic; font-weight:400 }
+/* fora do padrão (muito alto ou muito baixo): o número e a borda em vermelho */
+.dia-chip.fora { border-color:var(--ruim) }
+.dia-chip.fora .dia-uso, .dia-fora-amostra { color:var(--ruim); font-weight:600 }
+.dias-legenda { margin:0 }
+/* faturamento do dia, ao lado do consumo ou do coeficiente */
+.dia-chip .dia-fat { font-size:10.5px; color:var(--tinta-3); font-variant-numeric:tabular-nums; font-weight:400 }
 
 /* Embalagem quebrada (0,68 caixa): o sistema não arredonda, marca a linha para
    quem compra decidir. Texto junto da cor, para não depender só do vermelho. */
@@ -1304,3 +1347,261 @@ body.dark .sugestoes, body.mono .sugestoes { box-shadow:0 14px 36px rgba(0,0,0,.
 .sug-item:hover, .sug-item.ativo { background:var(--hover) }
 .sug-nome { font-weight:600; color:var(--tinta) }
 .sug-quem { flex-basis:100%; font-size:10.5px; color:var(--tinta-3) }
+
+/* Projeção: curva do consumo nos dias da média e se subiu ou caiu. A cor segue
+   o significado (consumo subindo é gasto a mais) e vem sempre com a palavra. */
+.tend-cel { display:flex; align-items:center; gap:8px; white-space:nowrap }
+.tend-curva { flex:none; overflow:visible }
+.tend-curva path { stroke:var(--tinta-3) }
+.tend-curva circle { fill:var(--tinta-3) }
+.tend-curva.ruim path { stroke:var(--ruim) }  .tend-curva.ruim circle { fill:var(--ruim) }
+.tend-curva.bom path { stroke:var(--bom) }    .tend-curva.bom circle { fill:var(--bom) }
+.tend-txt { font-size:11.5px; font-weight:600; color:var(--tinta-3) }
+.tend-txt.ruim { color:var(--ruim) }
+.tend-txt.bom { color:var(--bom) }
+
+/* ============================ CONTAGEM (diária e semanal) ============================ */
+/* Editor da lista: os campos de texto ocupam a coluna inteira, ao contrário
+   das caixas numéricas de 94px das tabelas de lançamento. Só tokens que o
+   body.mono já redefine. */
+.tabela-lista { min-width:600px }
+.tabela-lista td input { width:100%; text-align:left }
+.tabela-lista td:last-child, .tabela-lista th:last-child { width:40px; text-align:center }
+
+/* ============================ ORDENS — seleção em lote ============================ */
+/* Só tokens existentes (--card, --borda, --laranja, --ruim): valem nos três temas. */
+.lote { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--card);
+  border:1px solid var(--borda); border-radius:var(--raio); padding:12px 18px; margin-bottom:14px;
+  position:sticky; top:8px; z-index:5; box-shadow:var(--sombra) }
+.lote[hidden] { display:none }
+.lote-todas { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--tinta); cursor:pointer }
+.lote .excluir { color:var(--ruim); border-color:transparent }
+.lote .excluir:hover { border-color:var(--ruim); background:var(--ruim-bg) }
+.ordem-marca { display:flex; align-items:center; padding:6px; margin:-6px 0 -6px -6px; cursor:pointer }
+.ordem-marca input, .lote-todas input { width:17px; height:17px; accent-color:var(--laranja); cursor:pointer }
+.ordem.selecionada { border-color:var(--laranja) }
+
+/* ============================ CONFERÊNCIA — contagem diária e semanal ============================ */
+/* Mesmo desenho do Lançamento Diário: a tela usa .tela-lancamento e a tabela
+   .tabela-lancamento; aqui só o que a contagem tem a mais (motivo/observação,
+   embalagem, folhas). Só tokens existentes — valem nos três temas. */
+.tabela-contagem th.col-texto, .tabela-contagem td.col-texto { width:150px }
+.tabela-lancamento input.texto { max-width:none; text-align:left }
+.tabela-contagem .conv { display:block; font-size:10px; color:var(--tinta-3); text-align:center;
+  white-space:nowrap; margin-top:2px }
+.tabela-contagem td:first-child .selo-mini { white-space:nowrap }
+.tabela-filetamento th:first-child, .tabela-filetamento td:first-child { min-width:120px; width:130px }
+.tabela-filetamento th:not(:first-child), .tabela-filetamento td:not(:first-child) { width:auto }
+.tabela-filetamento tr.total td, .tabela-contagem tr.total td { font-weight:600; border-top:2px solid var(--borda) }
+.cartao-lancamento .tabela-processamento th.col-texto,
+.cartao-lancamento .tabela-processamento td.col-texto { width:auto }
+/* Folhas da contagem diária: mesmas pílulas das abas de casa, à esquerda,
+   entre o cabeçalho do cartão e a tabela. */
+.abas-folhas { margin:4px 0 14px; margin-left:0; flex-wrap:wrap }
+.abas-folhas .pend { margin-left:2px }
+.folha-sec { font-size:13.5px; font-weight:600; margin:6px 0 4px }
+[data-folha] .folha-sec:not(:first-child) { margin-top:22px }
+.folha-sec + .fonte { margin-bottom:8px }
+.contagem-resp { width:220px !important; text-align:left !important }
+.campo-obs { width:100%; resize:vertical; font:inherit }
+.tabela-lista { min-width:1060px }
+.tabela-lista input.curto { min-width:70px }
+.casas-item { white-space:nowrap }
+.casas-item label { display:inline-flex; align-items:center; gap:3px; margin-right:8px; font-size:11.5px; cursor:pointer }
+.tabela-lista .casas-item input { width:auto; accent-color:var(--laranja) }
+/* Subprodutos (camarão M/P/G, salmão, lula, atum, polvo): recuados embaixo do
+   item primário — fica visível que
+   são o mesmo insumo em estados diferentes. Só o recuo, sem traço nem símbolo.
+   O primário sem campos (Polvo) é só título; o que também é contado (salmão
+   inteiro, camarão in natura) vai em negrito. */
+.tabela-contagem tr.pai td { font-weight:600; color:var(--tinta); padding-top:12px; padding-bottom:6px }
+.tabela-contagem tr.primario td:first-child { font-weight:600 }
+.tabela-contagem tr.filho td:first-child { padding-left:34px }
+/* Nota da lista como comentário ("Pacote, limpo e esticado"), logo abaixo do nome. */
+.tabela-contagem .comentario { display:block; font-weight:400; font-size:11px; color:var(--tinta-3); font-style:italic; margin-top:1px }
+
+/* Código do produto no ERP, antes do nome do item na contagem */
+.tabela-contagem .cod { display:inline-block; min-width:52px; margin-right:6px; font-size:11px;
+  font-weight:400; color:var(--tinta-3); font-variant-numeric:tabular-nums }
+
+/* Visão Geral, curva ABC: o salmão em peixes ganha o peso em kg ao lado */
+#abc-tabela .em-kg { display:block; font-size:11px; font-weight:400; color:var(--tinta-3) }
+
+/* ============================ PAINEL — RESUMO DO DIA ============================ */
+.so-periodo[hidden], #resumo[hidden] { display:none }
+.rd-topo { display:flex; justify-content:space-between; align-items:flex-end; gap:16px;
+  flex-wrap:wrap; margin-bottom:16px }
+.rd-topo h2 { font-size:18px; font-weight:600 }
+.rd-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+.rd-nav input { background:var(--campo); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:8px 10px; color:var(--tinta) }
+.rd-ficha { cursor:default; justify-content:space-between }
+.rd-ficha .ficha-n { font-size:24px }
+.rd-grade { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:18px;
+  align-items:start }
+.rd-col { display:flex; flex-direction:column }
+.rd-cartao { margin-bottom:18px }
+.rd-cab { margin-bottom:14px }
+.rd-cab h3 { font-size:15px; font-weight:600 }
+.rd-cab .fonte { margin:2px 0 0 }
+@media (max-width:1100px) { .rd-grade { grid-template-columns:1fr } }
+
+/* pendencias */
+.rd-grupo { display:flex; align-items:center; gap:10px; margin:14px 0 8px }
+.rd-grupo:first-child { margin-top:0 }
+.rd-pend { border:1px solid var(--borda); border-left:3px solid var(--borda-forte);
+  border-radius:var(--raio-p); padding:11px 14px; margin-bottom:8px; background:var(--card) }
+.rd-pend.p1 { border-left-color:var(--ruim) }
+.rd-pend.p2 { border-left-color:var(--aviso) }
+.rd-pend-topo { display:flex; justify-content:space-between; gap:10px; color:var(--tinta) }
+.rd-pend-r { font-weight:700; font-variant-numeric:tabular-nums; color:var(--tinta) }
+.rd-pend-onde { font-size:12px; color:var(--tinta-2) }
+.rd-pend-det { font-size:12px; color:var(--tinta-3); margin-top:4px }
+.rd-pend-olhar { font-size:12.5px; color:var(--tinta-2); margin-top:6px }
+.rd-pend-olhar b { color:var(--tinta); font-weight:600 }
+.rd-pend-acoes { display:flex; gap:8px; margin-top:9px; flex-wrap:wrap }
+.rd-pend-acoes .botao { font-size:12px; padding:5px 11px; text-decoration:none }
+
+/* subiu x baixou: barra que sai do centro */
+.rd-div { display:flex; flex-direction:column; gap:4px }
+.rd-div-l { display:grid; grid-template-columns:minmax(120px,190px) 1fr 96px; gap:12px;
+  align-items:center; background:none; border:none; padding:4px 6px; border-radius:8px;
+  cursor:pointer; text-align:left }
+.rd-div-l:hover { background:var(--hover) }
+.rd-div-nome { font-size:12.5px; color:var(--tinta); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.rd-div-trilho { position:relative; height:14px; background:var(--campo); border-radius:4px }
+.rd-div-zero { position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--borda-forte) }
+.rd-div-barra { position:absolute; top:2px; bottom:2px; border-radius:4px; min-width:2px }
+.rd-div-val { text-align:right; font-size:12px; color:var(--tinta); font-variant-numeric:tabular-nums }
+.rd-div-val small { display:block; font-size:10.5px; color:var(--tinta-3) }
+
+/* faturamento por casa */
+.rd-fat { display:flex; flex-direction:column; gap:10px }
+.rd-fat-l { display:grid; grid-template-columns:110px 1fr 110px; gap:12px; align-items:center }
+.rd-fat-nome { font-size:13px; color:var(--tinta); font-weight:600 }
+.rd-fat-nome small, .rd-fat-val small { display:block; font-size:10.5px; color:var(--tinta-3); font-weight:400 }
+.rd-fat-trilho { position:relative; height:18px; background:var(--campo); border-radius:5px }
+.rd-fat-barra { position:absolute; left:0; top:0; bottom:0; border-radius:5px; background:var(--tinta-2); opacity:.55 }
+.rd-fat-media { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--tinta); border-radius:1px }
+.rd-fat-val { text-align:right; font-size:12.5px; color:var(--tinta); font-variant-numeric:tabular-nums }
+
+/* mapa insumo x casa */
+.rd-mapa td:first-child, .rd-mapa th:first-child { text-align:left }
+.rd-mapa th, .rd-mapa td { text-align:center }
+.rd-cel { cursor:pointer; font-variant-numeric:tabular-nums; font-size:12px; color:var(--tinta-3) }
+.rd-cel:hover { background:var(--hover) }
+.rd-cel.marcada { font-weight:600 }
+.rd-cel.marcada.ruim { background:var(--ruim-bg); color:var(--ruim) }
+.rd-cel.marcada.info { background:var(--info-bg); color:var(--info) }
+.rd-cel.marcada.aviso { background:var(--aviso-bg); color:var(--aviso) }
+.rd-cel-e { display:block; font-size:10px; font-weight:400; opacity:.85 }
+.rd-cel.vazio-cel { cursor:default }
+.rd-mapa tr.piscar td { background:var(--laranja-claro) }
+/* a lista de pendencias rola por dentro: com 20 itens ela empurrava o mapa para longe */
+.rd-pend-lista { max-height:720px; overflow-y:auto; padding-right:4px }
+
+/* ============================ LOGIN E USUÁRIOS ============================ */
+.login-pagina { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px }
+.login-cartao { width:100%; max-width:400px; margin:0 }
+.login-cartao form, .form-senha { display:flex; flex-direction:column; gap:12px }
+.login-cartao h2 { font-size:16px; margin-bottom:2px }
+.login-marca { display:flex; align-items:center; gap:12px; margin-bottom:20px }
+.login-marca img { width:42px; height:42px; object-fit:contain }
+.login-marca h1 { font-size:18px }
+.login-marca p { margin:0; font-size:12px; color:var(--tinta-3) }
+.login-cartao .campo, .form-senha .campo { display:flex; flex-direction:column }
+.login-cartao input, .form-senha input, .us-campos input, .us-campos select, .us-redefinir input {
+  background:var(--campo); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 11px; color:var(--tinta) }
+.login-botao { justify-content:center; padding:10px }
+.login-erro { color:var(--ruim); font-size:12.5px; min-height:1em; margin:0 }
+.login-dica { margin:0; text-align:center }
+
+/* menu: quem esta logado */
+.sb-usuario { display:flex; align-items:center; gap:10px; padding:7px 12px; color:var(--menu-item);
+  font-size:12.5px; border-top:1px solid var(--menu-borda); margin-top:4px; padding-top:10px }
+.sb-usuario .sb-ico { width:18px; display:flex; flex-shrink:0 }
+.sb-usuario b { color:var(--menu-item-tinta); font-weight:600; display:block; line-height:1.2 }
+.sb-usuario small { display:block; font-size:10.5px; color:var(--menu-sub) }
+.sidebar:not(:hover):not(:focus-within) .sb-usuario .sb-txt { display:none }
+
+/* tela em modo consulta e aviso de permissao */
+.faixa-consulta { background:var(--info-bg); color:var(--info); border-radius:var(--raio-p);
+  padding:9px 14px; font-size:12.5px; margin-bottom:14px }
+.aviso-acesso { position:fixed; left:50%; bottom:24px; transform:translate(-50%,20px); opacity:0;
+  background:var(--tinta); color:var(--card); padding:10px 18px; border-radius:var(--raio-p);
+  font-size:13px; z-index:200; pointer-events:none; transition:all .2s; max-width:calc(100% - 32px) }
+.aviso-acesso.visivel { opacity:1; transform:translate(-50%,0) }
+
+/* tela Usuarios */
+#lista tr.clicavel { cursor:pointer }
+#lista tr.clicavel:hover td { background:var(--hover) }
+#lista td, #lista th { text-align:left }
+.us-campos { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:12px }
+.us-campos .campo { display:flex; flex-direction:column }
+.us-marcas { display:flex; gap:22px; flex-wrap:wrap; margin-bottom:8px; color:var(--tinta) }
+.us-matriz th, .us-matriz td { text-align:center }
+.us-matriz td:first-child, .us-matriz th:first-child { text-align:left }
+.us-acoes { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:10px }
+.us-redefinir { display:flex; gap:8px }
+/* o display:flex/grid acima venceria o atributo hidden */
+.login-cartao [hidden], #editor[hidden], .us-campos [hidden], .us-marcas [hidden],
+.us-acoes [hidden], .sem-custo[hidden] { display:none !important }
+
+/* Projeção de Compras: 12 colunas cabem na largura da tela sem rolagem
+   lateral — cabeçalho quebra em duas linhas, campos e textos de apoio
+   (equivalência do salmão, conta da caixa) quebram dentro da célula. */
+table.tabela-proj { min-width:0; table-layout:auto }
+.tabela-proj th { white-space:normal; line-height:1.3; vertical-align:bottom; letter-spacing:.3px }
+.tabela-proj th, .tabela-proj td { padding:9px 6px }
+.tabela-proj td:first-child { white-space:normal; min-width:96px }
+.tabela-proj td input { width:68px; padding-left:6px; padding-right:6px }
+.tabela-proj td input[data-c="fator"], .tabela-proj td input[data-c="dias"] { width:46px !important }
+.tabela-proj td input[style*="width:56px"] { width:52px !important }
+.tabela-proj td select { max-width:96px }
+.tabela-proj .msg-conv { white-space:normal; max-width:150px; margin-left:auto; line-height:1.3 }
+.tabela-proj .ajuste-cel .qtd-resumo { width:68px }
+.tabela-proj .tend-cel { gap:5px }
+/* em tela estreita, o seletor de libragem desce para baixo do número, o botão
+   de dias para baixo da média e o texto da tendência para baixo da curva */
+.tabela-proj td:nth-child(3), .tabela-proj td:nth-child(4), .tabela-proj td.media { white-space:normal }
+.tabela-proj td:nth-child(3) select, .tabela-proj td:nth-child(4) select { margin-top:3px }
+.tabela-proj td.media .botao-mini { margin-top:3px }
+.tabela-proj .tend-cel { flex-direction:column; align-items:flex-end; gap:1px }
+
+/* ============================ RECEBIMENTO DE SALMÃO ============================ */
+.rec-corpo { padding:4px 20px 20px }
+.rec-tab td input { text-align:right }
+.rec-tab .msg-conv { text-align:right }
+.rec-dif { color:var(--ruim); font-weight:600; font-size:12px }
+#filtro button b { font-weight:700; margin-left:4px }
+a.selo { text-decoration:none }
+.doc-rec { display:none }
+@media print {
+  body.imprimindo-rec .app-layout, body.imprimindo-rec .sidebar, body.imprimindo-rec .aviso-flut,
+  body.imprimindo-rec .faixa-consulta { display:none !important }
+  body.imprimindo-rec { background:#fff !important }
+  body.imprimindo-rec .doc-rec { display:block; color:#000; font-size:11pt; padding:0 }
+  @page { size:A4 landscape; margin:12mm }
+}
+.doc-rec h1 { font-size:17pt; margin:0 0 2px }
+.doc-rec .dr-cab { display:flex; justify-content:space-between; gap:20px; border-bottom:2px solid #000; padding-bottom:8px }
+.doc-rec .dr-cab p { margin:0 }
+.doc-rec .dr-ids { text-align:right; line-height:1.5 }
+.doc-rec .dr-instr { font-size:9.5pt; margin:8px 0 }
+.doc-rec table.dr-tab { width:100%; min-width:0; border-collapse:collapse; margin-top:6px }
+.doc-rec .dr-tab th, .doc-rec .dr-tab td { border:1px solid #000; padding:7px 6px; text-align:center;
+  white-space:normal; color:#000; background:#fff; position:static; font-size:10pt; letter-spacing:0 }
+.doc-rec .dr-tab td:first-child { text-align:left }
+.doc-rec .dr-tab th { text-transform:none; font-weight:700 }
+.doc-rec .dr-tab td.dr-branco { min-width:22mm; height:11mm }
+.doc-rec .dr-total td { font-weight:700 }
+.doc-rec .dr-assin { display:flex; gap:24px; margin-top:22mm }
+.doc-rec .dr-assin div { flex:1; font-size:9.5pt; border-top:1px solid #000; padding-top:4px }
+.doc-rec .dr-rodape { font-size:8pt; color:#444; margin-top:10mm }
+
+/* salmão a caminho (pedido real do Recebimento): tag informativa, fora da conta */
+.tag-caminho { display:block; margin:5px 0 0 auto; max-width:170px; padding:3px 7px; text-align:left;
+  font-size:10.5px; line-height:1.35; white-space:normal; text-decoration:none;
+  color:var(--info); background:var(--info-bg); border:1px dashed var(--info); border-radius:8px }
+.tag-caminho:hover { border-style:solid }

@@ -19,7 +19,8 @@
     </div>
     <div class="header-acoes">
       <div class="segmentado" id="visoes">
-        <button data-v="tabela" class="ativo">Tabela</button>
+        <button data-v="resumo" class="ativo">Resumo do dia</button>
+        <button data-v="tabela">Tabela</button>
         <button data-v="mapa">Visão Geral</button>
         <button data-v="dinheiro">Impacto R$</button>
       </div>
@@ -36,15 +37,15 @@
     </div>
   </div>
 
-  <section class="barra">
+  <section class="barra so-periodo">
     <label class="campo"><span>De</span><input type="date" id="inicio"></label>
     <label class="campo"><span>Até</span><input type="date" id="fim"></label>
     <button class="botao" id="ultimos30">Últimos 30 dias</button>
   </section>
 
-  <div class="placar" id="placar"></div>
+  <div class="placar so-periodo" id="placar"></div>
 
-  <section class="cartao">
+  <section class="cartao so-periodo">
     <div class="filtros">
       <label class="campo"><span>Loja</span><select id="f-casa"></select></label>
       <label class="campo"><span>Insumo</span><select id="f-insumo"></select></label>
@@ -52,6 +53,24 @@
       <span class="fonte" id="contagem"></span>
     </div>
     <div class="rolagem" id="tabela"></div>
+  </section>
+
+  <!-- Resumo do dia: sempre abre no dia anterior (ontem). O servidor compara
+       cada insumo com a media dos 28 dias antes e junta as pendencias. -->
+  <section id="resumo" hidden>
+    <div class="rd-topo">
+      <div>
+        <h2 id="rd-titulo">Resumo do dia</h2>
+        <p class="fonte" id="rd-sub"></p>
+      </div>
+      <div class="rd-nav">
+        <button class="botao" id="rd-ant" title="Dia anterior">Dia anterior</button>
+        <input type="date" id="rd-data">
+        <button class="botao" id="rd-seg" title="Dia seguinte">Dia seguinte</button>
+        <button class="botao" id="rd-ontem">Ontem</button>
+      </div>
+    </div>
+    <div id="rd-corpo"><p class="vazio">carregando…</p></div>
   </section>
 
   <section class="cartao" id="detalhe" hidden>
@@ -65,6 +84,7 @@
 </div>
 <script>montarSidebar("painel")</script>
 <script src="js/painel.js"></script>
+<script src="js/painel-resumo.js"></script>
 <script src="js/acoes.js"></script>
 </body>
 </html>

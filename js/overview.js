@@ -687,10 +687,15 @@ function graficosMes() {
   const peso = s.filter((m) => m.peso !== null).map((m) => ({ v: m.peso * 100,
     rotulo: mesBR(m.mes).slice(0, 3),
     titulo: `${mesBR(m.mes)} — ${parte(m.peso)} do faturamento bruto em insumo` }));
+  // com casa escolhida as duas séries já são da casa (montarVista): o título
+  // dizia "do grupo" em cima do número de uma casa só
+  const quem = VISTA.casa_filtro ? VISTA.casa_filtro_nome : "do grupo";
   $("#graficos-mes").innerHTML =
-    grafico(fatur, "Faturamento (Bruto) do grupo por mês", "var(--laranja)", (v) => curto(v)) +
+    grafico(fatur, `Faturamento (Bruto) ${VISTA.casa_filtro ? "— " + quem : quem} por mês`,
+            "var(--laranja)", (v) => curto(v)) +
     (peso.length > 1
-      ? grafico(peso, "Consumo de insumo sobre o Faturamento (Bruto)", "var(--info)",
+      ? grafico(peso, "Consumo de insumo sobre o Faturamento (Bruto)"
+                + (VISTA.casa_filtro ? " — " + quem : ""), "var(--info)",
                 (v) => fmt(v, 1) + "%")
       : "") +
     '<p class="fonte">O último mês pode estar em curso — a curva sobe de novo quando o mês fecha.</p>';
@@ -700,6 +705,24 @@ function graficosMes() {
 // ------------------------------------------------------------------ curva ABC
 // A curva já chega recortada e reclassificada pela VISTA quando há casa
 // escolhida — veja abcDaCasa lá em cima.
+// Salmão é contado em peixes (equivalente 08/10); ao lado vai o peso, para ler
+// em kg. 4,089 kg é o peso médio real do peixe que sai do estoque — o mesmo do
+// relatório de coeficiente. Os 30 kg ÷ 7 da caixa (4,286) são para COMPRA, não
+// para consumo (veja a nota em server.py, conversao_file).
+// Cream cheese e arroz também são contados por embalagem (bisnaga de 1,5 kg e
+// pacote de 5 kg, os rótulos da fonte em server.py), e ganham o mesmo peso ao lado.
+const KG_POR_UNIDADE = {
+  salmao_equivalente: { kg: 4.089, un: "peixes", origem: "peso médio do peixe que sai do estoque" },
+  cream_cheese: { kg: 1.5, un: "bisnagas", origem: "bisnaga de 1,5 kg" },
+  arroz: { kg: 5, un: "pacotes", origem: "pacote de 5 kg" },
+};
+
+function emKg(a) {
+  const c = KG_POR_UNIDADE[a.chave];
+  if (!c) return "";
+  return ` <small class="em-kg" title="${fmt(a.qtd, 1)} ${c.un} × ${fmt(c.kg, 3)} kg (${c.origem})">${fmt(a.qtd * c.kg, 1)} kg</small>`;
+}
+
 function curvaABC() {
   const abc = VISTA.abc || [];
   if (!abc.length) {
@@ -736,7 +759,7 @@ function curvaABC() {
         <td><span class="selo ${a.classe === "A" ? "ruim" : a.classe === "B" ? "aviso" : "neutro"}">${a.classe}</span></td>
         <td>${esc(a.insumo)} <span class="un">(${esc(a.un)})</span>${a.com_custo ? ""
           : ' <span class="selo-mini" title="Sem custo cadastrado — entra só na contagem">sem custo</span>'}</td>
-        <td class="calc">${fmt(a.qtd, 1)}</td>
+        <td class="calc">${fmt(a.qtd, 1)}${emKg(a)}</td>
         <td class="calc">${reais(a.valor)}</td>
         <td class="calc">${parte(a.parte)}</td>
         <td class="calc">${parte(a.acumulado)}</td>

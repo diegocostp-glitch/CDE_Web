@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Entrar</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="light">
+<script>
+  // mesmo tema escolhido no menu (chave do navegacao.js)
+  try { const t = localStorage.getItem("sb_theme_v1");
+        if (["light", "dark", "mono"].includes(t)) document.body.className = t; } catch (e) {}
+</script>
+<main class="login-pagina">
+  <section class="cartao login-cartao">
+    <div class="login-marca">
+      <img src="centurion_menu.png" alt="">
+      <div><h1>Centurion Beta</h1><p>Controle de estoque · CDE Web</p></div>
+    </div>
+
+    <form id="f-entrar" hidden>
+      <label class="campo"><span>Usuário</span>
+        <input id="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="campo"><span>Senha</span>
+        <input id="senha" type="password" autocomplete="current-password" required></label>
+      <p class="login-erro" id="erro" role="alert"></p>
+      <button class="botao primario login-botao" type="submit">Entrar</button>
+      <p class="fonte login-dica">Esqueceu a senha? Peça a um administrador para redefinir.</p>
+    </form>
+
+    <form id="f-primeiro" hidden>
+      <h2>Primeiro acesso</h2>
+      <p class="fonte">Ainda não há usuários. Crie o administrador, que depois cadastra as outras pessoas
+        em <b>Usuários</b>. Assim que ele existir, o sistema passa a pedir login em todos os computadores.</p>
+      <label class="campo"><span>Nome</span><input id="p-nome" required></label>
+      <label class="campo"><span>Usuário (para entrar)</span>
+        <input id="p-usuario" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="campo"><span>Senha (mínimo 8 caracteres)</span>
+        <input id="p-senha" type="password" autocomplete="new-password" required></label>
+      <label class="campo"><span>Repita a senha</span>
+        <input id="p-senha2" type="password" autocomplete="new-password" required></label>
+      <p class="login-erro" id="p-erro" role="alert"></p>
+      <button class="botao primario login-botao" type="submit">Criar administrador e entrar</button>
+    </form>
+
+    <div id="sem-login" hidden>
+      <h2>Login ainda não configurado</h2>
+      <p class="fonte">O primeiro administrador é criado no próprio PC do servidor, abrindo
+        <code>http://localhost:8935/login.html</code>. Até lá o sistema funciona sem login.</p>
+      <a class="botao" href="/">Abrir o sistema</a>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const volta = (() => {
+  const v = new URLSearchParams(location.search).get("volta") || "/";
+  // so caminho interno: nada de mandar para outro site depois do login
+  return v.startsWith("/") && !v.startsWith("//") && !v.startsWith("/login") ? v : "/";
+})();
+
+async function postar(url, corpo) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                               body: JSON.stringify(corpo) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.erro || "falha ao falar com o servidor");
+  return j;
+}
+
+$("#f-entrar").onsubmit = async (e) => {
+  e.preventDefault();
+  $("#erro").textContent = "";
+  const btn = e.target.querySelector("button");
+  btn.disabled = true;
+  try {
+    await postar("/api/login", { usuario: $("#usuario").value, senha: $("#senha").value });
+    location.href = volta;
+  } catch (err) {
+    $("#erro").textContent = err.message;
+    $("#senha").value = "";
+    $("#senha").focus();
+  } finally { btn.disabled = false; }
+};
+
+$("#f-primeiro").onsubmit = async (e) => {
+  e.preventDefault();
+  $("#p-erro").textContent = "";
+  if ($("#p-senha").value !== $("#p-senha2").value) {
+    $("#p-erro").textContent = "As duas senhas não são iguais."; return;
+  }
+  try {
+    await postar("/api/primeiro-acesso", { nome: $("#p-nome").value, usuario: $("#p-usuario").value,
+                                           senha: $("#p-senha").value });
+    await postar("/api/login", { usuario: $("#p-usuario").value, senha: $("#p-senha").value });
+    location.href = "/usuarios.html";
+  } catch (err) { $("#p-erro").textContent = err.message; }
+};
+
+(async () => {
+  let est = { login: true };
+  try { est = await (await fetch("/api/estado")).json(); } catch (e) {}
+  if (est.login) { $("#f-entrar").hidden = false; $("#usuario").focus(); }
+  else if (est.primeiro_acesso && est.local) { $("#f-primeiro").hidden = false; $("#p-nome").focus(); }
+  else { $("#sem-login").hidden = false; }
+})();
+</script>
+</body>
+</html>

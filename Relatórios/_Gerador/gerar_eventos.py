@@ -59,7 +59,7 @@ def main():
     hoje = datetime.date.today()
     ap.add_argument('--de', default='%d-01' % hoje.year)
     ap.add_argument('--ate', default=None, help='último mês, AAAA-MM (padrão: último mês com dado)')
-    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', 'dados')))
+    ap.add_argument('--dados', default=os.path.normpath(os.path.join(AQUI, '..', '..', 'dados')))
     ap.add_argument('--saida', default=RAIZ_RELATORIOS)
     ap.add_argument('--modelo', default=os.path.join(AQUI, 'modelo_coef.html'))
     ap.add_argument('--piso', type=float, default=0.10)

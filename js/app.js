@@ -80,11 +80,25 @@ const fileEmPeixes = (kg) => {
   return !kg ? 0 : (kg / rend) / kgPeixe;
 };
 
-// O inicial que vale na linha: o digitado (pode ter sido corrigido na
-// conferência da manhã) ou, sem caixa, o que veio do servidor.
+// O inicial que vale na linha: o digitado na contagem da manhã ou, com a caixa
+// vazia, o que veio do servidor (o final de ontem).
 function inicialDaLinha(tr, ins) {
   const el = tr && tr.querySelector('[data-campo="inicial"]');
-  return el ? num(el.value) : num(ins.inicial);
+  return el && el.value.trim() !== "" ? num(el.value) : num(ins.inicial);
+}
+
+// "30/10": a data da coluna do final de ontem, relativa ao dia aberto.
+function rotuloOntem(iso) {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() - 1);
+  return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+}
+
+// Inicial digitado que diverge do final de ontem: é o que, ao salvar, pede
+// confirmação antes de regravar ontem. Caixa vazia ou sem final ontem não conta.
+function divergeDeOntem(el, ins) {
+  if (!el || el.value.trim() === "" || ins.final_ontem == null) return false;
+  return Math.abs(num(el.value) - num(ins.final_ontem)) > QUASE_ZERO;
 }
 
 // O que está digitado numa linha agora, mais o uso do dia. Campo vazio vira
@@ -122,6 +136,39 @@ function estado(texto, classe) {
   const el = $("#estado");
   el.textContent = texto || "";
   el.className = "estado " + (classe || "");
+}
+
+// ------------------------------------------------------ motivo do erro
+// Erro identificado na conta deixa a célula em vermelho e o MOTIVO guardado
+// nela; o texto só aparece num pop-up pequeno ao passar o mouse. Escrito
+// embaixo do número, ele alargava a linha e empurrava a tabela inteira.
+function marcarErro(el, motivo) {
+  if (!el) return;
+  if (motivo) el.dataset.motivo = motivo;
+  else delete el.dataset.motivo;
+}
+
+// Um pop-up só, preso ao body e com posição fixa: dentro da célula ele seria
+// cortado pela área de rolagem da tabela nas últimas linhas.
+function ligarPopupMotivo() {
+  const pop = document.createElement("div");
+  pop.className = "pop-motivo";
+  pop.hidden = true;
+  document.body.appendChild(pop);
+  document.addEventListener("mouseover", (e) => {
+    const alvo = e.target.closest && e.target.closest("[data-motivo]");
+    if (!alvo) { pop.hidden = true; return; }
+    pop.textContent = alvo.dataset.motivo;
+    pop.hidden = false;
+    const r = alvo.getBoundingClientRect();
+    const larg = pop.offsetWidth, alt = pop.offsetHeight;
+    const x = Math.max(8, Math.min(r.left + r.width / 2 - larg / 2, innerWidth - larg - 8));
+    // abaixo da célula; sem espaço embaixo, acima
+    const y = r.bottom + 6 + alt > innerHeight ? r.top - alt - 6 : r.bottom + 6;
+    pop.style.left = x + "px";
+    pop.style.top = y + "px";
+  });
+  document.addEventListener("scroll", () => { pop.hidden = true; }, true);
 }
 
 // ------------------------------------------------------------------ carregar
@@ -174,18 +221,41 @@ function desenhar() {
   if (!DIA) { alvo.innerHTML = '<p class="vazio">Escolha uma data.</p>'; return; }
   const casa = DIA.casas[CASA];
 
+  function fonteFaturamento(casa) {
+    const p = casa.faturamento_pendente;
+    if (p && p.erro) {
+      return '<strong class="pendente">R$ ' + fmt(p.valor) + " ainda não foi gravado na planilha "
+        + "Faturamento - 2026: " + p.erro + ". O sistema tenta de novo sozinho.</strong>";
+    }
+    if (p) return "Gravando R$ " + fmt(p.valor) + " na planilha Faturamento - 2026…";
+    return casa.faturamento_da_planilha
+      ? "Faturamento bruto da planilha Faturamento - 2026. Se editar aqui, o valor digitado é gravado nela."
+      : "Sem faturamento bruto na planilha para esta data — o que for digitado aqui é gravado nela.";
+  }
+
   const cartao = document.createElement("section");
   cartao.className = "cartao cartao-lancamento";
   cartao.innerHTML =
     '<div class="cabeca">' +
       "<h2>" + casa.nome + "</h2>" +
-      '<div class="fat"><span>Faturamento (Bruto) do Dia (R$)</span>' +
-      '<input id="faturamento" type="text" inputmode="decimal" value="' +
-        (casa.faturamento ? fmt(casa.faturamento) : "") + '"></div>' +
+      // Faturamento = total de pedidos - total de descontos. Com o total de
+      // pedidos preenchido, o faturamento e so o resultado e fica travado;
+      // sem ele (dia antigo, vindo da planilha), continua digitavel.
+      '<div class="fat">' +
+        '<label><span>Total de pedidos (R$)</span>' +
+        '<input id="total-pedidos" class="dinheiro" type="text" inputmode="decimal" value="' +
+          (casa.total_pedidos != null ? fmt(casa.total_pedidos) : "") + '"></label>' +
+        '<span class="op" aria-hidden="true">−</span>' +
+        '<label><span>Total de descontos (R$)</span>' +
+        '<input id="total-descontos" class="dinheiro" type="text" inputmode="decimal" value="' +
+          (casa.total_descontos != null ? fmt(casa.total_descontos) : "") + '"></label>' +
+        '<span class="op" aria-hidden="true">=</span>' +
+        '<label><span>Faturamento (Bruto) do Dia (R$)</span>' +
+        '<input id="faturamento" class="dinheiro" type="text" inputmode="decimal" value="' +
+          (casa.faturamento ? fmt(casa.faturamento) : "") + '"></label>' +
+      "</div>" +
     "</div>" +
-    '<p class="fonte">' + (casa.faturamento_da_planilha
-      ? "Faturamento bruto lido da planilha Faturamento - 2026. Se editar aqui, o valor digitado prevalece."
-      : "Sem faturamento bruto na planilha para esta data — digite manualmente.") + "</p>";
+    '<p class="fonte">' + fonteFaturamento(casa) + "</p>";
 
   const tab = document.createElement("table");
   tab.className = "tabela-lancamento";
@@ -194,7 +264,9 @@ function desenhar() {
   // contagem. Assim a linha e lida da esquerda para a direita na mesma ordem
   // em que os numeros acontecem no balcao.
   tab.innerHTML = "<thead><tr>" +
-    "<th>Insumo</th><th>Inicial</th>" +
+    "<th>Insumo</th>" +
+    "<th>" + rotuloOntem(DIA.data) + "<br><span class=\"un\">final de ontem</span></th>" +
+    "<th>Inicial<br><span class=\"un\">contagem da manhã</span></th>" +
     // o esclarecimento vai embaixo, em linha própria: ao lado do título ele
     // estourava a coluna e o cabeçalho aparecia cortado
     "<th>Entrada<br><span class=\"un\">chegada</span></th>" +
@@ -209,7 +281,7 @@ function desenhar() {
       grupo = ins.grupo;
       const tr = document.createElement("tr");
       tr.className = "grupo";
-      tr.innerHTML = '<td colspan="8">' + grupo + "</td>";
+      tr.innerHTML = '<td colspan="9">' + grupo + "</td>";
       corpo.appendChild(tr);
     }
     const tr = document.createElement("tr");
@@ -225,6 +297,7 @@ function desenhar() {
       tr.innerHTML =
         "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span>" +
           ' <span class="selo-mini" title="' + origem + '">calculado</span></td>' +
+        '<td class="calc d-ontem"></td>' +
         '<td class="calc d-inicial">' + fmt(ins.inicial, 3) + "</td>" +
         '<td class="calc d-entrada"></td><td class="calc d-transferencia"></td>' +
         '<td class="calc d-desperdicio"></td><td class="calc d-final"></td>' +
@@ -256,16 +329,23 @@ function desenhar() {
     // coeficiente também, porque o consumo do salmão é medido no equivalente,
     // que já soma este filé.
     const vazias = '<td class="calc"></td>';
-    // Inicial editável: chega com o final de ontem, e a conferência da manhã
-    // corrige se a contagem divergir. Corrigido, o servidor grava o mesmo
-    // número como final de ontem — os dois são a mesma contagem.
+    // Final de ontem, só leitura, ao lado do inicial: a conferência da manhã
+    // compara os dois de olho.
+    const ontem = '<td class="calc ontem">' + (ins.final_ontem == null ? "—"
+      : fmt(num(ins.final_ontem), 3)) + "</td>";
+    // Inicial de verdade: a contagem da manhã, digitada. Vem preenchido só se o
+    // dia já tem um gravado (planilha ou digitação anterior); vazio, a conta usa
+    // o final de ontem. Diferente de ontem, ao salvar a tela pergunta se o
+    // final de ontem deve ser regravado com o mesmo número.
+    const valIni = ins.inicial_gravado ? qtd(ins.inicial) : "";
     const inicial = '<td><input data-campo="inicial" type="text" inputmode="decimal" value="' +
-      qtd(ins.inicial) + '" data-original="' + qtd(ins.inicial) + '" title="Final do dia ' +
-      'anterior. Corrija se a conferência da manhã divergir: ao salvar, o final de ontem ' +
-      'recebe o mesmo número."></td>';
+      valIni + '" data-original="' + valIni + '" placeholder="' +
+      (ins.final_ontem == null ? "" : qtd(ins.final_ontem)) + '" title="Contagem da manhã. ' +
+      'Vazio, vale o final de ontem. Se divergir, ao salvar você escolhe se o final de ' +
+      'ontem recebe o mesmo número."></td>';
     tr.innerHTML =
       "<td>" + ins.nome + ' <span class="un">(' + ins.un + ")</span>" + selo + "</td>" +
-      inicial +
+      ontem + inicial +
       (ins.so_contagem
         ? vazias + vazias + vazias + campo("final", ins.final) + vazias + vazias
         : campo("entrada", ins.entrada) + campo("transferencia", ins.transferencia) +
@@ -285,6 +365,7 @@ function desenhar() {
 
   alvo.addEventListener("input", aoDigitar);
   alvo.addEventListener("focusout", aoSairDoCampo);
+  calcularFaturamento();
   recalcular();
 }
 
@@ -356,7 +437,10 @@ function recalcularProcessamento() {
     if (bruto === "" || num(bruto) <= 0) {
       tdPerda.textContent = "—";
       tdRend.textContent = "—";
+      tdPerda.className = "calc perda";
       tdRend.className = "calc rend";
+      marcarErro(tdPerda, null);
+      marcarErro(tdRend, null);
       return;
     }
     const perda = num(bruto) - num(rendeu);
@@ -364,12 +448,18 @@ function recalcularProcessamento() {
     // Perda negativa quer dizer que rendeu mais do que entrou: ou o peso do
     // cru foi anotado errado, ou o processado ja tinha saldo somado ali.
     tdPerda.className = "calc perda" + (perda < 0 ? " neg" : "");
-    tdPerda.innerHTML = fmt(perda, 3) + (perda < 0
-      ? '<span class="msg-neg">rendeu mais do que entrou</span>' : "");
+    tdPerda.textContent = fmt(perda, 3);
+    marcarErro(tdPerda, perda < 0
+      ? `Rendeu mais do que entrou: ${fmt(num(rendeu), 3)} processado sobre ${fmt(num(bruto), 3)} `
+        + "in natura. Confira o peso do cru ou se o processado já tinha saldo somado."
+      : null);
     const fora = r < p.padrao_min || r > p.padrao_max;
     tdRend.className = "calc rend" + (fora ? " neg" : "");
-    tdRend.innerHTML = fmt(r * 100, 2) + "%" + (fora
-      ? '<span class="msg-neg">fora da faixa padrão</span>' : "");
+    tdRend.textContent = fmt(r * 100, 2) + "%";
+    marcarErro(tdRend, fora
+      ? `Fora da faixa padrão: rendeu ${fmt(r * 100, 2)}%, o esperado é de `
+        + `${fmt(p.padrao_min * 100, 0)}% a ${fmt(p.padrao_max * 100, 0)}%.`
+      : null);
   });
 }
 
@@ -417,6 +507,15 @@ function recalcular() {
         }
         if (fil) ini += fileEmPeixes(fil.inicial);
         tr.querySelector(".d-inicial").textContent = fmt(ini, 3);
+        // O final de ontem do equivalente: mesma soma, sobre os finais de
+        // ontem das faixas e do filé.
+        let ont = 0, temOnt = false;
+        casa.insumos.forEach((i) => {
+          if (i.final_ontem == null) return;
+          if (FATOR_LIBRA[i.chave]) { ont += num(i.final_ontem) * FATOR_LIBRA[i.chave]; temOnt = true; }
+          else if (i.chave === "salmao_file") { ont += fileEmPeixes(num(i.final_ontem)); temOnt = true; }
+        });
+        tr.querySelector(".d-ontem").textContent = temOnt ? fmt(ont, 3) : "—";
         if (temCol) {
           uso = ini + col.entrada - col.transferencia - col.desperdicio - col.final;
           temUso = true;
@@ -430,6 +529,10 @@ function recalcular() {
       tr.querySelector(".coef").textContent = temUso && fat > 0 ? fmt((uso / fat) * 1000, 3) : "—";
       return;
     }
+    // inicial contado diferente do final de ontem acende, para ser visto
+    // antes de salvar
+    const elIni = tr.querySelector('[data-campo="inicial"]');
+    if (elIni) elIni.classList.toggle("diverge", divergeDeOntem(elIni, ins));
     if (ins.so_contagem) return;   // só início e fim: não há uso a calcular
     const val = (c) => {
       const el = tr.querySelector('[data-campo="' + c + '"]');
@@ -440,38 +543,72 @@ function recalcular() {
       - num(val("desperdicio")) - num(val("final"));
     const tdUso = tr.querySelector(".uso");
     const tdCoef = tr.querySelector(".coef");
-    if (!temFinal) { tdUso.textContent = "—"; tdCoef.textContent = "—"; tdUso.className = "calc uso"; return; }
+    const elFinal = tr.querySelector('[data-campo="final"]');
+    if (!temFinal) {
+      tdUso.textContent = "—"; tdCoef.textContent = "—"; tdUso.className = "calc uso";
+      elFinal.classList.remove("suspeito");
+      marcarErro(tdUso, null);
+      marcarErro(elFinal.parentElement, null);
+      return;
+    }
     const negativo = uso < -QUASE_ZERO;
     const media = ins.media_diaria || 0;
     const maior = ins.maior_uso;
     const suspeito = !negativo && maior > 0 && uso > ALERTA_VEZES * maior
       && uso - maior >= ALERTA_MINIMO;
     const esperado = Math.max(0, uso + num(val("final")) - media);
-    const elFinal = tr.querySelector('[data-campo="final"]');
     elFinal.classList.toggle("suspeito", suspeito);
-    // a dica de origem (planilha/editado) volta quando o alerta apaga
+    // O motivo vai no pop-up da célula, e não mais escrito embaixo do número.
+    // O title do campo sai enquanto o alerta está aceso (o navegador abriria
+    // a dica dele por cima do pop-up) e volta, com a origem, quando apaga.
     if (elFinal.dataset.dica === undefined) elFinal.dataset.dica = elFinal.title;
-    elFinal.title = suspeito
-      ? `Possível erro de contagem: o uso do dia (${fmt(uso, 3)}) passa do maior dos últimos `
-        + `30 dias (${fmt(maior, 3)}). Com o consumo médio de ${fmt(media, 3)} ${ins.un}/dia, `
-        + `o final esperado seria perto de ${fmt(esperado, 3)}. Confira a contagem.`
-      : elFinal.dataset.dica;
+    elFinal.title = suspeito ? "" : elFinal.dataset.dica;
+    const disponivel = uso + num(val("final"));
+    const motivo = negativo
+      ? `Contagem maior que o disponível: o final (${fmt(num(val("final")), 3)}) passa do que `
+        + `havia no dia — inicial + entrada − saída − desperdício = ${fmt(disponivel, 3)}. `
+        + "Confira a contagem ou se falta lançar alguma entrada."
+      : suspeito
+        ? `Possível erro de contagem: o uso do dia (${fmt(uso, 3)}) passa do maior dos últimos `
+          + `30 dias (${fmt(maior, 3)}). Com o consumo médio de ${fmt(media, 3)} ${ins.un}/dia, `
+          + `o final esperado seria perto de ${fmt(esperado, 3)}.`
+        : null;
+    marcarErro(elFinal.parentElement, suspeito ? motivo : null);
     tdUso.className = "calc uso" + (negativo || suspeito ? " neg" : "");
     // zerado() também na exibição: sem isso a coluna mostrava "-0,000".
-    tdUso.innerHTML = fmt(zerado(uso) ? 0 : uso, 3) + (negativo
-      ? '<span class="msg-neg">contagem maior que o disponível</span>'
-      : suspeito
-        ? `<span class="msg-neg">acima do maior dia (${fmt(maior, 3)}) — final esperado ≈ ${fmt(esperado, 3)}</span>`
-        : "");
+    tdUso.textContent = fmt(zerado(uso) ? 0 : uso, 3);
+    marcarErro(tdUso, motivo);
     tdCoef.textContent = fat > 0 ? fmt((uso / fat) * 1000, 3) : "—";
   });
   recalcularProcessamento();
+}
+
+// Faturamento do dia = total de pedidos - total de descontos. Sem o total de
+// pedidos, o campo de faturamento volta a ser digitável (dia antigo, planilha).
+function calcularFaturamento() {
+  const ped = $("#total-pedidos"), desc = $("#total-descontos"), fat = $("#faturamento");
+  if (!ped || !fat) return;
+  const temPedidos = ped.value.trim() !== "";
+  // Total de pedidos apagado: o faturamento era só o resultado da conta e não
+  // pode ficar com o último valor calculado — sem a conta, a soma zera.
+  // Dia antigo (faturamento digitado, nunca calculado) não passa por aqui.
+  if (!temPedidos && fat.classList.contains("calculado")) fat.value = "";
+  fat.readOnly = temPedidos;
+  fat.classList.toggle("calculado", temPedidos);
+  fat.title = temPedidos ? "Total de pedidos menos total de descontos" : "";
+  if (!temPedidos) { marcarErro(desc, null); return; }
+  const total = num(ped.value) - num(desc.value);
+  fat.value = fmt(total);
+  marcarErro(desc, total < 0
+    ? "O total de descontos é maior que o total de pedidos: o faturamento ficaria negativo."
+    : null);
 }
 
 function aoDigitar(e) {
   if (!e.target.matches("input")) return;
   sujo = true;
   estado("Não salvo", "erro");
+  if (e.target.matches("#total-pedidos, #total-descontos")) calcularFaturamento();
   recalcular();
 }
 
@@ -487,7 +624,7 @@ function aoSairDoCampo(e) {
   if (!el.matches) return;
   if (el.value.trim() === "") return;
   // O faturamento e dinheiro: duas casas, e nao as tres da quantidade.
-  if (el.id === "faturamento") { el.value = fmt(num(el.value)); return; }
+  if (el.matches("input.dinheiro")) { el.value = fmt(num(el.value)); return; }
   if (!el.matches("input[data-campo], input[data-pcampo]")) return;
   el.value = qtd(num(el.value));
 }
@@ -495,6 +632,34 @@ function aoSairDoCampo(e) {
 // ------------------------------------------------------------------ salvar
 async function salvar() {
   const casa = DIA.casas[CASA];
+  // Inicial mexido agora e diferente do final de ontem: o final de ontem só é
+  // regravado com o mesmo número se quem salva confirmar. Sem confirmar, o
+  // inicial vale só para hoje e ontem fica como estava.
+  const divergentes = [];
+  document.querySelectorAll("tbody tr[data-chave]").forEach((tr) => {
+    const ins = casa.insumos.find((i) => i.chave === tr.dataset.chave);
+    const el = tr.querySelector('[data-campo="inicial"]');
+    if (!el || ins.derivado || el.value.trim() === el.dataset.original) return;
+    if (divergeDeOntem(el, ins)) {
+      divergentes.push(ins.nome + ": " + fmt(num(ins.final_ontem), 3) + " → " + qtd(num(el.value)));
+    }
+  });
+  let regravarOntem = true;
+  if (divergentes.length) {
+    const dia = rotuloOntem(DIA.data);
+    regravarOntem = confirm("O inicial contado diverge do final de " + dia + " em "
+      + divergentes.length + " insumo(s):\n\n" + divergentes.slice(0, 10).join("\n")
+      + (divergentes.length > 10 ? "\n…" : "")
+      + "\n\nOK: regravar o final de " + dia + " com a contagem da manhã."
+      + "\nCancelar: gravar o inicial só em hoje, sem mexer no final de " + dia + ".");
+  }
+  const pedTxt = $("#total-pedidos").value.trim(), descTxt = $("#total-descontos").value.trim();
+  casa.total_pedidos = pedTxt === "" ? null : num(pedTxt);
+  casa.total_descontos = descTxt === "" ? null : num(descTxt);
+  if (casa.total_pedidos != null && casa.total_pedidos - (casa.total_descontos || 0) < 0) {
+    aviso("Não salvei: o total de descontos é maior que o total de pedidos.", "mau");
+    return;
+  }
   casa.faturamento = num($("#faturamento").value);
   document.querySelectorAll("tbody tr[data-chave]").forEach((tr) => {
     const ins = casa.insumos.find((i) => i.chave === tr.dataset.chave);
@@ -520,7 +685,7 @@ async function salvar() {
     });
   });
 
-  const corpo = { data: DIA.data, casas: {} };
+  const corpo = { data: DIA.data, regravar_ontem: regravarOntem, casas: {} };
   Object.entries(DIA.casas).forEach(([ck, c]) => {
     const insumos = {};
     c.insumos.forEach((i) => {
@@ -531,7 +696,8 @@ async function salvar() {
     Object.entries(c.processamento || {}).forEach(([pk, p]) => {
       proc[pk] = { in_natura: p.in_natura, processado: p.processado };
     });
-    corpo.casas[ck] = { faturamento: c.faturamento, insumos: insumos,
+    corpo.casas[ck] = { faturamento: c.faturamento, total_pedidos: c.total_pedidos,
+                        total_descontos: c.total_descontos, insumos: insumos,
                         processamento: proc };
   });
 
@@ -554,8 +720,16 @@ async function salvar() {
       const nome = (ins.find((i) => i.chave === e.insumo) || {}).nome || e.insumo;
       return nome + " (" + e.casa + ", " + e.data.split("-").reverse().slice(0, 2).join("/") + ")";
     });
+    // faturamento que não foi para a planilha (abaixo do piso) não pode passar calado
+    const barrados = Object.entries(resp.faturamento_planilha || {})
+      .filter(([, s]) => s !== "pedido")
+      .map(([ck, s]) => ((DIA.casas[ck] || {}).nome || ck) + ": " + s);
+    const pedidos = Object.values(resp.faturamento_planilha || {}).filter((s) => s === "pedido").length;
     aviso("Dia " + DIA.data.split("-").reverse().join("/") + " salvo." + (outros.length
-      ? " Também atualizado: " + outros.join("; ") + "." : ""), "bom");
+      ? " Também atualizado: " + outros.join("; ") + "." : "")
+      + (pedidos ? " Faturamento sendo gravado na planilha." : "")
+      + (barrados.length ? " Faturamento " + barrados.join(" ") : ""),
+      barrados.length ? "mau" : "bom");
     await carregarDia(DIA.data);      // recarrega para reencadear o estoque inicial
   } catch (e) {
     estado("Falha ao salvar", "erro");
@@ -700,7 +874,11 @@ function mudarDia(passo) {
   if (!CONFIG.faturamento_ok) {
     aviso("Planilha de faturamento não encontrada — o campo virá em branco.", "mau");
   }
-  $("#data").value = hoje();
+  // ?data=AAAA-MM-DD abre direto num dia: o Resumo do dia do Painel manda
+  // para ca a pendencia de uma casa naquele dia.
+  const pedido = (new URLSearchParams(location.search).get("data") || "").match(/^\d{4}-\d{2}-\d{2}$/);
+  const inicio = pedido ? pedido[0] : hoje();
+  $("#data").value = inicio;
   $("#data").onchange = (e) => carregarDia(e.target.value);
   $("#dia-anterior").onclick = () => mudarDia(-1);
   $("#dia-seguinte").onclick = () => mudarDia(1);
@@ -708,6 +886,7 @@ function mudarDia(passo) {
   $("#btn-salvar").onclick = salvar;
   $("#btn-sinc").onclick = () => sincronizar();
   ligarPeriodo();
+  ligarPopupMotivo();
   window.addEventListener("beforeunload", (e) => { if (sujo) e.preventDefault(); });
-  carregarDia(hoje());
+  carregarDia(inicio);
 })();
