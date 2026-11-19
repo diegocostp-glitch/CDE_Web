@@ -110,55 +110,77 @@ const ICO = {
   topo: '<line x1="12" y1="20" x2="12" y2="6"/><polyline points="5 13 12 6 19 13"/>',
   usuarios: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  inicio: '<path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  // camadas: o que esta guardado na casa
+  estoque: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/>',
+  utilitarios: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
   senha: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
 };
 ICO_TEMA = { light: ICO.sol, dark: ICO.lua, mono: ICO.mono };
 const svg = (d) => '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" ' +
   'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
 
+// Grupos do menu, na ordem do trabalho: o que se olha primeiro, o estoque do
+// dia, o ciclo de compra, as ferramentas do salmao. Configuracoes fica sozinha
+// no fim. Importar OC nao tem item proprio: abre de dentro de Ordens de Compras.
+const MENU_FIXO_KEY = "cde_menu_fixo";
+const GRUPOS_MENU = [
+  { id: "inicio", titulo: "Início", ico: "inicio", itens: [
+    { id: "overview", rotulo: "Visão Geral", href: "overview.html" },
+    { id: "painel", rotulo: "Painel de Consumo", href: "painel.html" },
+  ]},
+  { id: "estoque", titulo: "Estoque", ico: "estoque", itens: [
+    { id: "lancamento", rotulo: "Lançamento Diário", href: "index.html" },
+    { id: "contagem_diaria", rotulo: "Contagem diária", href: "contagem-diaria.html" },
+    { id: "contagem_semanal", rotulo: "Contagem semanal", href: "contagem-semanal.html" },
+    { id: "movimentacoes", rotulo: "Movimentações", href: "movimentacoes.html" },
+  ]},
+  { id: "compras", titulo: "Compras", ico: "compras", itens: [
+    { id: "compras", rotulo: "Projeção de Compras", href: "compras.html" },
+    // Importar OC mora dentro desta tela: o item fica aceso quando ela esta aberta
+    { id: "ordens", rotulo: "Ordens de Compras", href: "ordens.html", tambem: ["importar"] },
+    { id: "recebimento", rotulo: "Recebimento de Salmão", href: "recebimento.html" },
+    { id: "cadastros", rotulo: "Cadastros", href: "cadastros.html" },
+  ]},
+  { id: "utilitarios", titulo: "Utilitários", ico: "utilitarios", itens: [
+    { id: "conversao", rotulo: "Conversão de Salmão", href: "conversao.html" },
+    { id: "qualidade", rotulo: "Avaliação de Qualidade", href: "qualidade.html" },
+  ]},
+];
+
+// Grupos fixados com o clique. Valem ate a pessoa sair: Sair e o login limpam.
+function gruposFixos() {
+  try { return JSON.parse(localStorage.getItem(MENU_FIXO_KEY)) || []; } catch (e) { return []; }
+}
+function guardarFixos(lista) {
+  try { localStorage.setItem(MENU_FIXO_KEY, JSON.stringify(lista)); } catch (e) { /* sem storage */ }
+}
+
 function montarSidebar(atual, extras) {
-  // Seções: o que se faz todo dia, o que gera compra e a base que
-  // sustenta as duas. Dentro de Compras, Ordens vem primeiro porque é o
-  // módulo — Projeção e Importar são fontes que abastecem a fila dele.
-  const secoes = [
-    ["Início", [
-      { id: "overview", rotulo: "Visão Geral", href: "overview.html" },
-    ]],
-    ["Operação", [
-      { id: "lancamento", rotulo: "Lançamento Diário", href: "index.html" },
-      { id: "painel", rotulo: "Painel de Consumo", href: "painel.html" },
-      { id: "movimentacoes", rotulo: "Movimentações", href: "movimentacoes.html" },
-    ]],
-    // Conferencia de estoque com lista propria de itens, separada do
-    // Lancamento: o que se conta todo dia e o que se conta uma vez por semana.
-    ["Conferência", [
-      { id: "contagem_diaria", rotulo: "Contagem diária", href: "contagem-diaria.html" },
-      { id: "contagem_semanal", rotulo: "Contagem semanal", href: "contagem-semanal.html" },
-    ]],
-    ["Compras", [
-      { id: "ordens", rotulo: "Ordens de Compras", href: "ordens.html" },
-      { id: "compras", rotulo: "Projeção de Compras", href: "compras.html" },
-      { id: "importar", rotulo: "Importar OC", href: "importar.html" },
-      // OC de salmao gerada vira ordem de recebimento: espera o pedido real do
-      // fornecedor e a loja confere a chegada com ela.
-      { id: "recebimento", rotulo: "Recebimento de Salmão", href: "recebimento.html" },
-      { id: "conversao", rotulo: "Conversão de Salmão", href: "conversao.html" },
-      // Fecha o ciclo do salmão dentro de Compras: a ordem sai, o peixe chega e
-      // o PCQS diz se chegou o que foi comprado — inclusive quanto o
-      // fornecedor deve devolver quando não chegou.
-      { id: "qualidade", rotulo: "Qualidade do Salmão", href: "qualidade.html" },
-    ]],
-    ["Base", [
-      { id: "cadastros", rotulo: "Cadastros", href: "cadastros.html" },
-      { id: "parametros", rotulo: "Parâmetros", href: "parametros.html" },
-    ]],
-  ];
+  // "importar" acende Ordens; "senha" e "usuarios" acendem Configuracoes
+  const ativo = (i) => i.id === atual || (i.tambem || []).includes(atual);
   const item = (i) =>
-    '<a class="sb-item' + (i.id === atual ? " active" : "") + '" href="' + i.href + '">' +
+    '<a class="sb-item' + (ativo(i) ? " active" : "") + '" href="' + i.href + '">' +
       '<span class="sb-ico">' + svg(ICO[i.id]) + "</span>" +
       '<span class="sb-txt">' + i.rotulo + "</span>" +
       (i.badge ? '<span class="sb-badge">' + i.badge + "</span>" : '<span class="sb-arr">→</span>') +
     "</a>";
+  const fixos = gruposFixos();
+  // Fechado, o grupo mostra so o titulo; o clique abre e fecha.
+  // O item da tela aberta continua a mostra mesmo com o grupo fechado, para a
+  // pessoa nunca perder onde esta.
+  const grupo = (g) => {
+    const fixo = fixos.includes(g.id);
+    return '<div class="sb-grupo' + (fixo ? " fixo" : "") + '" data-grupo="' + g.id + '">' +
+      '<button type="button" class="sb-grupo-cab" aria-expanded="' + fixo + '" title="' +
+        (fixo ? "Clique para ocultar" : "Clique para exibir") + '">' +
+        '<span class="sb-ico">' + svg(ICO[g.ico]) + "</span>" +
+        '<span class="sb-txt">' + g.titulo + "</span>" +
+        '<span class="sb-chev" aria-hidden="true">▸</span></button>' +
+      '<div class="sb-grupo-itens">' + g.itens.map(item).join("") + "</div></div>";
+  };
+  const config = item({ id: "parametros", rotulo: "Configurações", href: "parametros.html",
+                        tambem: ["senha", "usuarios"] });
 
   const alvo = document.querySelector(".app-layout") || document.body;
   alvo.insertAdjacentHTML("afterbegin",
@@ -170,8 +192,8 @@ function montarSidebar(atual, extras) {
           '<div class="sb-logo-sub">Controle de estoque</div>' +
         "</div></div>" +
       '<nav class="sb-nav">' +
-        secoes.map(([titulo, itens]) =>
-          '<div class="sb-section">' + titulo + "</div>" + itens.map(item).join("")).join("") +
+        GRUPOS_MENU.map(grupo).join("") +
+        '<div class="sb-separa"></div>' + config +
         (extras || "") +
       "</nav>" +
       '<div class="sb-rodape">' +
@@ -202,6 +224,17 @@ function montarSidebar(atual, extras) {
     e.stopPropagation();          // senao a linha ciclaria por cima da escolha
     aplicarTema(b.dataset.tema);
   };
+  document.querySelectorAll(".sb-grupo-cab").forEach((cab) => {
+    cab.onclick = () => {
+      const g = cab.parentElement, id = g.dataset.grupo;
+      const fixo = g.classList.toggle("fixo");
+      cab.setAttribute("aria-expanded", fixo);
+      cab.title = fixo ? "Clique para ocultar" : "Clique para exibir";
+      const lista = gruposFixos().filter((x) => x !== id);
+      if (fixo) lista.push(id);
+      guardarFixos(lista);
+    };
+  });
   aplicarTema(localStorage.getItem(THEME_KEY) || "light");
   aplicarUsuario(atual);
   marcarPendentes();
@@ -242,6 +275,10 @@ async function marcarPendentes() {
     if (!link || !r.pendentes) return;
     const seta = link.querySelector(".sb-arr");
     if (seta) seta.outerHTML = '<span class="sb-badge">' + r.pendentes + "</span>";
+    // com o grupo fechado o item some: o titulo de Compras carrega o mesmo selo
+    const g = link.closest(".sb-grupo");
+    const chev = g && g.querySelector(".sb-chev");
+    if (chev) chev.insertAdjacentHTML("beforebegin", '<span class="sb-badge sb-badge-grupo">' + r.pendentes + "</span>");
   } catch (e) { /* servidor fora do ar: segue sem selo */ }
 }
 
@@ -312,6 +349,120 @@ window.addEventListener("keydown", (e) => {
   if (prox) { prox.focus(); prox.select(); }
 });
 
+// ------------------------------------------------------- campo de data
+// O campo de data do Chrome seleciona dia, mes e ano em pedacos e, sem o ano,
+// a data inteira fica invalida. Aqui cada <input type="date"> ganha por cima um
+// campo de texto: o clique seleciona tudo, digita-se "19/11", "1911", "19/11/26"
+// ou so "19" — o que faltar vem do mes e do ano atuais — e o icone ao lado abre
+// o calendario do Chrome. O campo original continua por baixo, com o mesmo id,
+// o valor aaaa-mm-dd e os mesmos eventos: nenhuma tela precisou mudar.
+const _valorNativo = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+const _isoParaBr = (iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso || "") ? iso.split("-").reverse().join("/") : "";
+
+// "19", "19/11", "1911", "19/11/26", "19.11.2026" -> "2026-11-19"; invalido -> null
+function lerDataDigitada(txt) {
+  const s = String(txt || "").trim();
+  if (!s) return "";
+  const hoje = new Date();
+  let d, m, a;
+  const sep = s.split(/[\/.\-\s]+/).filter(Boolean);
+  if (sep.length > 1) [d, m, a] = sep;
+  else if (/^\d{1,2}$/.test(s)) d = s;
+  else if (/^\d{3,8}$/.test(s)) { d = s.slice(0, 2); m = s.slice(2, 4); a = s.slice(4) || undefined; }
+  else return null;
+  d = Number(d);
+  m = m === undefined ? hoje.getMonth() + 1 : Number(m);
+  a = a === undefined || a === "" ? hoje.getFullYear() : Number(String(a).length <= 2 ? "20" + String(a).padStart(2, "0") : a);
+  const dt = new Date(a, m - 1, d);
+  if (!(d >= 1 && m >= 1 && m <= 12) || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return `${a}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function melhorarCampoData(nat) {
+  if (nat._espelho || nat.closest(".data-br")) return;
+  const caixa = document.createElement("span");
+  caixa.className = "data-br";
+  const txt = document.createElement("input");
+  txt.type = "text";
+  txt.className = (nat.className + " data-br-txt").trim();
+  if (nat.getAttribute("style")) txt.setAttribute("style", nat.getAttribute("style"));
+  txt.placeholder = "dd/mm/aaaa";
+  txt.autocomplete = "off";
+  txt.inputMode = "numeric";
+  txt.title = nat.title || "Digite dd/mm (o ano atual entra sozinho) ou use o calendário";
+  if (nat.dataset.oc) txt.setAttribute("aria-label", nat.dataset.oc);
+  const bot = document.createElement("button");
+  bot.type = "button";
+  bot.className = "data-br-cal";
+  bot.tabIndex = -1;
+  bot.title = "Abrir o calendário";
+  bot.setAttribute("aria-label", "Abrir o calendário");
+  bot.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/>' +
+    '<line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+  nat.parentNode.insertBefore(caixa, nat);
+  caixa.append(nat, txt, bot);
+  nat.tabIndex = -1;
+  nat.setAttribute("aria-hidden", "true");
+  nat._espelho = txt;
+
+  const sync = () => {
+    if (document.activeElement !== txt) txt.value = _isoParaBr(_valorNativo.get.call(nat));
+    txt.disabled = nat.disabled;
+    txt.readOnly = nat.readOnly;
+    bot.disabled = nat.disabled || nat.readOnly;
+  };
+  // codigo da tela que escreve no campo original (el.value = "...") atualiza o texto
+  Object.defineProperty(nat, "value", {
+    configurable: true,
+    get() { return _valorNativo.get.call(this); },
+    set(v) { _valorNativo.set.call(this, v); sync(); },
+  });
+  new MutationObserver(sync).observe(nat, { attributes: true, attributeFilter: ["disabled", "readonly"] });
+  nat.addEventListener("change", sync);
+  sync();
+
+  const confirmar = () => {
+    const iso = lerDataDigitada(txt.value);
+    if (iso === null) {                       // nao e data: volta ao que estava
+      txt.classList.add("data-br-erro");
+      setTimeout(() => txt.classList.remove("data-br-erro"), 1200);
+      txt.value = _isoParaBr(_valorNativo.get.call(nat));
+      return;
+    }
+    if (iso === _valorNativo.get.call(nat)) { txt.value = _isoParaBr(iso); return; }
+    _valorNativo.set.call(nat, iso);
+    txt.value = _isoParaBr(iso);
+    nat.dispatchEvent(new Event("input", { bubbles: true }));
+    nat.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  // clique seleciona a data inteira, pronta para digitar por cima
+  txt.addEventListener("focus", () => setTimeout(() => txt.select(), 0));
+  txt.addEventListener("mouseup", (e) => { if (txt.selectionStart === txt.selectionEnd) { e.preventDefault(); txt.select(); } });
+  txt.addEventListener("blur", confirmar);
+  txt.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") confirmar();
+    if (e.key === "Escape") { txt.value = _isoParaBr(_valorNativo.get.call(nat)); txt.select(); }
+  });
+  bot.addEventListener("click", () => {
+    if (nat.disabled || nat.readOnly) return;
+    try { nat.showPicker(); } catch (erro) { nat.focus(); }
+  });
+}
+
+function melhorarDatas(raiz) {
+  (raiz.querySelectorAll ? raiz.querySelectorAll('input[type="date"]') : []).forEach(melhorarCampoData);
+}
+document.addEventListener("DOMContentLoaded", () => {
+  melhorarDatas(document);
+  // telas que desenham campos de data depois (ordens, recebimento, acoes)
+  new MutationObserver((muts) => muts.forEach((m) => m.addedNodes.forEach((n) => {
+    if (n.nodeType !== 1) return;
+    if (n.matches && n.matches('input[type="date"]')) melhorarCampoData(n);
+    else melhorarDatas(n);
+  }))).observe(document.body, { childList: true, subtree: true });
+});
+
 // ------------------------------------------------------- usuario no menu
 // Com o login ligado: esconde do menu as telas sem acesso, mostra quem esta
 // logado (com Trocar senha, Usuarios para administrador e Sair) e, numa tela
@@ -322,14 +473,14 @@ async function aplicarUsuario(atual) {
   if (!eu || !eu.login) return;
   document.querySelectorAll(".sb-nav .sb-item").forEach((a) => {
     const id = (a.getAttribute("href") || "").replace(".html", "");
+    if (id === "parametros") return;     // Configuracoes: a senha e de todo mundo
     const tela = { index: "lancamento", "contagem-diaria": "contagem_diaria",
                    "contagem-semanal": "contagem_semanal" }[id] || id;
     if (eu.permissoes[tela] === "nenhum") a.remove();
   });
-  // secao que ficou sem nenhum item some junto com o titulo
-  document.querySelectorAll(".sb-nav .sb-section").forEach((sec) => {
-    const prox = sec.nextElementSibling;
-    if (!prox || !prox.classList.contains("sb-item")) sec.remove();
+  // grupo que ficou sem nenhum item some junto com o titulo
+  document.querySelectorAll(".sb-nav .sb-grupo").forEach((g) => {
+    if (!g.querySelector(".sb-item")) g.remove();
   });
   const rodape = document.querySelector(".sb-rodape");
   if (rodape) {
@@ -337,19 +488,17 @@ async function aplicarUsuario(atual) {
       '<div class="sb-usuario" title="' + eu.nome + (eu.perfil ? " · " + eu.perfil : "") + '">' +
         '<span class="sb-ico">' + svg(ICO.usuarios) + "</span>" +
         '<span class="sb-txt"><b>' + eu.nome + "</b>" + (eu.perfil ? "<small>" + eu.perfil + "</small>" : "") + "</span></div>" +
-      (eu.admin ? '<a class="sb-item' + (atual === "usuarios" ? " active" : "") + '" href="usuarios.html">' +
-        '<span class="sb-ico">' + svg(ICO.usuarios) + '</span><span class="sb-txt">Usuários</span></a>' : "") +
-      '<a class="sb-item' + (atual === "senha" ? " active" : "") + '" href="senha.html">' +
-        '<span class="sb-ico">' + svg(ICO.senha) + '</span><span class="sb-txt">Trocar senha</span></a>' +
       '<a class="sb-item" href="#" id="sb-sair">' +
         '<span class="sb-ico">' + svg(ICO.sair) + '</span><span class="sb-txt">Sair</span></a>');
     document.getElementById("sb-sair").onclick = async (e) => {
       e.preventDefault();
+      guardarFixos([]);                  // o menu volta fechado no proximo login
       await fetch("/api/sair", { method: "POST" });
       location.href = "/login.html";
     };
   }
-  if (eu.permissoes[atual] === "ver") {
+  // Em Configuracoes a senha vale para todos: o "so ver" ali e so dos parametros
+  if (eu.permissoes[atual] === "ver" && atual !== "parametros") {
     document.body.classList.add("so-consulta");
     const main = document.querySelector(".main-content") || document.body;
     main.insertAdjacentHTML("afterbegin",

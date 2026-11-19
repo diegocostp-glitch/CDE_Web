@@ -32,6 +32,17 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
   (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const brDate = (iso) => iso ? iso.split("-").reverse().join("/") : "—";
+// Campos de data da OC usam o calendario do navegador (aaaa-mm-dd), mas a OC
+// guarda e imprime dd/mm/aaaa: estas duas convertem na ida e na volta.
+const isoDeBr = (br) => {
+  const s = String(br || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
+  if (!m) return "";
+  const ano = m[3].length === 2 ? "20" + m[3] : m[3];
+  return `${ano}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+};
+const valorOC = (el) => el.type === "date" ? (el.value ? brDate(el.value) : "") : el.value;
 const hojeISO = () => new Date().toISOString().slice(0, 10);
 const hojeBR = () => new Date().toLocaleDateString("pt-BR");
 const hojePonto = () => new Date().toLocaleDateString("pt-BR").replace(/\//g, ".");

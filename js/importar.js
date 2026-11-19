@@ -398,8 +398,8 @@ function camposOC(l) {
   return `<details class="bloco-oc">
     <summary>Dados da Ordem de Compra</summary>
     <div class="grade-oc">
-      <label class="campo"><span>Data de emissão</span><input data-oc="dataEmissao" value="${esc(d.dataEmissao)}"></label>
-      <label class="campo"><span>Previsão de entrega</span><input data-oc="dataEntrega" value="${esc(d.dataEntrega)}" placeholder="dd/mm/aaaa"></label>
+      <label class="campo"><span>Data de emissão</span><input data-oc="dataEmissao" type="date" value="${isoDeBr(d.dataEmissao)}"></label>
+      <label class="campo"><span>Previsão de entrega</span><input data-oc="dataEntrega" type="date" value="${isoDeBr(d.dataEntrega)}"></label>
       <label class="campo"><span>Horário de recebimento</span><input data-oc="horario" value="${esc(d.horario)}"></label>
       <label class="campo"><span>Forma de pagamento</span>
         <select data-oc="pagamento">${opc(PAGAMENTOS, d.pagamento)}</select></label>
@@ -408,7 +408,7 @@ function camposOC(l) {
       <label class="campo"><span>Frete</span><select data-oc="frete">${opc(FRETES, d.frete)}</select></label>
       <label class="campo"><span>Prazo (faturado)</span><input data-oc="prazoFaturado" value="${esc(d.prazoFaturado)}"></label>
       <label class="campo"><span>Prazo de entrega</span><input data-oc="prazoEntrega" value="${esc(d.prazoEntrega)}"></label>
-      <label class="campo"><span>Entrega na transportadora</span><input data-oc="transportadora" value="${esc(d.transportadora)}" placeholder="dd/mm/aaaa"></label>${camposAssinaturaOC(d)}
+      <label class="campo"><span>Entrega na transportadora</span><input data-oc="transportadora" type="date" value="${isoDeBr(d.transportadora)}"></label>${camposAssinaturaOC(d)}
     </div>
   </details>`;
 }
@@ -437,11 +437,11 @@ function ligarCartao(i) {
       const tot = l.itens.reduce((a, x) => a + num(x.qtd) * num(x.preco), 0);
       cart.querySelector(".total-cartao").innerHTML = "<strong>" + (tot > 0 ? "R$ " + fmt(tot) : "—") + "</strong>";
     }
-    if (e.target.dataset.oc) l.oc[e.target.dataset.oc] = e.target.value;
+    if (e.target.dataset.oc) l.oc[e.target.dataset.oc] = valorOC(e.target);
     if (e.target.dataset.c === "obs") l.obs = e.target.value;
   });
   corpo.addEventListener("change", (e) => {
-    if (e.target.dataset.oc) l.oc[e.target.dataset.oc] = e.target.value;
+    if (e.target.dataset.oc) l.oc[e.target.dataset.oc] = valorOC(e.target);
     if (e.target.dataset.c === "cadastro") {
       l.cadastro = e.target.value || null;
       if (l.cadastro) l.fornecedor = l.cadastro;

@@ -7,36 +7,40 @@
 <link rel="icon" type="image/png" href="centurion_aba.png">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/navegacao.js"></script>
+<script>
+// Esta pagina e so a troca obrigatoria da senha provisoria (o servidor manda
+// para ca com ?primeira=1). A troca do dia a dia mora em Configuracoes.
+if (!new URLSearchParams(location.search).get("primeira")) location.replace("parametros.html#senha");
+</script>
 </head>
 <body class="light">
-<div class="app-layout">
-<main class="main-content">
-  <div class="screen-header">
-    <div><h1>Trocar senha</h1><p id="sub">Sua senha vale para todos os computadores e para o celular.</p></div>
-  </div>
-  <section class="cartao" style="max-width:460px">
-    <div class="sem-custo" id="aviso-primeira" hidden>Esta é uma senha provisória, criada pelo administrador.
+<!-- Mesmo enquadramento do login: cartao no centro da tela, sem menu, porque
+     nada mais abre antes de a senha provisoria ser trocada. -->
+<main class="login-pagina">
+  <section class="cartao login-cartao">
+    <div class="login-marca">
+      <img src="centurion_menu.png" alt="">
+      <div><h1>Escolha sua senha</h1><p id="sub">Vale para todos os computadores e para o celular.</p></div>
+    </div>
+    <div class="sem-custo">Esta é uma senha provisória, criada pelo administrador.
       Escolha a sua para continuar.</div>
     <form id="f" class="form-senha">
-      <label class="campo"><span>Senha atual</span>
+      <label class="campo"><span>Senha provisória</span>
         <input id="atual" type="password" autocomplete="current-password" required></label>
       <label class="campo"><span>Nova senha (mínimo 8 caracteres)</span>
         <input id="nova" type="password" autocomplete="new-password" required></label>
       <label class="campo"><span>Repita a nova senha</span>
         <input id="nova2" type="password" autocomplete="new-password" required></label>
       <p class="login-erro" id="erro" role="alert"></p>
-      <button class="botao primario" type="submit">Salvar nova senha</button>
-      <p class="fonte">Ao trocar, os outros aparelhos em que você estava logado saem e pedem a senha nova.</p>
+      <button class="botao primario login-botao" type="submit">Salvar e entrar</button>
     </form>
   </section>
 </main>
-</div>
-<script>montarSidebar("senha")</script>
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
-  const primeira = new URLSearchParams(location.search).get("primeira");
-  if (primeira) $("#aviso-primeira").hidden = false;
+  try { document.body.className = localStorage.getItem(THEME_KEY) || "light"; } catch (e) {}
+  $("#atual").focus();
   $("#f").onsubmit = async (e) => {
     e.preventDefault();
     $("#erro").textContent = "";
@@ -45,10 +49,7 @@
       body: JSON.stringify({ atual: $("#atual").value, nova: $("#nova").value }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { $("#erro").textContent = j.erro || "não foi possível trocar"; return; }
-    e.target.reset();
-    $("#erro").textContent = "";
-    $("#sub").textContent = "Senha trocada.";
-    if (primeira) location.href = "/";
+    location.href = "/";
   };
 })();
 </script>

@@ -239,9 +239,9 @@ function camposOC(o) {
       ? ` <span class="selo bom">Nº ${esc(o.numero_oc)}</span>` : ""}</summary>
     <div class="grade-oc">
       <label class="campo"><span>Data de emissão</span>
-        <input data-oc="dataEmissao" type="text" value="${esc(d.dataEmissao || hojeBR())}"></label>
+        <input data-oc="dataEmissao" type="date" value="${isoDeBr(d.dataEmissao || hojeBR())}"></label>
       <label class="campo"><span>Previsão de entrega</span>
-        <input data-oc="dataEntrega" type="text" placeholder="dd/mm/aaaa" value="${esc(d.dataEntrega || "")}"></label>
+        <input data-oc="dataEntrega" type="date" value="${isoDeBr(d.dataEntrega)}"></label>
       <label class="campo"><span>Horário de recebimento</span>
         <input data-oc="horario" type="text" placeholder="Ex: 08h às 11h" value="${esc(d.horario || "")}"></label>
       <label class="campo"><span>Forma de pagamento</span>
@@ -255,7 +255,7 @@ function camposOC(o) {
       <label class="campo"><span>Prazo de entrega</span>
         <input data-oc="prazoEntrega" type="text" value="${esc(d.prazoEntrega ?? f.prazoEntrega ?? "")}"></label>
       <label class="campo"><span>Entrega na transportadora</span>
-        <input data-oc="transportadora" type="text" placeholder="dd/mm/aaaa" value="${esc(d.transportadora || "")}"></label>
+        <input data-oc="transportadora" type="date" value="${isoDeBr(d.transportadora)}"></label>
       <label class="campo"><span>Nº da OC (vazio = automático)</span>
         <input data-oc="numero_manual" type="number" min="1" placeholder="automático"
                value="${esc(d.numero_manual || "")}"></label>${camposAssinaturaOC(d)}
@@ -365,7 +365,7 @@ function lerItens(cart, o) {
 // ------------------------------------------------------------------ ordem de compra
 function lerOC(cart) {
   const d = {};
-  cart.querySelectorAll("[data-oc]").forEach((el) => { d[el.dataset.oc] = el.value.trim(); });
+  cart.querySelectorAll("[data-oc]").forEach((el) => { d[el.dataset.oc] = valorOC(el).trim(); });
   return d;
 }
 

@@ -110,9 +110,7 @@ async function iniciar() {
     $("#tela").innerHTML = `<p class="vazio">Não consegui abrir a base: ${esc(BASE.erro)}</p>`;
     return;
   }
-  $("#fonte-arquivo").textContent = BASE.compartilhada
-    ? "gravando na base compartilhada com o Gerador de OCs"
-    : "atenção: base local, não compartilhada com o Gerador de OCs";
+  $("#fonte-arquivo").textContent = "gravando na base de cadastros";
   $$("#abas button").forEach((b) => {
     b.onclick = () => {
       ABA = b.dataset.t; DETALHE = null;

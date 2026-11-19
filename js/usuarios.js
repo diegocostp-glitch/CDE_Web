@@ -25,7 +25,7 @@
   }
 
   function desenharLista() {
-    $("#lista").innerHTML = "<thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Acesso</th>" +
+    $("#lista").innerHTML = "<thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Acesso</th>" +
       "<th>Situação</th></tr></thead><tbody>" +
       (D.usuarios.length ? D.usuarios.map((u) => `
         <tr data-u="${esc(u.usuario)}" class="clicavel">

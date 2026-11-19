@@ -2,56 +2,9 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Usuarios agora e uma parte de Configuracoes; o endereco antigo leva para la -->
+<meta http-equiv="refresh" content="0; url=parametros.html#usuarios">
 <title>CDE — Usuários</title>
-<link rel="icon" type="image/png" href="centurion_aba.png">
-<link rel="stylesheet" href="css/style.css">
-<script src="js/navegacao.js"></script>
 </head>
-<body class="light">
-<div class="app-layout">
-<main class="main-content">
-  <div class="screen-header">
-    <div><h1>Usuários</h1>
-      <p>Quem entra no CDE e o que cada pessoa pode fazer em cada tela.</p></div>
-    <div class="header-acoes"><button class="botao primario" id="novo">Novo usuário</button></div>
-  </div>
-
-  <section class="cartao">
-    <div class="rolagem"><table id="lista"></table></div>
-  </section>
-
-  <section class="cartao" id="editor" hidden>
-    <div class="cabeca"><h2 id="ed-titulo"></h2><button class="botao" id="ed-fechar">Fechar</button></div>
-    <div class="us-campos">
-      <label class="campo"><span>Nome</span><input id="ed-nome"></label>
-      <label class="campo" id="ed-usuario-l"><span>Usuário (para entrar)</span>
-        <input id="ed-usuario" autocapitalize="none" spellcheck="false"></label>
-      <label class="campo"><span>Perfil</span><select id="ed-perfil"></select></label>
-      <label class="campo" id="ed-senha-l"><span>Senha provisória (mínimo <b class="sm"></b>)</span>
-        <input id="ed-senha" type="text" autocomplete="off" spellcheck="false"></label>
-    </div>
-    <div class="us-marcas">
-      <label><input type="checkbox" id="ed-admin"> Administrador (vê e altera esta tela de Usuários)</label>
-      <label id="ed-ativo-l"><input type="checkbox" id="ed-ativo"> Ativo (desmarcado, não entra mais)</label>
-    </div>
-    <p class="fonte">Escolher um perfil preenche a tabela abaixo com a sugestão dele; depois ajuste tela a tela.</p>
-    <div class="rolagem"><table class="us-matriz" id="matriz"></table></div>
-    <p class="login-erro" id="ed-erro" role="alert"></p>
-    <div class="us-acoes">
-      <button class="botao primario" id="ed-salvar">Salvar</button>
-      <span class="us-redefinir" id="ed-redefinir">
-        <input id="ed-nova" type="text" placeholder="nova senha provisória" autocomplete="off" spellcheck="false">
-        <button class="botao" id="ed-redefinir-btn">Redefinir senha</button>
-      </span>
-    </div>
-  </section>
-
-  <p class="fonte">A senha provisória vale uma vez: no primeiro acesso a pessoa escolhe a dela.
-    Senhas são guardadas só embaralhadas (hash), nem o administrador consegue lê-las.</p>
-</main>
-</div>
-<script>montarSidebar("usuarios")</script>
-<script src="js/usuarios.js"></script>
-</body>
+<body><a href="parametros.html#usuarios">Usuários fica em Configurações</a></body>
 </html>

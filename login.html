@@ -21,8 +21,8 @@
     </div>
 
     <form id="f-entrar" hidden>
-      <label class="campo"><span>Usuário</span>
-        <input id="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="campo"><span>E-mail</span>
+        <input id="usuario" type="email" placeholder="exemplo@sushiboulevard.com.br" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
       <label class="campo"><span>Senha</span>
         <input id="senha" type="password" autocomplete="current-password" required></label>
       <p class="login-erro" id="erro" role="alert"></p>
@@ -35,8 +35,8 @@
       <p class="fonte">Ainda não há usuários. Crie o administrador, que depois cadastra as outras pessoas
         em <b>Usuários</b>. Assim que ele existir, o sistema passa a pedir login em todos os computadores.</p>
       <label class="campo"><span>Nome</span><input id="p-nome" required></label>
-      <label class="campo"><span>Usuário (para entrar)</span>
-        <input id="p-usuario" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="campo"><span>E-mail (para entrar)</span>
+        <input id="p-usuario" type="email" placeholder="exemplo@sushiboulevard.com.br" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
       <label class="campo"><span>Senha (mínimo 8 caracteres)</span>
         <input id="p-senha" type="password" autocomplete="new-password" required></label>
       <label class="campo"><span>Repita a senha</span>
@@ -76,6 +76,7 @@ $("#f-entrar").onsubmit = async (e) => {
   btn.disabled = true;
   try {
     await postar("/api/login", { usuario: $("#usuario").value, senha: $("#senha").value });
+    try { localStorage.removeItem("cde_menu_fixo"); } catch (e2) {}
     location.href = volta;
   } catch (err) {
     $("#erro").textContent = err.message;
@@ -94,7 +95,7 @@ $("#f-primeiro").onsubmit = async (e) => {
     await postar("/api/primeiro-acesso", { nome: $("#p-nome").value, usuario: $("#p-usuario").value,
                                            senha: $("#p-senha").value });
     await postar("/api/login", { usuario: $("#p-usuario").value, senha: $("#p-senha").value });
-    location.href = "/usuarios.html";
+    location.href = "/parametros.html#usuarios";
   } catch (err) { $("#p-erro").textContent = err.message; }
 };
 

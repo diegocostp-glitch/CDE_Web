@@ -116,19 +116,17 @@ h1,h2,h3 { color:var(--tinta); margin:0 }
   opacity:.45; filter:brightness(.92) }
 
 /* os rotulos so aparecem com o menu aberto */
-.sb-txt, .sb-logo-txt, .sb-section, #theme-name, .sb-arr, .sb-badge { white-space:nowrap }
-.sb-txt, .sb-logo-txt, .sb-section, #theme-name, .sb-arr, .sb-badge, .tema-seg {
+.sb-txt, .sb-logo-txt, .sb-chev, #theme-name, .sb-arr, .sb-badge { white-space:nowrap }
+.sb-txt, .sb-logo-txt, .sb-chev, #theme-name, .sb-arr, .sb-badge, .tema-seg {
   transition:opacity .16s ease .06s }
 .sidebar:not(:hover):not(:focus-within) .sb-txt,
 .sidebar:not(:hover):not(:focus-within) .sb-logo-txt,
-.sidebar:not(:hover):not(:focus-within) .sb-section,
+.sidebar:not(:hover):not(:focus-within) .sb-chev,
 .sidebar:not(:hover):not(:focus-within) #theme-name,
 .sidebar:not(:hover):not(:focus-within) .sb-arr,
 .sidebar:not(:hover):not(:focus-within) .sb-badge,
 .sidebar:not(:hover):not(:focus-within) .tema-seg {
   opacity:0; pointer-events:none; transition-delay:0s }
-/* recolhida, a seção vira um tracinho para nao deixar buraco no ritmo */
-.sidebar:not(:hover):not(:focus-within) .sb-section { height:9px }
 
 .sb-logo { display:flex; align-items:center; gap:11px; padding:0 0 16px }
 /* o mascote ja tem fundo transparente e cor propria: a plaquinha laranja
@@ -142,8 +140,29 @@ h1,h2,h3 { color:var(--tinta); margin:0 }
 .sb-logo-sub { color:var(--menu-sub); font-size:10.5px }
 
 .sb-nav { display:flex; flex-direction:column; gap:1px }
-.sb-section { color:var(--menu-secao); font-size:10px; text-transform:uppercase;
-  letter-spacing:1.1px; padding:10px 12px 4px }
+/* Grupos do menu: fechado mostra so o titulo; o mouse em cima (ou o foco do
+   teclado) abre, e o clique fixa aberto ate outro clique ou o proximo login.
+   O item da tela aberta aparece mesmo com o grupo fechado. Recolhida a barra,
+   sobra o icone do grupo e o da tela aberta, logo abaixo dele. */
+.sb-grupo { display:flex; flex-direction:column; gap:1px }
+.sb-grupo-cab { display:flex; align-items:center; gap:11px; width:100%; padding:7px 12px;
+  background:none; border:none; border-radius:var(--raio-p); font:inherit; font-size:13px;
+  font-weight:600; color:var(--menu-item-tinta); cursor:pointer; text-align:left; transition:all .18s }
+.sb-grupo-cab .sb-ico { width:18px; display:flex; flex-shrink:0 }
+.sb-grupo-cab:hover { background:var(--menu-item-bg) }
+.sb-grupo-cab:focus-visible { outline:2px solid var(--menu-secao); outline-offset:-2px }
+.sb-chev { margin-left:auto; font-size:11px; color:var(--menu-secao); transition:transform .18s }
+.sb-grupo.fixo .sb-chev { transform:rotate(90deg) }
+.sb-grupo-itens { display:flex; flex-direction:column; gap:1px }
+.sb-grupo-itens .sb-item { padding-left:22px }
+/* So o clique abre e fecha o grupo (pedido de 19/11/2026: passar o mouse
+   abria sem querer). Pelo teclado, Enter no titulo faz o mesmo. */
+.sb-grupo:not(.fixo) .sb-item:not(.active) { display:none }
+.sb-badge-grupo { margin-left:auto }
+.sb-badge-grupo + .sb-chev { margin-left:6px }
+.sb-grupo.fixo .sb-badge-grupo { display:none }
+.sidebar:not(:hover):not(:focus-within) .sb-grupo-itens .sb-item { padding-left:12px }
+.sb-separa { height:1px; background:var(--menu-borda); margin:6px 4px }
 .sb-item { padding:7px 12px; font-size:13px; border-radius:var(--raio-p); display:flex;
   align-items:center; gap:11px; color:var(--menu-item); text-decoration:none; transition:all .18s }
 .sb-item .sb-ico { width:18px; display:flex; flex-shrink:0 }
@@ -169,8 +188,7 @@ h1,h2,h3 { color:var(--tinta); margin:0 }
   .sb-logo { padding:0 0 10px }
   .sb-logo .sb-marca { width:34px; height:36px }
   .sb-item, .sb-tema { padding:5px 12px }
-  .sb-section { padding:7px 12px 3px }
-  .sidebar:not(:hover):not(:focus-within) .sb-section { height:6px }
+  .sb-grupo-cab { padding:5px 12px }
   .sb-rodape { padding-top:8px }
 }
 /* Recolhida, o proprio icone vira o botao do tema: o seletor some, mas a
@@ -514,6 +532,21 @@ body.dark select option:checked, body.dark select option:hover {
    O mono tambem e tema ESCURO (--bg:#000000): antes so o body.dark estava
    coberto, e no mono nem a lista do select abria com cor certa. */
 select, input[type="date"], input[type="number"] { color-scheme:light }
+/* Campo de data (navegacao.js): texto por cima do campo do Chrome, que fica
+   invisivel por baixo so para o calendario abrir no lugar certo. O texto herda
+   as classes do original, entao larguras e bordas das telas continuam valendo. */
+.data-br { position:relative; display:inline-flex; align-items:center; max-width:100%; vertical-align:middle }
+.campo > .data-br, .acao-grade .campo .data-br, .campo-largo .data-br { display:flex; width:100% }
+.data-br > input[type="date"] { position:absolute; left:0; bottom:0; width:100%; height:100%;
+  opacity:0; pointer-events:none; padding:0; border:0 }
+.data-br > .data-br-txt { padding-right:30px; min-width:118px; font-variant-numeric:tabular-nums; cursor:text }
+.data-br-cal { position:absolute; right:6px; top:50%; transform:translateY(-50%); display:flex;
+  align-items:center; justify-content:center; width:22px; height:22px; padding:0; border:0;
+  border-radius:5px; background:none; color:var(--tinta-3); cursor:pointer }
+.data-br-cal:hover:not(:disabled) { color:var(--tinta); background:var(--hover) }
+.data-br-cal:disabled { opacity:.4; cursor:default }
+.data-br-txt.data-br-erro { outline:2px solid var(--ruim) !important; outline-offset:-1px }
+.tela-lancamento .campo .data-br-txt { text-align:center }
 body.dark :is(select, input[type="date"], input[type="number"]),
 body.mono :is(select, input[type="date"], input[type="number"]) { color-scheme:dark }
 
@@ -893,6 +926,15 @@ body.dark .lt-linha:first-child .lt-pos { background:#F5860F1F; color:var(--lara
   padding-bottom:18px }
 .cartao.dobravel .cabeca.dobra:hover h2 { color:var(--laranja) }
 .cartao.dobravel .ordem-chev { color:var(--tinta-3); font-size:13px; margin-left:10px }
+.cartao.dobravel .ordem-chev { display:inline-block; transition:transform .18s }
+.cartao.dobravel.aberta .ordem-chev { transform:rotate(90deg) }
+/* Configuracoes: o editor de usuario abre dentro da parte Usuarios */
+.us-editor { border-top:1px solid var(--borda); margin-top:16px; padding-top:16px }
+.srv-linha { display:flex; align-items:center; gap:14px; flex-wrap:wrap }
+.tela-parametros .dobravel[hidden] { display:none }
+/* Importar OC: caminho de volta para Ordens, de onde ela abre */
+.migalha { display:inline-block; font-size:12.5px; color:var(--tinta-3); text-decoration:none; margin-bottom:4px }
+.migalha:hover { color:var(--tinta) }
 .cartao.dobravel .dobra-corpo { display:none }
 .cartao.dobravel.aberta .dobra-corpo { display:block; padding-bottom:22px }
 /* Limpar só faz sentido com o quadro à vista */
@@ -1435,16 +1477,32 @@ body.dark .sugestoes, body.mono .sugestoes { box-shadow:0 14px 36px rgba(0,0,0,.
 .rd-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
 .rd-nav input { background:var(--campo); border:1px solid var(--borda); border-radius:var(--raio-p);
   padding:8px 10px; color:var(--tinta) }
+/* Blocos do resumo: os quatro indicadores em colunas iguais; abaixo, as
+   pendencias ao lado dos dois graficos com a MESMA altura — a lista de
+   pendencias acompanha a coluna da direita e rola por dentro, em vez de
+   esticar a pagina e deixar os blocos terminando em alturas diferentes. */
+.rd-placar { grid-template-columns:repeat(4,minmax(0,1fr)) }
 .rd-ficha { cursor:default; justify-content:space-between }
+.rd-ficha:hover { background:none }
 .rd-ficha .ficha-n { font-size:24px }
 .rd-grade { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:18px;
-  align-items:start }
-.rd-col { display:flex; flex-direction:column }
+  align-items:stretch; margin-bottom:18px }
+.rd-grade > .rd-cartao { display:flex; flex-direction:column; margin-bottom:0 }
+.rd-col { display:flex; flex-direction:column; gap:18px }
+.rd-col > .rd-cartao { margin-bottom:0 }
+.rd-col > .rd-cartao:last-child { flex:1 }
 .rd-cartao { margin-bottom:18px }
 .rd-cab { margin-bottom:14px }
 .rd-cab h3 { font-size:15px; font-weight:600 }
 .rd-cab .fonte { margin:2px 0 0 }
-@media (max-width:1100px) { .rd-grade { grid-template-columns:1fr } }
+.rd-pend-caixa { position:relative; flex:1; min-height:320px }
+.rd-pend-caixa .rd-pend-lista { position:absolute; inset:0; max-height:none }
+@media (max-width:1100px) {
+  .rd-placar { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .rd-grade { grid-template-columns:1fr }
+  .rd-pend-caixa { min-height:0 }
+  .rd-pend-caixa .rd-pend-lista { position:static; max-height:520px }
+}
 
 /* pendencias */
 .rd-grupo { display:flex; align-items:center; gap:10px; margin:14px 0 8px }
@@ -1541,6 +1599,12 @@ body.dark .sugestoes, body.mono .sugestoes { box-shadow:0 14px 36px rgba(0,0,0,.
 .us-campos .campo { display:flex; flex-direction:column }
 .us-marcas { display:flex; gap:22px; flex-wrap:wrap; margin-bottom:8px; color:var(--tinta) }
 .us-matriz th, .us-matriz td { text-align:center }
+/* a marcacao das permissoes herdava o contorno laranja de "td input:focus" e o
+   laranja do navegador: fica neutra, com o anel so para quem navega no teclado */
+.us-matriz td input[type="radio"] { width:16px; height:16px; padding:0; margin:0;
+  accent-color:var(--tinta-2, var(--tinta)); background:none; border:none; cursor:pointer }
+.us-matriz td input[type="radio"]:focus { outline:none; background:none }
+.us-matriz td input[type="radio"]:focus-visible { outline:2px solid var(--tinta-3); outline-offset:2px }
 .us-matriz td:first-child, .us-matriz th:first-child { text-align:left }
 .us-acoes { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:10px }
 .us-redefinir { display:flex; gap:8px }

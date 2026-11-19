@@ -74,6 +74,8 @@ Relat*rio salm*o*/
 Base_SushiBoulevard.xlsx
 Base_SushiBoulevard*.xlsx
 Registro_OCs*.json
+# contador e historico das OCs (fornecedor por OC) — do CDE desde 19/11/2026
+dados/registro_ocs.json
 
 # --- planilhas de origem e temporários do Excel ------------------------------
 *.xlsm

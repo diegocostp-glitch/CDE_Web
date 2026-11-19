@@ -1,5 +1,7 @@
 // ============================================================================
-// Parâmetros — o que o sistema não tem como deduzir do lançamento.
+// Configurações — parâmetros, a senha de quem está logado e os usuários.
+//
+// Parâmetros é o que o sistema não tem como deduzir do lançamento.
 //
 // Três coisas moram aqui: o mínimo e o máximo de estoque por insumo e casa, a
 // janela de cálculo da Projeção de Compras e as listas de responsável e
@@ -14,15 +16,12 @@
 let DADOS = null;
 let sujo = false;
 
-// A regra vem do servidor: se a janela ou os dias de uso mudarem na seção de
-// baixo, o texto acompanha em vez de mentir um "14 × 7" fixo.
+// Dica da coluna Calculado: a regra vem do servidor, então acompanha a janela
+// e os dias de segurança em vez de mentir um "14 × 7" fixo.
 function rotuloRegra() {
   const r = (DADOS && DADOS.regra) || {};
-  return `Calculado pela regra da casa: média diária dos últimos ${r.janela || 14}`
-    + ` dias × prazo de entrega do insumo (coluna Prazo) — o estoque que precisa`
-    + ` existir quando o pedido sai, para a casa não zerar antes de a mercadoria`
-    + ` chegar. Insumo sem prazo cadastrado usa ${r.dias_uso ?? 7} dia(s) de segurança.`
-    + ` Peixe, pacote e bisnaga arredondam para cima, inteiros.`;
+  return `Média diária dos últimos ${r.janela || 14} dias × prazo de entrega do insumo.`
+    + ` Sem prazo cadastrado: ${r.dias_uso ?? 7} dia(s) de segurança.`;
 }
 
 function textoPrazo(l) {
@@ -85,12 +84,7 @@ function linhasVisiveis() {
 }
 
 function desenharEstoque() {
-  $("#nota-regra").textContent = rotuloRegra();
   const linhas = linhasVisiveis();
-  const total = (DADOS.estoque || []).length;
-  const comMinimo = (DADOS.estoque || []).filter((l) => valorAtual(l, "minimo") != null
-    && valorAtual(l, "minimo") !== "").length;
-  $("#nota-estoque").textContent = `${comMinimo} de ${total} com mínimo definido`;
 
   if (!linhas.length) {
     $("#tabela-estoque").innerHTML = '<p class="vazio">Nenhum insumo com esses filtros.</p>';
@@ -164,15 +158,18 @@ function desenharProjecao() {
 }
 
 // Ficha com o nome e um × para remover. Lista curta e digitada à mão, então
-// não vale um componente de busca — vale ver tudo de uma vez.
+// não vale um componente de busca — vale ver tudo de uma vez. Fornecedores é
+// só leitura: sai do catálogo de compras (quem tem item da projeção vinculado).
 function desenharLista(campo) {
   const nomes = DADOS.projecao[campo] || [];
   const alvo = $("#lista-" + campo);
+  const fixa = campo === "fornecedores";
   alvo.innerHTML = nomes.length
-    ? nomes.map((nome, i) => `<span class="ficha-nome">${esc(nome)}
+    ? nomes.map((nome, i) => `<span class="ficha-nome">${esc(nome)}${fixa ? "" : `
         <button type="button" class="ficha-x" data-campo="${campo}" data-i="${i}"
-                title="Remover ${esc(nome)}" aria-label="Remover ${esc(nome)}">×</button></span>`).join("")
-    : '<span class="vazio">Nenhum cadastrado.</span>';
+                title="Remover ${esc(nome)}" aria-label="Remover ${esc(nome)}">×</button>`}</span>`).join("")
+    : `<span class="vazio">${fixa ? "Nenhum fornecedor com item da projeção no catálogo."
+                                  : "Nenhum cadastrado."}</span>`;
 }
 
 function desenhar() {
@@ -206,7 +203,6 @@ async function salvar() {
       janela_media_dias: num($("#p-janela").value),
       dias_seguranca: num($("#p-seguranca").value),
       responsaveis: DADOS.projecao.responsaveis || [],
-      fornecedores: DADOS.projecao.fornecedores || [],
       prazo_entrega: (DADOS.prazos || []).map((p) => ({
         chave: p.chave,
         padrao: p.padrao === "" || p.padrao == null ? null : num(p.padrao),
@@ -288,8 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
     desenharEstoque();
   });
 
-  [["responsaveis", "#novo-responsavel", "#btn-add-responsavel"],
-   ["fornecedores", "#novo-fornecedor", "#btn-add-fornecedor"]].forEach(([campo, inp, btn]) => {
+  [["responsaveis", "#novo-responsavel", "#btn-add-responsavel"]].forEach(([campo, inp, btn]) => {
     const add = () => {
       const nome = limpaNome($(inp).value);
       if (!nome) return;
@@ -323,10 +318,126 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#btn-salvar").addEventListener("click", salvar);
   window.addEventListener("beforeunload", (e) => { if (sujo) e.preventDefault(); });
 
+  // Toda parte nasce fechada: o clique no título abre e fecha.
   document.querySelectorAll(".cartao.dobravel").forEach((cart) => {
     const cabeca = cart.querySelector(".dobra");
     if (cabeca) cabeca.addEventListener("click", () => cart.classList.toggle("aberta"));
   });
+  // "Novo usuário" mora no título da parte: abre a parte sem fechá-la de volta
+  $("#novo").addEventListener("click", (e) => {
+    e.stopPropagation();
+    $("#sec-usuarios").classList.add("aberta");
+  });
+  $("#f-senha").addEventListener("submit", trocarSenha);
+  $("#btn-reiniciar").addEventListener("click", reiniciar);
 
-  carregar();
+  iniciarConfiguracoes();
 });
+
+// Quem vê o quê: parâmetros seguem o nível "parametros" do usuário; a senha
+// aparece para todo mundo logado; Usuários, só para administrador. Sem login
+// ligado (nenhum usuário criado), ficam só os parâmetros, como antes.
+async function iniciarConfiguracoes() {
+  const eu = await window.CDE_EU;
+  const nivel = eu && eu.login ? (eu.permissoes.parametros || "nenhum") : "editar";
+  if (nivel === "nenhum") {
+    document.querySelectorAll(".so-parametros").forEach((s) => s.remove());
+    $("#btn-salvar").remove();
+  } else {
+    if (nivel === "ver") {
+      $("#btn-salvar").disabled = true;
+      $("#btn-salvar").title = "Você pode consultar os parâmetros, mas não alterar";
+    }
+    carregar();
+  }
+  if (eu && eu.login) $("#sec-senha").hidden = false;
+  // Sem login ligado, o servidor so aceita o reinicio vindo do proprio PC dele
+  if (!eu || !eu.login || eu.admin) {
+    $("#sec-servidor").hidden = false;
+    mostrarInicio();
+  }
+  if (eu && eu.login && eu.admin) {
+    $("#sec-usuarios").hidden = false;
+    const s = document.createElement("script");
+    s.src = "js/usuarios.js";
+    document.body.appendChild(s);
+  }
+  // #senha ou #usuarios no endereço: abre direto aquela parte
+  const alvo = location.hash && document.querySelector(`.dobravel[data-secao="${location.hash.slice(1)}"]`);
+  if (alvo && !alvo.hidden) {
+    alvo.classList.add("aberta");
+    alvo.scrollIntoView({ block: "start" });
+  }
+}
+
+async function trocarSenha(e) {
+  e.preventDefault();
+  const erro = $("#s-erro");
+  erro.textContent = "";
+  erro.style.color = "";
+  if ($("#s-nova").value !== $("#s-nova2").value) { erro.textContent = "As duas senhas não são iguais."; return; }
+  const r = await fetch("/api/senha", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ atual: $("#s-atual").value, nova: $("#s-nova").value }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { erro.textContent = j.erro || "não foi possível trocar"; return; }
+  e.target.reset();
+  erro.style.color = "var(--bom)";
+  erro.textContent = "Senha trocada. Os outros aparelhos vão pedir a senha nova.";
+}
+
+// ------------------------------------------------------------- servidor
+// Reiniciar carrega o código novo sem ir ao PC do servidor. O primeiro clique
+// pede confirmação no próprio botão (sem janela do navegador); depois a tela
+// espera o servidor voltar e mostra a hora em que ele subiu.
+const horaDe = (iso) => iso ? brDate(iso.slice(0, 10)) + " às " + iso.slice(11, 16) : "—";
+
+async function mostrarInicio() {
+  try {
+    const r = await fetch("/api/servidor", { cache: "no-store" });
+    if (r.ok) $("#srv-estado").textContent = "No ar desde " + horaDe((await r.json()).iniciado);
+  } catch (e) { /* sem resposta: fica em branco */ }
+}
+
+let confirmaAte = 0;
+async function reiniciar() {
+  const btn = $("#btn-reiniciar");
+  if (Date.now() > confirmaAte) {
+    confirmaAte = Date.now() + 5000;
+    btn.textContent = "Confirmar reinício";
+    setTimeout(() => { if (Date.now() > confirmaAte) btn.textContent = "Reiniciar servidor"; }, 5100);
+    return;
+  }
+  confirmaAte = 0;
+  btn.disabled = true;
+  btn.textContent = "Reiniciando…";
+  $("#srv-estado").textContent = "O sistema volta em alguns segundos.";
+  let antes = null;
+  try {
+    const r = await fetch("/api/reiniciar", { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erro || "não foi possível reiniciar");
+    antes = j.iniciado;
+  } catch (e) {
+    $("#srv-estado").textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = "Reiniciar servidor";
+    return;
+  }
+  // espera ate 60 s um servidor com hora de inicio diferente da de antes
+  for (let i = 0; i < 30; i++) {
+    await new Promise((ok) => setTimeout(ok, 2000));
+    try {
+      const r = await fetch("/api/servidor", { cache: "no-store" });
+      const j = r.ok ? await r.json() : null;
+      if (j && j.iniciado !== antes) {
+        $("#srv-estado").textContent = "Reiniciado. No ar desde " + horaDe(j.iniciado) + ".";
+        btn.disabled = false;
+        btn.textContent = "Reiniciar servidor";
+        return;
+      }
+    } catch (e) { /* ainda subindo */ }
+  }
+  $("#srv-estado").textContent = "O servidor não voltou em 1 minuto. Confira o PC do servidor.";
+  btn.disabled = false;
+  btn.textContent = "Reiniciar servidor";
+}

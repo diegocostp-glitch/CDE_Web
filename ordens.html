@@ -19,11 +19,11 @@
   <div class="screen-header">
     <div>
       <h1>Ordens de Compras</h1>
-      <p>Monte a ordem de qualquer fornecedor pelo catálogo. A Projeção de Compras
-         e a importação de planilha entram nesta mesma fila.</p>
     </div>
     <div class="header-acoes">
       <span id="estado" class="estado"></span>
+      <a id="btn-importar" class="botao" href="importar.html"
+         title="Ler a planilha de solicitação ou o PDF da OC e trazer para esta fila">Importar OC</a>
       <button id="btn-nova" class="botao primario">+ Nova ordem</button>
     </div>
   </div>
@@ -78,6 +78,12 @@
 </main>
 </div>
 <script>montarSidebar("ordens")</script>
+<script>
+// Importar OC abre daqui: some para quem nao tem acesso a importacao
+window.CDE_EU.then((eu) => {
+  if (eu && eu.login && eu.permissoes.importar === "nenhum") document.getElementById("btn-importar").remove();
+});
+</script>
 
 <div id="aviso" class="aviso-flut" hidden></div>
 <script src="js/comum.js"></script>

@@ -24,6 +24,7 @@ Como funciona:
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import threading
 import time
@@ -43,34 +44,39 @@ TENTATIVAS = 5
 BLOQUEIO = 15 * 60
 
 NIVEIS = ("nenhum", "ver", "editar")
+_EMAIL = re.compile(r"[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+")
 
 # Telas do menu, na ordem do menu. "paginas" sao os .html de cada uma.
 TELAS = [
     {"id": "overview", "rotulo": "Visão Geral", "paginas": ["overview.html"]},
-    {"id": "lancamento", "rotulo": "Lançamento Diário", "paginas": ["index.html"]},
     {"id": "painel", "rotulo": "Painel de Consumo",
      "paginas": ["painel.html", "painel-exemplo-colunas.html"]},
-    {"id": "movimentacoes", "rotulo": "Movimentações", "paginas": ["movimentacoes.html"]},
+    {"id": "lancamento", "rotulo": "Lançamento Diário", "paginas": ["index.html"]},
     {"id": "contagem_diaria", "rotulo": "Contagem diária",
      "paginas": ["contagem-diaria.html"]},
     {"id": "contagem_semanal", "rotulo": "Contagem semanal",
      "paginas": ["contagem-semanal.html"]},
-    {"id": "ordens", "rotulo": "Ordens de Compras", "paginas": ["ordens.html"]},
+    {"id": "movimentacoes", "rotulo": "Movimentações", "paginas": ["movimentacoes.html"]},
     {"id": "compras", "rotulo": "Projeção de Compras", "paginas": ["compras.html"]},
-    {"id": "importar", "rotulo": "Importar OC", "paginas": ["importar.html"]},
+    {"id": "ordens", "rotulo": "Ordens de Compras", "paginas": ["ordens.html"]},
+    # abre de dentro de Ordens de Compras, sem item proprio no menu
+    {"id": "importar", "rotulo": "Importar OC (em Ordens)", "paginas": ["importar.html"]},
     {"id": "recebimento", "rotulo": "Recebimento de Salmão", "paginas": ["recebimento.html"]},
-    {"id": "conversao", "rotulo": "Conversão de Salmão", "paginas": ["conversao.html"]},
-    {"id": "qualidade", "rotulo": "Qualidade do Salmão", "paginas": ["qualidade.html"]},
     {"id": "cadastros", "rotulo": "Cadastros", "paginas": ["cadastros.html"]},
-    {"id": "parametros", "rotulo": "Parâmetros", "paginas": ["parametros.html"]},
+    {"id": "conversao", "rotulo": "Conversão de Salmão", "paginas": ["conversao.html"]},
+    {"id": "qualidade", "rotulo": "Avaliação de Qualidade", "paginas": ["qualidade.html"]},
+    # a pagina Configuracoes abre para todos (senha); este nivel vale para os parametros
+    {"id": "parametros", "rotulo": "Configurações (parâmetros)", "paginas": ["parametros.html"]},
 ]
 IDS = [t["id"] for t in TELAS]
 PAGINA_TELA = {p: t["id"] for t in TELAS for p in t["paginas"]}
 # ficha de contagem (impressao) acompanha as duas contagens
 PAGINA_TELA_VARIAS = {"ficha-contagem.html": {"contagem_diaria", "contagem_semanal"}}
 # paginas de qualquer usuario logado
-PAGINAS_LIVRES = {"ajuda.html", "senha.html"}
-PAGINAS_ADMIN = {"usuarios.html"}
+# parametros.html e a tela Configuracoes: a troca de senha mora nela. Os
+# parametros dentro dela continuam presos ao nivel "parametros" pela /api.
+PAGINAS_LIVRES = {"ajuda.html", "senha.html", "parametros.html", "usuarios.html"}
+PAGINAS_ADMIN = set()   # Usuarios agora e uma parte de Configuracoes
 # sem login: so o que a tela de login usa
 PUBLICAS = {"/login.html", "/centurion_menu.png", "/centurion_aba.png",
             "/logo_menu.png", "/logo_aba.png", "/favicon.ico", "/css/style.css"}
@@ -99,6 +105,7 @@ MODELOS = {
 API_LEITURA = {
     "/api/config": "*",
     "/api/eu": "*",
+    "/api/servidor": "admin",
     "/api/dia": {"lancamento"},
     "/api/sincronizar": "editar:lancamento",   # GET que importa da planilha e grava
     "/api/painel": {"painel"}, "/api/serie": {"painel"}, "/api/ocorrencias": {"painel"},
@@ -135,6 +142,7 @@ API_ESCRITA = {
     "/api/contagem/itens": {"contagem_diaria", "contagem_semanal"},
     "/api/ocs/reservar": {"ordens", "importar", "qualidade"},
     "/api/usuarios": "admin",
+    "/api/reiniciar": "admin",
     "/api/senha": "*",
     "/api/sair": "*",
 }
@@ -197,8 +205,9 @@ def _valida_senha(senha):
 
 def _valida_login(login):
     login = (login or "").strip().lower()
-    if not login or not all(c.isalnum() or c in "._-" for c in login) or len(login) > 40:
-        raise ValueError("usuário: só letras, números, ponto, hífen e sublinhado")
+    # o usuario e o e-mail da pessoa (exemplo@sushiboulevard.com.br)
+    if len(login) > 80 or not _EMAIL.fullmatch(login):
+        raise ValueError("e-mail inválido: use o formato exemplo@sushiboulevard.com.br")
     return login
 
 
@@ -236,7 +245,7 @@ def entrar(login, senha, ip):
             if time.time() - desde >= BLOQUEIO:
                 n, desde = 0, time.time()
             _falhas[chave] = (n + 1, desde)
-            raise ValueError("Usuário ou senha incorretos.")
+            raise ValueError("E-mail ou senha incorretos.")
         _falhas.pop(chave, None)
         token = secrets.token_urlsafe(32)
         s = _sessoes()

@@ -23,6 +23,7 @@ PORT = 8935
 # redireciona para ca — veja servir_redirecionamento.
 SERVIDOR = "DESKTOP-LC0FQC1"
 RAIZ = Path(__file__).parent
+INICIADO = datetime.now()      # mostrado em Configuracoes > Servidor
 DADOS = RAIZ / "dados"
 ARQ = DADOS / "lancamentos.json"
 BACKUPS = RAIZ / "backups"
@@ -1809,7 +1810,8 @@ def parametros_para_tela():
             "janela_media_dias": cfg.get("janela_media_dias", 14),
             "dias_seguranca": cfg.get("dias_seguranca", 7),
             "responsaveis": cfg.get("responsaveis") or [],
-            "fornecedores": cfg.get("fornecedores") or [],
+            # so leitura: sai do catalogo (fornecedores_com_catalogo)
+            "fornecedores": fornecedores_com_catalogo(cfg),
         },
     }
 
@@ -2089,7 +2091,8 @@ def projetar(data_iso, dias_cobrir):
     fora = {"data": data_iso, "dias_cobrir": dias_cobrir,
             "dias_salvo": salvos.get("_dias_cobrir"),
             "janela_media_dias": janela, "historico_dias": HISTORICO_ESCOLHA_DIAS,
-            "casas": {}, "config": cfg,
+            # a lista geral de fornecedores e a do catalogo, a mesma de Parametros
+            "casas": {}, "config": dict(cfg, fornecedores=fornecedores_com_catalogo(cfg)),
             # libragens de salmao para o transito: tamanho -> fator do equivalente
             "libragens": [{"chave": i["chave"], "nome": i["nome"].replace("Salmão ", ""),
                            "fator": FATOR_LIBRA[i["chave"]]}
@@ -2261,6 +2264,54 @@ def gravar_vinculos(entrada):
     return {"ok": True, "vinculos": limpo, "ignorados": perdidos}
 
 
+def reiniciar_servidor(quem):
+    """Botao Reiniciar de Configuracoes: o processo sai e o vigia sobe de novo
+    com o codigo novo (server.py, acesso.py), sem ninguem ir ao PC do servidor.
+
+    Antes de sair, chama um vigia: se ja houver um rodando, o segundo percebe e
+    fecha sozinho; se o servidor tiver sido aberto a mao (Servidor.bat), e este
+    novo vigia que o sobe de volta. A saida espera 1,5 s para a resposta chegar
+    a tela e para gravacoes em andamento terminarem.
+    """
+    import subprocess, sys
+    print("[%s] reinicio pedido por %s" % (datetime.now().strftime("%H:%M:%S"), quem or "PC do servidor"))
+    exe = Path(sys.executable)
+    pythonw = exe.with_name("pythonw.exe")
+    try:
+        subprocess.Popen([str(pythonw if pythonw.exists() else exe), "vigia_servidor.pyw"],
+                         cwd=str(RAIZ), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, close_fds=True,
+                         creationflags=0x00000008 | 0x00000200 | 0x08000000)
+        # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    except OSError as e:
+        print("  nao consegui chamar o vigia: %r" % e)
+    threading.Timer(1.5, lambda: os._exit(3)).start()
+
+
+def fornecedores_com_catalogo(cfg):
+    """Fornecedores que podem ser escolhidos na Projecao: os que tem, no catalogo
+    de compras, produto vinculado a um insumo da Projecao.
+
+    Fornecedor digitado a mao sem nada no catalogo nao gerava OC util — a ordem
+    saia sem produto e sem preco. O nome mostrado e o curto da Projecao
+    ("Nippobraz") quando ele casa com o cadastro; senao, o do catalogo.
+    """
+    cats = []
+    for ins in cfg.get("insumos", []):
+        for prod in produtos_vinculados(ins["chave"]):
+            if prod["fornecedor"] not in cats:
+                cats.append(prod["fornecedor"])
+    nomes = list(cfg.get("fornecedores") or [])
+    for ins in cfg.get("insumos", []):
+        nomes += [n for n in ins.get("fornecedores") or [] if n not in nomes]
+    curto = {}
+    for n in nomes:
+        cad = casar_fornecedor(n)
+        if cad and cad["chave"] in cats:
+            curto.setdefault(cad["chave"], n)
+    return sorted((curto.get(c, c) for c in cats), key=str.lower)
+
+
 def produtos_vinculados(insumo, fornecedor=None):
     """Produtos do catalogo ligados ao insumo. Com fornecedor, so os dele.
 
@@ -2327,13 +2378,10 @@ def gravar_pedido(corpo):
 # --------------------------------------------------------------- ordens de compra
 ARQ_ORDENS = DADOS / "ordens.json"
 
-# Cadastro unico com o Gerador de OCs. Mesma decisao ja tomada para a numeracao:
-# base separada por sistema significaria dois cadastros do mesmo fornecedor
-# divergindo com o tempo, e OC saindo com CNPJ velho. A copia local continua
-# valendo como reserva para quando a pasta do Gerador nao estiver acessivel.
-BASE_COMPARTILHADA = (RAIZ / ".." / "Gerador de OCs" / "Base_SushiBoulevard.xlsx").resolve()
+# A base do CDE Web e propria (a copia do Gerador de OCs nao e mais usada).
+BASE_COMPARTILHADA = None
 BASE_LOCAL = RAIZ / "Base_SushiBoulevard.xlsx"
-BASE_OC = BASE_COMPARTILHADA if BASE_COMPARTILHADA.exists() else BASE_LOCAL
+BASE_OC = BASE_LOCAL
 BACKUP_BASE = RAIZ / "backups" / "Base_SushiBoulevard.antes-do-cde-web.xlsx"
 _lock_base = threading.Lock()
 
@@ -3174,16 +3222,18 @@ def gravar_recebimento(corpo, usuario=None):
 
 
 # --------------------------------------------------------------- numeracao das OCs
-# Um contador so para os dois sistemas. Ver o cabecalho do patch: contador
-# separado significaria duas OCs com o mesmo numero.
-REGISTRO_OC = (RAIZ / ".." / "Gerador de OCs" / "Registro_OCs.json").resolve()
+# O contador e o historico das OCs sao do CDE desde 19/11/2026, quando o
+# Gerador de OCs foi descontinuado: o registro dele foi copiado para dados/ e a
+# numeracao continua de onde parou. Sem o arquivo, NAO cria um novo: comecaria
+# a contar do 1 e repetiria numero de OC ja emitida.
+REGISTRO_OC = DADOS / "registro_ocs.json"
 BACKUP_OC = RAIZ / "backups" / "Registro_OCs.antes-do-cde-web.json"
 _lock_oc = threading.Lock()
 
 
 def ler_registro_oc():
     if not REGISTRO_OC.exists():
-        return {"counters": {}, "history": [], "seq": 0, "erro": "Registro_OCs.json nao encontrado"}
+        return {"counters": {}, "history": [], "seq": 0, "erro": "registro_ocs.json nao encontrado"}
     with open(REGISTRO_OC, encoding="utf-8-sig") as f:
         reg = json.load(f)
     reg.setdefault("counters", {})
@@ -3213,7 +3263,7 @@ def proximo_numero_oc(unidade):
 def reservar_oc(unidade, quantidade=1, comeco=None, entradas=None):
     """Reserva numeros e registra as OCs no historico compartilhado.
 
-    Mesma regra do Gerador: `comeco` forca o ponto de partida quando alguem
+    `comeco` forca o ponto de partida quando alguem
     digita o numero a mao, mas o contador nunca anda para tras.
     """
     if not unidade:
@@ -3222,6 +3272,9 @@ def reservar_oc(unidade, quantidade=1, comeco=None, entradas=None):
 
     with _lock_oc:
         reg = ler_registro_oc()
+        if reg.get("erro"):
+            raise ValueError("não achei o registro de números de OC (%s). Sem ele o número "
+                             "da OC poderia repetir; avise o suporte" % REGISTRO_OC)
         try:
             atual = int(reg["counters"].get(unidade) or 0)
         except (TypeError, ValueError):
@@ -4884,6 +4937,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                                    for t in acesso.TELAS]))
             if rota == "/api/usuarios":
                 return self._json(200, acesso.para_tela())
+            if rota == "/api/servidor":
+                return self._json(200, {"iniciado": INICIADO.isoformat(timespec="seconds")})
             if rota == "/api/parametros":
                 return self._json(200, parametros_para_tela())
             if rota == "/api/config":
@@ -4998,6 +5053,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                                                            c.get("nova"), self._token()))
             if self.path == "/api/usuarios":
                 return self._json(200, acesso.administrar(self._corpo(), eu["usuario"]))
+            if self.path == "/api/reiniciar":
+                # login desligado: so do proprio PC do servidor
+                if eu is None and not self._local():
+                    return self._erro(403, "sem usuários criados, reinicie no PC do servidor")
+                self._json(200, {"ok": True, "iniciado": INICIADO.isoformat(timespec="seconds")})
+                return reiniciar_servidor(eu and eu["usuario"])
             if self.path == "/api/dia":
                 return self._json(200, gravar_dia(self._corpo()))
             if self.path == "/api/movimentacao":

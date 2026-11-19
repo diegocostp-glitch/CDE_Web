@@ -15,7 +15,6 @@
   <div class="screen-header">
     <div>
       <h1>Manual do CDE Web</h1>
-      <p>Como o sistema calcula, o que cada tela faz e o que fazer quando algo dá errado.</p>
     </div>
   </div>
 
@@ -386,7 +385,7 @@ desses itens. Por isso a ordem avulsa é o caminho principal.</p>
 </ul>
 
 <h3>O que impede gerar a OC</h3>
-<p>Duas travas, as mesmas do Gerador de OCs:</p>
+<p>Duas travas:</p>
 <ul>
   <li><strong>Fornecedor sem cadastro válido</strong> (sem vínculo, sem razão social ou com
       CNPJ inválido). Nota fiscal emitida para CNPJ errado volta na portaria.</li>
@@ -401,9 +400,9 @@ pedido de novo na Projeção <strong>recalcula esses</strong> — os que você i
 <p>Ordem já <strong>gerada</strong> nunca é sobrescrita: salvar o pedido de novo não mexe nela.</p>
 
 <h3>Numeração</h3>
-<p>O número da OC sai do <strong>mesmo contador do Gerador de OCs</strong>, por unidade.
-Não existe numeração separada — OC emitida aqui e OC emitida lá nunca repetem número.
-Deixe o campo <em>Nº da OC</em> vazio para continuar a sequência, ou digite um número para
+<p>O número da OC sai do contador do CDE, por unidade, gravado em
+<span class="cod">dados/registro_ocs.json</span> — a numeração continua a do antigo Gerador de OCs,
+descontinuado em 19/11/2026. Deixe o campo <em>Nº da OC</em> vazio para continuar a sequência, ou digite um número para
 forçar o ponto de partida (o contador nunca anda para trás).</p>
 </section>
 
@@ -475,7 +474,7 @@ lista não misturar os itens das quatro. Quem quiser o total somado escolhe
 onde vem cada linha.</p>
 <p>O pedido é calculado na unidade do CDE (quilo, pacote de 5 kg, bisnaga), mas o fornecedor
 vende na dele (caixa de 20 kg, fardo de 30 kg). Na ordem, a quantidade é convertida para a
-unidade do catálogo do Gerador de OCs e o preço é o daquela unidade: 13,571 kg de tentáculo
+unidade do catálogo de compras e o preço é o daquela unidade: 13,571 kg de tentáculo
 viram <strong>0,679 caixa de 20 kg</strong>. O sistema <strong>não arredonda</strong>. Caixa,
 fardo, pacote ou bisnaga que não fecha número inteiro deixa a linha <strong>vermelha</strong>,
 aqui e na ordem, com o aviso "Embalagem quebrada". Quem compra decide na ordem: arredonda para
@@ -563,18 +562,13 @@ total e a aba <span class="cod">BASE</span> são ignoradas.</p>
       PDFs num zip e registra as ordens já como geradas. As que têm pendência ficam de fora e
       podem ser enviadas para a fila.</li>
 </ul>
-<p class="nota-info">No Gerador de OCs a importação ia direto para o PDF e não deixava
-rastro depois do download. Aqui toda OC emitida fica registrada, não importa por qual
-porta entrou.</p>
 </section>
 
 <!-- ==================================================================== -->
 <section class="cartao" id="cadastros">
 <h2>8. Cadastros</h2>
-<p class="nota-aviso">Esta tela grava na <strong>mesma planilha do Gerador de OCs</strong>.
-O que você muda aqui vale nos dois sistemas, na hora. Não existe "cadastro do CDE" separado —
-cadastro duplicado significaria o mesmo fornecedor com dois CNPJs diferentes e a OC saindo
-com o dado de quem salvou por último.</p>
+<p class="nota-aviso">Esta tela grava em <span class="cod">Base_SushiBoulevard.xlsx</span>, o único
+cadastro do sistema: o mesmo fornecedor nunca tem dois CNPJs, e a OC sai sempre com o dado salvo aqui.</p>
 
 <h3>Fornecedores</h3>
 <p>Apelido, CNPJ e razão social são obrigatórios: são o que a OC precisa para ser um
@@ -723,46 +717,30 @@ dentro do OneDrive: quem tem acesso à pasta continua tendo acesso a eles.</p>
   </tbody>
 </table></div>
 
-<h3>Dois arquivos que NÃO ficam aqui</h3>
-<p>São compartilhados com o Gerador de OCs de propósito — arquivo separado significaria dado
-divergente entre os dois sistemas:</p>
-<div class="rolagem"><table class="tabela-curta">
-  <thead><tr><th>Arquivo</th><th>Onde fica</th><th>O que guarda</th></tr></thead>
-  <tbody>
-    <tr><td><span class="cod">Base_SushiBoulevard.xlsx</span></td>
-        <td>pasta <span class="cod">Gerador de OCs</span></td>
-        <td>fornecedores, produtos com preço, unidades e observações fixas</td></tr>
-    <tr><td><span class="cod">Registro_OCs.json</span></td>
-        <td>pasta <span class="cod">Gerador de OCs</span></td>
-        <td>o contador de OC por unidade e o histórico das emitidas</td></tr>
-  </tbody>
-</table></div>
-<p>Na primeira vez que o CDE Web grava em cada um deles, ele deixa uma cópia de segurança em
-<span class="cod">backups/</span>. A cópia local
-<span class="cod">CDE Web/Base_SushiBoulevard.xlsx</span> só é usada se a pasta do Gerador
-estiver inacessível — o indicador em Cadastros avisa qual das duas está em uso.</p>
-
-<p class="nota-aviso">O CDE Web é um <strong>teste em evolução</strong>. O Gerador de OCs
-continua funcionando exatamente como antes, na pasta dele, e nada nele foi alterado —
-o módulo de OCs foi <strong>copiado</strong> para cá, não movido. Copie as duas pastas de vez
-em quando para ter backup.</p>
+<h3>Cadastros e numeração das OCs</h3>
+<p>Ficam no próprio CDE: <span class="cod">Base_SushiBoulevard.xlsx</span> (fornecedores, produtos com
+preço, unidades e observações fixas) e <span class="cod">dados/registro_ocs.json</span> (o contador de OC
+por unidade e o histórico das emitidas). O Gerador de OCs foi descontinuado em 19/11/2026; a
+numeração continuou de onde ele parou. Na primeira gravação em cada arquivo o CDE deixa uma cópia
+de segurança em <span class="cod">backups/</span>.</p>
 </section>
 
 <!-- ==================================================================== -->
 <section class="cartao" id="login">
 <h2>13. Login e permissões</h2>
-<p>Cada pessoa entra com o próprio usuário e senha e vê só as telas liberadas para ela. Vale em
+<p>Cada pessoa entra com o próprio e-mail e senha e vê só as telas liberadas para ela. Vale em
 todos os computadores e no celular.</p>
 <ul>
   <li><strong>Primeiro acesso:</strong> no PC do servidor, abra <span class="cod">http://localhost:8935/login.html</span>
     e crie o administrador. Até ele existir, o sistema abre sem login; a partir dele, todo
     acesso pede senha.</li>
-  <li><strong>Cadastrar pessoas:</strong> menu <strong>Usuários</strong> → <strong>Novo usuário</strong>.
+  <li><strong>Cadastrar pessoas:</strong> menu <strong>Configurações</strong> → parte <strong>Usuários</strong> → <strong>Novo usuário</strong>.
     Escolha o perfil (Diretor, Gerente, Analista pleno, Analista júnior, Auxiliar de suprimentos),
+    informe o e-mail da pessoa (ex.: exemplo@sushiboulevard.com.br),
     ajuste tela a tela e dê uma senha provisória. No primeiro acesso a pessoa troca pela dela.</li>
   <li><strong>Em cada tela:</strong> <em>Sem acesso</em> (some do menu), <em>Só ver</em> (abre, mas não salva;
     aparece a faixa "Modo consulta") ou <em>Ver e editar</em>. Quem confere é o servidor, não só o menu.</li>
-  <li><strong>Esqueceu a senha:</strong> o administrador abre a pessoa em Usuários e usa
+  <li><strong>Esqueceu a senha:</strong> o administrador abre a pessoa em Configurações → Usuários e usa
     <strong>Redefinir senha</strong>. Ninguém consegue ler senhas: elas ficam guardadas embaralhadas.</li>
   <li><strong>Saiu da empresa ou perdeu o celular:</strong> desmarque <strong>Ativo</strong>. A pessoa sai na hora,
     em todos os aparelhos.</li>

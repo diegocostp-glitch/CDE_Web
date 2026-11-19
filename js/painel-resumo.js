@@ -93,7 +93,7 @@ function desenharResumo() {
   }
 
   html += '<div class="rd-grade">' +
-    cartao("O que olhar primeiro", "Pendências do dia, das mais urgentes para as informativas.", '<div class="rd-pend-lista">' + pendencias() + "</div>") +
+    cartao("O que olhar primeiro", "Pendências do dia, das mais urgentes para as informativas.", '<div class="rd-pend-caixa"><div class="rd-pend-lista">' + pendencias() + "</div></div>") +
     '<div class="rd-col">' +
       cartao("O que subiu e o que baixou", "Consumo da rede contra o esperado para o faturamento do dia. " +
              "Clique num item para ver as casas.", graficoVariacao()) +

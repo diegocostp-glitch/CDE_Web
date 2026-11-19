@@ -211,7 +211,11 @@ function calcular(ins, campos) {
   // tela poder mostrar de quanto foi o desvio, em vez de só esquecer o número.
   const manual = ins.qtd_manual;
   const ajustado = manual !== null && manual !== undefined && manual !== "";
-  return { duracao, cobrir, qtd, calculado, ajustado,
+  // Estoque além do que os dias a cobrir pedem: o que fica parado se a média
+  // se confirmar. Negativo quando falta (aí a linha pede compra).
+  const dias = diasDe(ins.chave);
+  const sobra = disponivel - consumoDia * dias;
+  return { duracao, cobrir, qtd, calculado, ajustado, sobra, dias, consumoDia,
            pedido: ajustado ? num(manual) : calculado, conv: conv,
            un_pedido: c ? c.un_pedido : ins.un };
 }
@@ -252,13 +256,15 @@ function desenhar() {
   sincronizarPeriodo();
   const casa = PROJ.casas[CASA];
   const cab = ["Insumo", "Estoque", "Trânsito entrada", "Trânsito saída", "Média/dia",
-               "Consumo nos dias da média", "Fator", "Duração",
+               "", "Fator", "Duração",
                "Dias a cobrir", "Pedido", "Ajuste", "Fornecedor"];
+  // A coluna da curva fica sem título para ser estreita; a explicação vai na dica.
+  const th = (h) => h ? `<th>${h}</th>` : `<th title="Consumo nos dias da média"></th>`;
   $("#tela").innerHTML =
     `<section class="cartao">
       <div class="cabeca"><h2>${casa.nome}</h2>
         <span class="fonte">Estoque do último lançamento de cada item</span></div>
-      <div class="rolagem"><table class="tabela-proj"><thead><tr>${cab.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+      <div class="rolagem"><table class="tabela-proj"><thead><tr>${cab.map(th).join("")}</tr></thead>
       <tbody>${casa.insumos.map((i) => `
         <tr data-k="${i.chave}">
           <td>${i.nome} <span class="un">(${i.un})</span>${selo(i)}</td>
@@ -269,11 +275,9 @@ function desenhar() {
           <td class="tend"></td>
           <td><input data-c="fator" type="text" inputmode="decimal" value="${i.fator ?? 1}" style="width:64px"></td>
           <td class="calc dur"></td>
-          ${CASA === CASA_DIAS
-            ? `<td><input data-c="dias" type="text" inputmode="numeric" style="width:56px"
-                 value="${i.dias_item ?? ""}" placeholder="${DIAS}"
-                 title="Dias a cobrir deste item — vale também para as outras casas. Vazio: usa o padrão do topo"></td>`
-            : `<td class="calc cobrir" title="Digitado na ${PROJ.casas[CASA_DIAS].nome} (SL) — vale para as quatro casas"></td>`}
+          <td><input data-c="dias" type="text" inputmode="numeric" style="width:56px"
+               value="${(insumoDa(CASA_DIAS, i.chave) || {}).dias_item ?? ""}" placeholder="${DIAS}"
+               title="Dias a cobrir deste item — vale para as quatro casas. Vazio: usa o padrão do topo"></td>
           <td class="calc ped"></td>
           <td class="ajuste-cel"><input data-c="ajuste" class="qtd-resumo" type="text" inputmode="decimal"
                value="${txtManual(i.qtd_manual)}" placeholder="${i.conversao ? "kg" : "—"}"
@@ -461,8 +465,8 @@ function blocoDias(ins) {
       <button type="button" class="botao-mini dias-acao" data-acao="padrao" data-k="${ins.chave}">Voltar aos últimos ${PROJ.janela_media_dias} dias</button>
       ${PROJ.janela_media_dias !== PERIODO_ALTERNATIVO ? `<button type="button" class="botao-mini dias-acao" data-acao="alt" data-k="${ins.chave}">Últimos ${PERIODO_ALTERNATIVO} dias</button>` : ""}
       <button type="button" class="botao-mini dias-acao" data-acao="nenhum" data-k="${ins.chave}">Desmarcar todos</button>
-      <button type="button" class="botao-mini dias-acao" data-acao="todos-itens" data-k="${ins.chave}"
-        title="Usa estes mesmos dias em todos os itens de ${PROJ.casas[CASA].nome}">Usar estes dias em todos os itens da casa</button>
+      <button type="button" class="botao-mini dias-acao" data-acao="outras-lojas" data-k="${ins.chave}"
+        title="Usa estes mesmos dias em ${escapa(ins.nome)} nas outras casas">Usar estes dias no mesmo item das outras lojas</button>
     </div>
     <div class="dias-grade">
       ${DOW.slice(1).concat(DOW[0]).map((d) => `<div class="dia-cab">${d}</div>`).join("")}
@@ -616,7 +620,14 @@ function recalcular() {
       inA.nextElementSibling.textContent = r.un_pedido;
     }
     if (r.calculado <= 0.0005) {
-      tdP.innerHTML = '<span class="selo bom">Não pedir</span>';
+      // quanto passa da projecao: estoque parado alem dos dias a cobrir
+      const alem = r.consumoDia > 0 ? r.sobra / r.consumoDia : null;
+      const txtSobra = r.sobra <= 0.0005 ? ""
+        : r.consumoDia > 0
+          ? `${fmt(r.sobra, 3)} ${ins.un} além dos ${fmt(r.dias, 0)} dias · cobre mais ${fmt(alem, 1)} d`
+          : `${fmt(r.sobra, 3)} ${ins.un} em estoque, sem consumo na média`;
+      tdP.innerHTML = '<span class="selo bom">Não pedir</span>' + (txtSobra
+        ? `<span class="msg-conv msg-sobra" title="Estoque + trânsito − saída, menos a média/dia × fator × dias a cobrir">${txtSobra}</span>` : "");
     } else {
       tdP.innerHTML = `<strong${r.ajustado ? ' class="riscado" title="Calculado — vale o ajuste ao lado"' : ""}>${fmt(r.calculado, 3)}</strong>
         <span class="un">${r.un_pedido}</span>` +
@@ -1067,9 +1078,11 @@ function ligarTabela() {
   tela.addEventListener("input", (e) => {
     if (!e.target.matches("input[data-c],select[data-c]")) return;
     if (e.target.dataset.c === "dias") {
-      const ins = insumo(e.target.closest("tr").dataset.k);
+      // Um número por item para as quatro casas: digitado em qualquer aba, fica
+      // guardado na linha da SL, que é de onde o pedido inteiro lê.
+      const ins = insumoDa(CASA_DIAS, e.target.closest("tr").dataset.k);
       const v = e.target.value.trim();
-      ins.dias_item = v === "" ? null : Math.min(60, Math.max(1, num(v) || 1));
+      if (ins) ins.dias_item = v === "" ? null : Math.min(60, Math.max(1, num(v) || 1));
     }
     if (e.target.dataset.c === "ajuste") {
       const ins = insumo(e.target.closest("tr").dataset.k);
@@ -1116,19 +1129,24 @@ function ligarTabela() {
     }
     const b = e.target.closest(".dias-acao");
     if (!b) return;
-    const casa = PROJ.casas[CASA];
     const ins = insumo(b.dataset.k);
     if (b.dataset.acao === "padrao") ins.dias_media = null;
     else if (b.dataset.acao === "nenhum") ins.dias_media = [];
     else if (b.dataset.acao === "alt") ins.dias_media = diasDaJanela(ins, PERIODO_ALTERNATIVO);
-    else if (b.dataset.acao === "todos-itens") {
-      // Mesmos dias de calendário para todos — feriado é feriado para a casa
-      // inteira. Dia sem consumo lançado num item simplesmente não conta nele.
+    else if (b.dataset.acao === "outras-lojas") {
+      // Os mesmos dias de calendário no mesmo item das outras casas: o dia que
+      // distorceu o consumo (evento, falta, feriado) costuma valer para a rede.
+      // Dia sem consumo lançado numa casa simplesmente não conta nela.
       const padrao = !Array.isArray(ins.dias_media);
       const dias = diasEscolhidos(ins).slice();
       guardarLinhas();
-      casa.insumos.forEach((o) => { o.dias_media = padrao ? null : dias.slice(); });
-      aviso(`Dias de ${ins.nome} aplicados aos ${casa.insumos.length} itens de ${casa.nome}.`, "bom");
+      let n = 0;
+      Object.entries(PROJ.casas).forEach(([ck, outra]) => {
+        if (ck === CASA) return;
+        const o = outra.insumos.find((x) => x.chave === ins.chave);
+        if (o) { o.dias_media = padrao ? null : dias.slice(); n++; }
+      });
+      aviso(`Dias de ${ins.nome} aplicados em ${n} outra(s) loja(s).`, "bom");
       marcarSujo(); desenhar(); return;
     }
     marcarSujo(); redesenharDias(ins); recalcular(); sincronizarPeriodo();
