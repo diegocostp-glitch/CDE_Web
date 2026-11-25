@@ -191,9 +191,11 @@ async function carregarDia(data) {
 // ------------------------------------------------------------------ desenhar
 function desenharAbas() {
   const nav = $("#abas-casas");
+  const realce = tirarRealce(nav);
   nav.innerHTML = "";
   CONFIG.casas.forEach((c) => {
     const b = document.createElement("button");
+    b.type = "button";
     const casa = DIA && DIA.casas[c.chave];
     // O número é o que FALTA contar naquela casa no dia — serve para varrer as
     // quatro abas sem abrir uma por uma e descobrir onde o lançamento parou.
@@ -201,7 +203,7 @@ function desenharAbas() {
     // ser lido como "ainda não olhei aqui".
     const contaveis = casa ? casa.insumos.filter((i) => !i.derivado) : [];
     const faltam = contaveis.filter((i) => i.final == null || i.final === "").length;
-    b.innerHTML = c.chave + (faltam
+    b.innerHTML = nomeLoja(c.chave, c.nome) + (faltam
       ? ' <span class="pend" title="insumos sem contagem">' + faltam + "</span>"
       : ' <span class="pend feito" title="dia completo">✓</span>');
     b.title = casa
@@ -213,6 +215,7 @@ function desenharAbas() {
     b.onclick = () => { CASA = c.chave; desenhar(); };
     nav.appendChild(b);
   });
+  porRealce(nav, realce);
 }
 
 function desenhar() {

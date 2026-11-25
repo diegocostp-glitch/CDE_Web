@@ -115,8 +115,10 @@ function montarSeletorConsolidado() {
 }
 
 function desenharAbas() {
-  $("#abas-casas").innerHTML = Object.entries(PROJ.casas).map(([ck, c]) =>
-    `<button data-c="${ck}" class="${ck === CASA ? "ativa" : ""}" title="${c.nome}">${ck}</button>`).join("");
+  const nav = $("#abas-casas"), realce = tirarRealce(nav);
+  nav.innerHTML = Object.entries(PROJ.casas).map(([ck, c]) =>
+    `<button type="button" data-c="${ck}" class="${ck === CASA ? "ativa" : ""}" title="${c.nome}">${nomeLoja(ck, c.nome)}</button>`).join("");
+  porRealce(nav, realce);
   document.querySelectorAll("#abas-casas button").forEach((b) => {
     b.onclick = () => { guardarLinhas(); CASA = b.dataset.c; desenharAbas(); desenhar(); };
   });

@@ -505,3 +505,38 @@ async function aplicarUsuario(atual) {
       '<div class="faixa-consulta">Modo consulta: você pode ver esta tela, mas as alterações não serão salvas.</div>');
   }
 }
+
+// ------------------------------------------------------ troca de lojas
+// Nome da loja nas abas de troca de casa: completo, sem sigla. Cidade Nova vai
+// sem o "Delivery" para as quatro pílulas caberem numa linha só.
+const NOME_LOJA = { SL: "Senador Lemos", DC: "Duque de Caxias",
+  DLU: "Delivery Umarizal", DLCN: "Cidade Nova" };
+function nomeLoja(chave, nome) { return NOME_LOJA[chave] || nome || chave; }
+
+// Realce escuro das abas de loja (.abas-lojas). Fica de fora do redesenho:
+// tirarRealce() antes de limpar a barra, pôrRealce() depois de montar os
+// botões — ele continua onde estava e desliza até a loja escolhida.
+function tirarRealce(nav) {
+  let r = nav.querySelector(".abas-realce");
+  if (!r) {
+    r = document.createElement("span");
+    r.className = "abas-realce";
+    r.setAttribute("aria-hidden", "true");
+  }
+  return r;
+}
+function porRealce(nav, r) {
+  if (r.parentNode !== nav) nav.prepend(r);
+  const ativa = nav.querySelector("button.ativa");
+  if (!ativa || !ativa.offsetWidth) { r.style.opacity = "0"; return; }
+  const primeira = !r.style.width;
+  if (primeira) r.style.transition = "none";
+  r.style.opacity = "1";
+  r.style.transform = `translate(${ativa.offsetLeft}px, ${ativa.offsetTop}px)`;
+  r.style.width = ativa.offsetWidth + "px";
+  r.style.height = ativa.offsetHeight + "px";
+  if (primeira) { void r.offsetWidth; r.style.transition = ""; }
+}
+window.addEventListener("resize", () => {
+  document.querySelectorAll(".abas-lojas").forEach((nav) => porRealce(nav, tirarRealce(nav)));
+});
