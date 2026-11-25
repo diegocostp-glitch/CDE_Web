@@ -4565,8 +4565,8 @@ ARQ_CONTAGENS = DADOS / "contagens.json"
 TIPOS_CONTAGEM = ("diaria", "semanal")
 # entp = entrada de processamento: o que o filetamento e o processamento do dia
 # produziram, separado da entrada de nota fiscal e transferencia (ent).
-CAMPOS_CONTAGEM = {"diaria": ("ini", "ent", "entp", "sai", "desp", "fin"), "semanal": ("qtd",)}
-TEXTOS_CONTAGEM = {"diaria": ("mot",), "semanal": ("obs",)}
+CAMPOS_CONTAGEM = {"diaria": ("ini", "ent", "entp", "sai", "desp", "fin", "espetos"), "semanal": ("qtd",)}  # espetos: nº de camarões no espeto (só complementa o controle)
+TEXTOS_CONTAGEM = {"diaria": ("mot", "tam"), "semanal": ("obs",)}  # tam: tamanho do peixe (salmão inteiro), anotado pela loja
 # Mesmas linhas da ficha diaria impressa (js/contagem-comum.js).
 CALIBRES_FILETAMENTO = ("salmao_0810", "salmao_1012", "salmao_1214", "salmao_1416")
 CAMPOS_FILETAMENTO = ("peixes", "peso", "com_pele", "limpo", "raspa", "apara", "pele", "descarte")

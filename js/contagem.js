@@ -222,8 +222,19 @@ function desenhar() {
 // embalagem em selo pequeno.
 // Todo item que não é subproduto vai em negrito; o subproduto, recuado e normal.
 const classeLinha = (l) => l.filho ? "filho" : "primario";
+// Nome do item + o campo de apoio da loja, quando o item tem um (camarão espeto: nº no espeto;
+// salmão inteiro em peixe: tamanho). Só na diária; o valor volta do registro salvo.
+function nomeDoItem(i, l = {}) {
+  const base = nomeDoItemBase(i, l), x = SEMANAL ? null : EXTRAS_DIARIA[i.id];
+  if (!x) return base;
+  const v = ((registro().itens || {})[i.id] || {})[x.c];
+  const val = v == null ? "" : x.num ? String(v).replace(".", ",") : v;
+  const campo = `<input data-c="${x.c}" type="text"${x.num ? ' inputmode="numeric"' : ""} class="extra-mini${x.num ? "" : " texto"}"
+    value="${esc(val)}" placeholder="${esc(x.rotulo)}" title="${esc(x.titulo)}" aria-label="${esc(x.titulo)}" maxlength="${x.num ? 6 : 12}">`;
+  return base + campo;
+}
 // Código do ERP antes do nome: liga a linha ao produto do estoque. Subproduto não tem.
-const nomeDoItem = (i, l = {}) => `<span class="cod"${i.codigo ? ' title="Código do produto no ERP"' : ""}>${esc(i.codigo || "")}</span>` + `${esc(l.filho ? nomeNoPai(i) : i.nome)} <span class="un">(${esc(i.un || "—")})</span>` +
+const nomeDoItemBase = (i, l = {}) =>`<span class="cod"${i.codigo ? ' title="Código do produto no ERP"' : ""}>${esc(i.codigo || "")}</span>` + `${esc(l.filho ? nomeNoPai(i) : i.nome)} <span class="un">(${esc(i.un || "—")})</span>` +
   (i.nota ? ` <span class="comentario">${esc(i.nota)}</span>` : "") +
   (i.emb ? ` <span class="selo-mini" title="A contagem vai em ${esc(i.emb)}; o sistema converte">${esc(comoContar(i))}</span>` : "");
 

@@ -17,6 +17,15 @@ const CAMPOS_FILETAMENTO = [
   ["raspa", "Raspa", "kg"], ["apara", "Apara", "kg"], ["pele", "Pele", "kg"],
   ["descarte", "Descarte", "kg"],
 ];
+// Campos de apoio na célula do nome (só na contagem diária): a loja informa e o dado complementa o
+// controle, sem entrar em nenhuma conta. c = chave gravada (o servidor valida: server.py),
+// num = número ou texto. O campo vem logo depois do nome e passa para a linha de baixo se não couber.
+const EXTRAS_DIARIA = {
+  camarao_p_espeto: { c: "espetos", rotulo: "nº espeto", titulo: "Quantidade de camarões em cada espeto", num: true },
+  salmao_inteiro_eviscerado_peixe: { c: "tam", rotulo: "tamanho", titulo: "Tamanho do peixe (ex.: 10/12)", num: false },
+};
+// Na ficha impressa: um espaço em branco, para anotar à mão.
+const espacoExtra = (i) => { const x = EXTRAS_DIARIA[i && i.id]; return x ? ` <span class="f-extra">${esc(x.rotulo)}: <i></i></span>` : ""; };
 const PROCESSADOS_CONTAGEM = [
   ["anel_lula", "Anel de lula"], ["lombo_atum", "Lombo de atum"], ["polvo", "Tentáculo de polvo"],
 ];

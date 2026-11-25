@@ -30,7 +30,7 @@ const vazias = (n, extra = "") => Array.from({ length: n }, () => `<td${extra}><
 const COL_COD = '<col style="width:7%">';
 const TH_COD = '<th class="th-cod">Código</th>';
 const cod = (i) => `<td class="cod">${esc((i && i.codigo) || "")}</td>`;
-const nomeItem = (i, comDica, l = {}) => `${esc(l.filho ? nomeNoPai(i) : i.nome)} <span class="un">${esc(i.un || "")}</span>` +
+const nomeItem = (i, comDica, l = {}) => `${esc(l.filho ? nomeNoPai(i) : i.nome)} <span class="un">${esc(i.un || "")}</span>${espacoExtra(i)}` +
   (i.nota ? `<span class="comentario">${esc(i.nota)}</span>` : "") +
   (comDica && i.emb ? `<span class="dica">contar em ${esc(comoContar(i))}</span>` : "");
 
@@ -96,7 +96,7 @@ function fichaSemanal(itens) {
   return [["", `<table><colgroup>${COL_COD}<col style="width:33%"><col style="width:8%"><col style="width:22%"><col style="width:11%"><col></colgroup>
     <thead><tr>${TH_COD}<th>Item</th><th>Unidade</th><th style="text-align:left">como contar</th>
       <th class="hl">Quantidade<small>contada</small></th><th>Observação</th></tr></thead>
-    <tbody>${linhasDeItens(itens, 5, (i, l) => `<tr class="${classeLinha(l)}">${cod(i)}<td class="nome">${esc(l.filho ? nomeNoPai(i) : i.nome)}${i.nota ? `<span class="comentario">${esc(i.nota)}</span>` : ""}</td>
+    <tbody>${linhasDeItens(itens, 5, (i, l) => `<tr class="${classeLinha(l)}">${cod(i)}<td class="nome">${esc(l.filho ? nomeNoPai(i) : i.nome)}${i.nota ? `<span class="comentario">${esc(i.nota)}</span>` : ""}${espacoExtra(i)}</td>
       <td class="centro">${esc(i.un || "")}</td><td class="cinza">${esc(comoContar(i))}</td>
       <td class="hl"></td><td></td></tr>`)}</tbody></table>`]];
 }

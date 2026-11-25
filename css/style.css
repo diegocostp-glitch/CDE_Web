@@ -1646,6 +1646,11 @@ a.selo { text-decoration:none }
   body.imprimindo-rec .faixa-consulta { display:none !important }
   body.imprimindo-rec { background:#fff !important }
   body.imprimindo-rec .doc-rec { display:block; color:#000; font-size:11pt; padding:0 }
+
+/* Contagem diária: campo de apoio na célula do nome (nº de camarões no espeto, tamanho do peixe).
+   Pequeno de propósito: a loja informa, o dado complementa o controle e não entra em conta nenhuma. */
+.tabela-contagem input.extra-mini { display:block; width:84px; max-width:84px; padding:3px 7px; font-size:11.5px; text-align:left;
+  margin:4px 0 0 0 }
   @page { size:A4 landscape; margin:12mm }
 }
 .doc-rec h1 { font-size:17pt; margin:0 0 2px }
