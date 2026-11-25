@@ -83,20 +83,37 @@ function faltamNaCasa(ck) {
   return itensDaCasa(DADOS.itens, ck).filter((i) => (v[i.id] || {})[campoContado] == null).length;
 }
 
+// Nome da loja na troca de casas: completo, sem sigla. Cidade Nova vai sem o
+// "Delivery" para caber nas quatro pílulas numa linha só.
+const NOME_LOJA = { SL: "Senador Lemos", DC: "Duque de Caxias",
+  DLU: "Delivery Umarizal", DLCN: "Cidade Nova" };
+const nomeLoja = (c) => NOME_LOJA[c.chave] || c.nome || c.chave;
+
 function desenharAbas() {
   const nav = $("#abas-casas");
+  // O realce escuro fica de fora do redesenho: continua no lugar da casa
+  // anterior e desliza até a nova.
+  let realce = nav.querySelector(".abas-realce");
+  if (!realce) {
+    realce = document.createElement("span");
+    realce.className = "abas-realce";
+    realce.setAttribute("aria-hidden", "true");
+  }
   nav.innerHTML = "";
+  nav.appendChild(realce);
   DADOS.casas.forEach((c) => {
     const b = document.createElement("button");
+    b.type = "button";
     const total = itensDaCasa(DADOS.itens, c.chave).length;
     const faltam = total ? faltamNaCasa(c.chave) : 0;
-    b.innerHTML = esc(c.chave) + (!total ? ""
+    b.innerHTML = esc(nomeLoja(c)) + (!total ? ""
       : faltam ? ' <span class="pend" title="itens sem contagem">' + faltam + "</span>"
       : ' <span class="pend feito" title="contagem completa">✓</span>');
     b.title = c.nome + (!total ? "" : faltam
       ? ` — faltam ${faltam} de ${total} itens sem contagem`
       : ` — contagem completa, ${total} itens contados`);
     b.className = c.chave === CASA ? "ativa" : "";
+    b.setAttribute("aria-pressed", c.chave === CASA);
     b.onclick = () => {
       if (c.chave === CASA) return;
       if (SUJO && !confirm("Há anotação digitada que não foi salva nesta casa. Trocar mesmo assim?")) return;
@@ -106,7 +123,25 @@ function desenharAbas() {
     };
     nav.appendChild(b);
   });
+  posicionarRealce(nav, realce);
 }
+
+function posicionarRealce(nav, realce) {
+  const ativa = nav.querySelector("button.ativa");
+  if (!ativa) { realce.style.opacity = "0"; return; }
+  const primeira = !realce.style.width;
+  if (primeira) realce.style.transition = "none";
+  realce.style.opacity = "1";
+  realce.style.transform = `translate(${ativa.offsetLeft}px, ${ativa.offsetTop}px)`;
+  realce.style.width = ativa.offsetWidth + "px";
+  realce.style.height = ativa.offsetHeight + "px";
+  if (primeira) { void realce.offsetWidth; realce.style.transition = ""; }
+}
+
+window.addEventListener("resize", () => {
+  const nav = $("#abas-casas"), realce = nav && nav.querySelector(".abas-realce");
+  if (realce) posicionarRealce(nav, realce);
+});
 
 // ------------------------------------------------------------------ desenhar
 // Folhas da contagem diária (ver contagem-comum.js). A semanal tem uma só.

@@ -238,14 +238,14 @@ function desenhar() {
   cartao.innerHTML =
     '<div class="cabeca">' +
       "<h2>" + casa.nome + "</h2>" +
-      // Faturamento = total de pedidos - total de descontos. Com o total de
+      // Faturamento = total de pedidos + total de descontos. Com o total de
       // pedidos preenchido, o faturamento e so o resultado e fica travado;
       // sem ele (dia antigo, vindo da planilha), continua digitavel.
       '<div class="fat">' +
         '<label><span>Total de pedidos (R$)</span>' +
         '<input id="total-pedidos" class="dinheiro" type="text" inputmode="decimal" value="' +
           (casa.total_pedidos != null ? fmt(casa.total_pedidos) : "") + '"></label>' +
-        '<span class="op" aria-hidden="true">−</span>' +
+        '<span class="op" aria-hidden="true">+</span>' +
         '<label><span>Total de descontos (R$)</span>' +
         '<input id="total-descontos" class="dinheiro" type="text" inputmode="decimal" value="' +
           (casa.total_descontos != null ? fmt(casa.total_descontos) : "") + '"></label>' +
@@ -583,7 +583,7 @@ function recalcular() {
   recalcularProcessamento();
 }
 
-// Faturamento do dia = total de pedidos - total de descontos. Sem o total de
+// Faturamento bruto do dia = total de pedidos + total de descontos. Sem o total de
 // pedidos, o campo de faturamento volta a ser digitável (dia antigo, planilha).
 function calcularFaturamento() {
   const ped = $("#total-pedidos"), desc = $("#total-descontos"), fat = $("#faturamento");
@@ -595,12 +595,12 @@ function calcularFaturamento() {
   if (!temPedidos && fat.classList.contains("calculado")) fat.value = "";
   fat.readOnly = temPedidos;
   fat.classList.toggle("calculado", temPedidos);
-  fat.title = temPedidos ? "Total de pedidos menos total de descontos" : "";
+  fat.title = temPedidos ? "Total de pedidos mais total de descontos" : "";
   if (!temPedidos) { marcarErro(desc, null); return; }
-  const total = num(ped.value) - num(desc.value);
+  const total = num(ped.value) + num(desc.value);
   fat.value = fmt(total);
-  marcarErro(desc, total < 0
-    ? "O total de descontos é maior que o total de pedidos: o faturamento ficaria negativo."
+  marcarErro(desc, num(desc.value) < 0
+    ? "O total de descontos não pode ser negativo."
     : null);
 }
 
@@ -656,8 +656,8 @@ async function salvar() {
   const pedTxt = $("#total-pedidos").value.trim(), descTxt = $("#total-descontos").value.trim();
   casa.total_pedidos = pedTxt === "" ? null : num(pedTxt);
   casa.total_descontos = descTxt === "" ? null : num(descTxt);
-  if (casa.total_pedidos != null && casa.total_pedidos - (casa.total_descontos || 0) < 0) {
-    aviso("Não salvei: o total de descontos é maior que o total de pedidos.", "mau");
+  if (casa.total_descontos != null && casa.total_descontos < 0) {
+    aviso("Não salvei: o total de descontos não pode ser negativo.", "mau");
     return;
   }
   casa.faturamento = num($("#faturamento").value);

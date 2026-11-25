@@ -752,7 +752,8 @@ def montar_dia(data_iso):
 
 
 def faturamento_do_dia(lan, casa=""):
-    """Faturamento = total de pedidos - total de descontos, quando os pedidos vem.
+    """Faturamento bruto = total de pedidos + total de descontos, quando os
+    pedidos vem (o total de pedidos ja sai do PDV liquido do desconto).
 
     A tela ja mostra a conta, mas quem manda e o servidor: e este numero que
     vai para o coeficiente, a Visao Geral e a planilha de faturamento. Sem o
@@ -762,14 +763,10 @@ def faturamento_do_dia(lan, casa=""):
     pedidos = lan.get("total_pedidos")
     if pedidos in (None, ""):
         return lan.get("faturamento")
-    total = numero(pedidos) - numero(lan.get("total_descontos"))
-    if total < 0:
-        def reais(v):
-            return ("{:,.2f}".format(v)).replace(",", "_").replace(".", ",").replace("_", ".")
-        raise ValueError("%s: o total de descontos (R$ %s) é maior que o total de "
-                         "pedidos (R$ %s)" % (casa, reais(numero(lan.get("total_descontos"))),
-                                              reais(numero(pedidos))))
-    return round(total, 2)
+    descontos = numero(lan.get("total_descontos"))
+    if descontos < 0:
+        raise ValueError("%s: o total de descontos não pode ser negativo" % casa)
+    return round(numero(pedidos) + descontos, 2)
 
 
 def _gravar_dia_sem_trava(corpo):
