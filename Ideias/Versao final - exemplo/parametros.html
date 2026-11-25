@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Configurações</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="tema-novo/tema.css">
+<script src="js/navegacao.js"></script>
+<script src="tema-novo/tema.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<!-- Configuracoes: parametros do sistema, a senha de quem esta logado e, para
+     administrador, os usuarios. Cada parte nasce fechada; o clique no titulo
+     abre. #senha e #usuarios no endereco abrem direto aquela parte. -->
+<main class="main-content tela-parametros">
+  <div class="screen-header">
+    <div><h1>Configurações</h1></div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+      <button class="botao primario" id="btn-salvar">Salvar parâmetros</button>
+    </div>
+  </div>
+
+  <section class="cartao dobravel so-parametros" data-secao="estoque">
+    <div class="cabeca dobra"><h2>Mínimo e máximo de estoque</h2>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <div class="param-barra">
+        <label class="campo"><span>Filtrar insumo</span>
+          <input type="text" id="f-insumo" placeholder="nome do insumo"></label>
+        <label class="campo"><span>Casa</span><select id="f-casa"></select></label>
+        <button class="botao" id="btn-sugerir" type="button">Preencher mínimos com a sugestão</button>
+        <span class="fonte" id="nota-sugestao"></span>
+      </div>
+      <div class="rolagem" id="tabela-estoque"></div>
+    </div>
+  </section>
+
+  <section class="cartao dobravel so-parametros" data-secao="prazos">
+    <div class="cabeca dobra"><h2>Prazo de entrega</h2>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <div class="rolagem" id="tabela-prazos"></div>
+    </div>
+  </section>
+
+  <section class="cartao dobravel so-parametros" data-secao="projecao">
+    <div class="cabeca dobra"><h2>Projeção de compras</h2>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <div class="param-grade">
+        <label class="campo"><span>Dias a cobrir (padrão)</span>
+          <input type="number" id="p-dias-cobrir" min="1" max="60" step="1"></label>
+        <label class="campo"><span>Janela da média (dias)</span>
+          <input type="number" id="p-janela" min="1" max="120" step="1"></label>
+        <label class="campo"><span>Dias de segurança</span>
+          <input type="number" id="p-seguranca" min="0" max="60" step="1"></label>
+      </div>
+      <div class="param-listas">
+        <div class="param-lista">
+          <h3>Responsáveis</h3>
+          <div id="lista-responsaveis" class="fichas"></div>
+          <div class="param-add">
+            <input type="text" id="novo-responsavel" placeholder="nome do responsável">
+            <button class="botao" id="btn-add-responsavel" type="button">Adicionar</button>
+          </div>
+        </div>
+        <div class="param-lista">
+          <h3 title="Os que têm item da projeção no catálogo de compras. Para incluir outro, vincule o produto dele em Cadastros.">Fornecedores</h3>
+          <div id="lista-fornecedores" class="fichas"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cartao dobravel" data-secao="senha" id="sec-senha" hidden>
+    <div class="cabeca dobra"><h2>Trocar senha</h2>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <form id="f-senha" class="form-senha" style="max-width:420px">
+        <label class="campo"><span>Senha atual</span>
+          <input id="s-atual" type="password" autocomplete="current-password" required></label>
+        <label class="campo"><span>Nova senha (mínimo 8 caracteres)</span>
+          <input id="s-nova" type="password" autocomplete="new-password" required></label>
+        <label class="campo"><span>Repita a nova senha</span>
+          <input id="s-nova2" type="password" autocomplete="new-password" required></label>
+        <p class="login-erro" id="s-erro" role="alert"></p>
+        <button class="botao primario" type="submit">Salvar nova senha</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="cartao dobravel" data-secao="usuarios" id="sec-usuarios" hidden>
+    <div class="cabeca dobra"><h2>Usuários</h2>
+      <span style="flex:1"></span>
+      <button class="botao" id="novo" type="button">Novo usuário</button>
+      <span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <div class="rolagem"><table id="lista"></table></div>
+
+      <div id="editor" class="us-editor" hidden>
+        <div class="cabeca"><h2 id="ed-titulo"></h2><button class="botao" id="ed-fechar" type="button">Fechar</button></div>
+        <div class="us-campos">
+          <label class="campo"><span>Nome</span><input id="ed-nome"></label>
+          <label class="campo" id="ed-usuario-l"><span>E-mail (para entrar)</span>
+            <input id="ed-usuario" type="email" placeholder="exemplo@sushiboulevard.com.br" autocapitalize="none" spellcheck="false"></label>
+          <label class="campo"><span>Perfil</span><select id="ed-perfil"></select></label>
+          <label class="campo" id="ed-senha-l"><span>Senha provisória (mínimo <b class="sm"></b>)</span>
+            <input id="ed-senha" type="text" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <div class="us-marcas">
+          <label><input type="checkbox" id="ed-admin"> Administrador (gerencia usuários)</label>
+          <label id="ed-ativo-l"><input type="checkbox" id="ed-ativo"> Ativo</label>
+        </div>
+        <div class="rolagem"><table class="us-matriz" id="matriz"></table></div>
+        <p class="login-erro" id="ed-erro" role="alert"></p>
+        <div class="us-acoes">
+          <button class="botao primario" id="ed-salvar" type="button">Salvar</button>
+          <span class="us-redefinir" id="ed-redefinir">
+            <input id="ed-nova" type="text" placeholder="nova senha provisória" autocomplete="off" spellcheck="false">
+            <button class="botao" id="ed-redefinir-btn" type="button">Redefinir senha</button>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="cartao dobravel" data-secao="servidor" id="sec-servidor" hidden>
+    <div class="cabeca dobra"><h2>Servidor</h2>
+      <span style="flex:1"></span><span class="ordem-chev">▸</span></div>
+    <div class="dobra-corpo">
+      <div class="srv-linha">
+        <button class="botao primario" id="btn-reiniciar" type="button"
+                title="Carrega as atualizações do sistema. Quem estiver usando fica alguns segundos sem resposta.">Reiniciar servidor</button>
+        <span class="fonte" id="srv-estado"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+</div>
+<script src="js/comum.js"></script>
+<script src="js/parametros.js"></script>
+</body>
+</html>

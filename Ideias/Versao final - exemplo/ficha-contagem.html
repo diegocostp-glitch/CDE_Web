@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Ficha de contagem</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<style>
+/* Ficha de papel (modelos em Ideias/Templates). É folha impressa: branca nos
+   três temas, de propósito — o tema escuro e o mono são da tela, não do papel. */
+:root { --tinta:#1d1f23; --tinta-2:#4a4f57; --tinta-3:#8a9099; --linha:#c9cdd3; --grupo:#eef0f3;
+  --destaque:#fff3e4; --forte:#1d1f23 }
+* { box-sizing:border-box; margin:0; padding:0 }
+html { background:#e9ebee }
+body { font-family:"Segoe UI", system-ui, Arial, sans-serif; color:var(--tinta); font-size:10.5px;
+  background:#e9ebee; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+
+.ferramentas { position:sticky; top:0; z-index:2; display:flex; gap:12px; align-items:end; flex-wrap:wrap;
+  padding:12px 16px; background:#fff; border-bottom:1px solid var(--linha) }
+.ferramentas label { display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--tinta-2) }
+.ferramentas select, .ferramentas input { font:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--linha);
+  border-radius:6px; background:#fff; color:var(--tinta) }
+.ferramentas button { font:inherit; font-size:13px; font-weight:600; padding:8px 18px; border-radius:6px; cursor:pointer;
+  border:1px solid #e86f12; background:#f5860f; color:#fff }
+.ferramentas .dica-ferr { font-size:11.5px; color:var(--tinta-3); flex:1; min-width:200px }
+
+.folha { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:11mm 12mm 12mm;
+  box-shadow:0 1px 6px rgba(0,0,0,.12) }
+.f-cab { display:flex; align-items:center; gap:12px; margin-bottom:12px }
+.f-cab img { width:42px; height:auto }
+.f-cab h1 { font-size:19px; font-weight:700; letter-spacing:-.2px }
+.f-cab p { font-size:12.5px; color:var(--tinta-2); margin-top:1px }
+.f-linha { display:flex; align-items:baseline; gap:16px; padding-bottom:6px; border-bottom:2.5px solid var(--forte);
+  font-size:10.5px; color:var(--tinta-2) }
+.f-linha b { font-size:13px; color:var(--tinta); margin-left:6px }
+/* data em branco: a ficha sai impressa sem dia e quem conta escreve à mão */
+.f-linha .f-data b { font-weight:400; letter-spacing:1px; color:var(--forte) }
+.f-linha .preencher { flex:1; display:flex; align-items:baseline; gap:6px }
+.f-linha .preencher i { flex:1; border-bottom:1px solid var(--forte); min-width:60px; height:12px }
+.f-linha .curta i { flex:0 0 90px }
+.f-instr { margin:8px 0 6px; font-size:10.5px; color:var(--tinta-2); line-height:1.4 }
+.f-folha { margin-left:auto; text-align:right; font-size:10px; color:var(--tinta-3); line-height:1.4 }
+.f-folha b { font-size:12px; color:var(--tinta) }
+.f-sec-topo { margin-top:6px }
+.f-sec { font-size:12.5px; font-weight:700; margin:16px 0 0; padding-bottom:5px; border-bottom:2px solid var(--forte) }
+
+table { width:100%; border-collapse:collapse; table-layout:fixed }
+th { font-weight:600; font-size:10.5px; text-align:center; vertical-align:bottom; padding:4px 3px;
+  border-bottom:2px solid var(--forte) }
+th:first-child { text-align:left }
+th.th-cod { text-align:center } th.th-cod + th { text-align:left }
+th small { display:block; font-weight:400; font-size:9px; color:var(--tinta-3) }
+td { height:21px; padding:2px 6px; border-bottom:1px solid var(--linha); border-left:1px solid var(--linha);
+  vertical-align:middle }
+td:first-child { border-left:0 }
+td.centro { text-align:center; color:var(--tinta-2) }
+td.cinza { color:var(--tinta-2) }
+.hl { background:var(--destaque) }
+th.hl { border-bottom-color:var(--forte) }
+tr.grupo td { background:var(--grupo); height:auto; padding:2px 6px; font-size:8.5px; font-weight:700;
+  letter-spacing:.5px; text-transform:uppercase; border-left:0 }
+tr.total td { font-weight:700 }
+/* subprodutos recuados embaixo do primário, como na tela: só o recuo, sem traço */
+tr.pai td { font-weight:700; height:auto; padding-top:5px; padding-bottom:2px; border-left:0 }
+tr.primario td.nome { font-weight:700 }
+tr.filho td.nome { padding-left:22px }
+.comentario { font-size:8.5px; font-weight:400; color:var(--tinta-2); font-style:italic; margin-left:6px }
+td.cod { font-size:8.5px; color:var(--tinta-2); font-variant-numeric:tabular-nums; text-align:center }
+.un { color:var(--tinta-3) }
+.dica { font-size:8.5px; color:var(--tinta-2); margin-left:4px }
+.nota { font-size:8px; font-weight:700; color:#b45309; border:1px solid #f0c48a; border-radius:3px;
+  padding:0 3px; margin-left:4px; text-transform:uppercase; letter-spacing:.3px }
+tr { break-inside:avoid }
+thead { display:table-header-group }
+
+.f-obs { display:flex; align-items:center; gap:10px; margin-top:22px }
+.f-obs span { font-size:10.5px; color:var(--tinta-2) }
+.f-obs div { flex:1; display:flex; flex-direction:column; gap:14px }
+.f-obs i { display:block; border-bottom:1px solid var(--forte) }
+.f-assin { display:grid; grid-template-columns:repeat(3, 1fr); gap:32px; margin-top:28px; break-inside:avoid }
+.f-assin div { border-top:1px solid var(--forte); padding-top:4px; text-align:center; font-size:10.5px; color:var(--tinta-2) }
+.vazio { padding:40px; text-align:center; color:var(--tinta-2); font-size:14px }
+
+@page { size:A4 portrait; margin:0 }
+@media print {
+  html, body { background:#fff }
+  .ferramentas { display:none }
+  .folha { margin:0; box-shadow:none; break-after:page; min-height:auto }
+  .folha:last-child { break-after:auto }
+}
+</style>
+</head>
+<body>
+<div class="ferramentas">
+  <label>Ficha
+    <select id="modelo">
+      <option value="diaria">Contagem diária</option>
+      <option value="semanal">Contagem semanal</option>
+      <option value="rascunho">Rascunho — pesagens do dia</option>
+    </select></label>
+  <label>Casa <select id="casa"></select></label>
+  <label>Data <input type="date" id="data"></label>
+  <span class="dica-ferr" id="nota"></span>
+  <button id="imprimir">Imprimir</button>
+</div>
+<div id="folhas"></div>
+
+<script src="js/comum.js"></script>
+<script src="js/contagem-comum.js"></script>
+<script src="js/ficha-contagem.js"></script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDE — Projeção de Compras</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="tema-novo/tema.css">
+<script src="js/navegacao.js"></script>
+<script src="tema-novo/tema.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Projeção de Compras</h1>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado" role="status" aria-live="polite"></span>
+    </div>
+  </div>
+
+  <section class="barra">
+    <label class="campo"><span>Data do pedido</span><input type="date" id="data"></label>
+    <label class="campo" title="Vale para os itens sem dias próprios digitados na SL"><span>Dias a cobrir (padrão)</span>
+      <select id="dias" style="width:120px"></select></label>
+    <label class="campo" title="De quantos dias sai o consumo médio de todos os itens do pedido. Dentro de cada item ainda dá para marcar dias à mão">
+      <span>Média de consumo</span><select id="periodo-media" style="width:170px"></select></label>
+    <label class="campo"><span>Responsável</span><select id="responsavel"></select></label>
+    <span class="fonte" id="janela-txt"></span>
+    <nav class="abas" id="abas-casas"></nav>
+  </section>
+
+  <div id="tela"></div>
+
+  <section class="cartao">
+    <div class="cabeca"><h2>Pedido consolidado por fornecedor</h2></div>
+    <div class="filtros">
+      <label class="campo"><span>Casa</span><select id="cons-casa"></select></label>
+      <span class="fonte" id="cons-nota"></span>
+    </div>
+    <div class="rolagem" id="consolidado"></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("compras")</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/compras.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

@@ -1,0 +1,1671 @@
+/* ============================================================================
+   CDE Web — padrão de design "Mboard": menu lateral fixo, fundo cinza-claro,
+   cartões brancos, laranja como acento. O tema claro é o padrão; o escuro
+   mantém a mesma estrutura com a paleta invertida.
+   O menu tem paleta própria (--menu-*) porque muda de tom junto com o tema:
+   claro no modo claro, navy no escuro — o mesmo comportamento do Gerador de OCs.
+   ========================================================================== */
+:root { --laranja:#F5860F; --laranja-claro:#FFF1E3; --laranja-forte:#DE7409;
+        --sidebar-w:232px; --sidebar-rail:72px; --raio:16px; --raio-p:10px;
+        /* quarta cor de casa: --laranja e --aviso sao tons vizinhos e, lado a
+           lado na rosca, viravam a mesma casa aos olhos de quem olha */
+        --roxo:#7C5CE0; }
+
+/* Paleta das casas — tirada do modelo de rosca (medida na imagem: laranja
+   #FA9923, navy #3B3F79, coral #FB908F, roxo #9B84F4) e escurecida cerca de
+   10% de luminosidade, que é como foi pedido. Uma cor por casa, usada na rosca,
+   na legenda, no ponto das tabelas e no extrato — a mesma casa tem a mesma cor
+   em qualquer lugar do sistema. */
+body, body.light {
+  --casa-sl:#E98001; --casa-dc:#282B59; --casa-dlu:#FD5C5A; --casa-dlcn:#7351F4;
+}
+/* O tema escuro tem paleta PRÓPRIA, não a mesma clareada: cor escura sobre
+   fundo escuro perde a fatia (o navy dava contraste de 1,5:1 e sumia dentro do
+   cartão). Aqui entram tons vivos e claros — âmbar, azul, rosa e lilás — todos
+   acima de 6:1 contra o fundo do cartão. */
+body.dark {
+  --casa-sl:#FFC24D; --casa-dc:#61A5FF; --casa-dlu:#FF7B8A; --casa-dlcn:#B39BFF;
+}
+
+/* === TEMA CLARO (padrão) === */
+body, body.light {
+  --bg:#F4F5F9; --card:#FFFFFF; --campo:#F7F8FB;
+  --borda:#EDEEF3; --borda-forte:#DDDFE8;
+  --tinta:#1A1B2E; --tinta-2:#6E7288; --tinta-3:#A0A3B5;
+  --sombra:0 1px 2px rgba(26,27,46,.04), 0 6px 18px rgba(26,27,46,.05);
+  --linha-tabela:#F1F2F6; --hover:#FAFAFD;
+  --bom:#22A45D; --ruim:#E1483C; --aviso:#E8930C; --info:#4B7BEC;
+  --bom-bg:#E7F7EE; --ruim-bg:#FDECEA; --aviso-bg:#FEF4E2; --info-bg:#ECF1FE;
+  /* No claro o menu acompanha a página, como no Gerador de OCs: fica um tom
+     acima do fundo, separado por um filete em vez do bloco navy. */
+  /* A tinta do menu precisa ser mais forte sobre branco do que sobre navy:
+     os tons que funcionavam no escuro caem para 2,3:1 no claro e somem. */
+  --menu-bg:#FFFFFF; --menu-borda:#EAEBF2; --menu-titulo:#1A1B2E; --menu-sub:#8E92A6;
+  --menu-secao:#83879B; --menu-item:#5C6076; --menu-item-tinta:#1A1B2E;
+  --menu-item-bg:#F2F3FA; --menu-sombra:10px 0 34px rgba(26,27,46,.10);
+}
+/* === TEMA ESCURO === */
+body.dark {
+  --bg:#0F1117; --card:#171A22; --campo:#1E222C;
+  --borda:#242833; --borda-forte:#333846;
+  --tinta:#F0F1F5; --tinta-2:#8C91A6; --tinta-3:#5F6478;
+  --sombra:none; --linha-tabela:#212530; --hover:#1C2029;
+  --bom:#34D07F; --ruim:#FF6B5E; --aviso:#F5B33C; --info:#6E9BFF;
+  --bom-bg:#34D07F1F; --ruim-bg:#FF6B5E1F; --aviso-bg:#F5B33C1F; --info-bg:#6E9BFF1F;
+  --menu-bg:#141830; --menu-borda:transparent; --menu-titulo:#FFFFFF; --menu-sub:#6B7195;
+  --menu-secao:#565C80; --menu-item:#9AA0BF; --menu-item-tinta:#FFFFFF;
+  --menu-item-bg:#1D2242; --menu-sombra:10px 0 40px rgba(0,0,0,.35);
+}
+
+/* === TEMA MONO (preto, cinza e branco) ===
+   Pedido da direção: em sistema e dashboard, nenhuma cor além de preto, cinza e
+   branco. Isso tira do ar o recurso que o resto do sistema usa para dizer
+   "isto está bom" e "isto está ruim" — a cor. Aqui o mesmo recado passa por
+   LUMINOSIDADE: quanto mais claro, mais pede atenção. Branco puro é o pior
+   caso, cinza médio é o alerta, cinza escuro é o normal (recua, não distrai).
+   Por isso --ruim é o tom mais claro da escala e --bom o mais apagado — não é
+   inversão por engano, é a única pista que sobra sem hue.
+   O acento (laranja no claro) vira branco: continua marcando o item ativo e o
+   botão primário pelo contraste, sem introduzir cor. */
+body.mono {
+  --bg:#000000; --card:#111111; --campo:#1A1A1A;
+  --borda:#242424; --borda-forte:#3A3A3A;
+  --tinta:#FFFFFF; --tinta-2:#B4B4B4; --tinta-3:#7A7A7A;
+  --sombra:none; --linha-tabela:#1E1E1E; --hover:#191919;
+  /* escala de atenção por claridade, não por cor */
+  --bom:#7E7E7E; --ruim:#FFFFFF; --aviso:#C9C9C9; --info:#9E9E9E;
+  --bom-bg:#FFFFFF0F; --ruim-bg:#FFFFFF24; --aviso-bg:#FFFFFF1A; --info-bg:#FFFFFF14;
+  --laranja:#FFFFFF; --laranja-forte:#FFFFFF; --laranja-claro:#FFFFFF1F;
+  --roxo:#8A8A8A;
+  --menu-bg:#0A0A0A; --menu-borda:#242424; --menu-titulo:#FFFFFF; --menu-sub:#7A7A7A;
+  --menu-secao:#6E6E6E; --menu-item:#B4B4B4; --menu-item-tinta:#FFFFFF;
+  --menu-item-bg:#1F1F1F; --menu-sombra:10px 0 40px rgba(0,0,0,.6);
+  /* Quatro casas, quatro cinzas bem separados: a rosca e a legenda distinguem
+     por claridade. Menos de ~25% de diferença entre tons vizinhos e as fatias
+     viram a mesma casa aos olhos de quem olha de longe. */
+  --casa-sl:#F2F2F2; --casa-dc:#B0B0B0; --casa-dlu:#787878; --casa-dlcn:#454545;
+}
+/* No mono o item ativo do menu é branco sobre preto: sem o filete o realce
+   sozinho não se distingue do hover, que também é um cinza claro. */
+body.mono .sb-item.active { box-shadow:inset 3px 0 0 var(--tinta) }
+
+* { box-sizing:border-box }
+body { margin:0; background:var(--bg); color:var(--tinta-2);
+  font:13.5px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;
+  transition:background .25s, color .25s }
+button, input, select { font:inherit; color:inherit }
+h1,h2,h3 { color:var(--tinta); margin:0 }
+
+/* ============================ SIDEBAR ============================ */
+.app-layout { display:flex; min-height:100vh }
+/* Trilho: so os icones. Abre no hover e o conteudo atras escurece, para o
+   menu ganhar foco sem empurrar a pagina inteira para o lado. */
+/* O menu cresceu (Visão Geral e Movimentações) e passou a rolar em tela de
+   1366x768, que é o monitor das lojas. Rolagem em menu é ruim: o item de baixo
+   some justamente quando a barra está recolhida e ninguém lembra que ele existe.
+   Os espaços entre item e item foram apertados até tudo caber de uma vez —
+   o toque continua confortável porque a área clicável é a linha inteira. */
+.sidebar { width:var(--sidebar-rail); background:var(--menu-bg); border-right:1px solid var(--menu-borda); position:fixed; inset:0 auto 0 0;
+  display:flex; flex-direction:column; padding:18px 16px 14px; overflow:hidden auto; z-index:100;
+  transition:width .22s ease, box-shadow .22s ease }
+.sidebar:hover, .sidebar:focus-within {
+  width:var(--sidebar-w); box-shadow:var(--menu-sombra) }
+.main-content { margin-left:var(--sidebar-rail); flex:1; padding:26px 30px; min-width:0;
+  transition:opacity .22s ease, filter .22s ease }
+.sidebar:hover ~ .main-content, .sidebar:focus-within ~ .main-content {
+  opacity:.45; filter:brightness(.92) }
+
+/* os rotulos so aparecem com o menu aberto */
+.sb-txt, .sb-logo-txt, .sb-chev, #theme-name, .sb-arr, .sb-badge { white-space:nowrap }
+.sb-txt, .sb-logo-txt, .sb-chev, #theme-name, .sb-arr, .sb-badge, .tema-seg {
+  transition:opacity .16s ease .06s }
+.sidebar:not(:hover):not(:focus-within) .sb-txt,
+.sidebar:not(:hover):not(:focus-within) .sb-logo-txt,
+.sidebar:not(:hover):not(:focus-within) .sb-chev,
+.sidebar:not(:hover):not(:focus-within) #theme-name,
+.sidebar:not(:hover):not(:focus-within) .sb-arr,
+.sidebar:not(:hover):not(:focus-within) .sb-badge,
+.sidebar:not(:hover):not(:focus-within) .tema-seg {
+  opacity:0; pointer-events:none; transition-delay:0s }
+
+.sb-logo { display:flex; align-items:center; gap:11px; padding:0 0 16px }
+/* o mascote ja tem fundo transparente e cor propria: a plaquinha laranja
+   competiria com o salmao, entao ele assenta direto sobre a barra.
+   Sem recuo lateral a marca ocupa os 40px uteis do trilho e cai no mesmo
+   eixo dos icones do menu. O +1px corrige a otica: o braco levantado
+   alarga a caixa a direita sem peso, jogando a massa do desenho a esquerda. */
+.sb-logo .sb-marca { width:40px; height:42px; object-fit:contain; flex-shrink:0;
+  transform:translateX(1px) }
+.sb-logo-title { color:var(--menu-titulo); font-size:15px; font-weight:600; line-height:1.15 }
+.sb-logo-sub { color:var(--menu-sub); font-size:10.5px }
+
+.sb-nav { display:flex; flex-direction:column; gap:1px }
+/* Grupos do menu: fechado mostra so o titulo; o mouse em cima (ou o foco do
+   teclado) abre, e o clique fixa aberto ate outro clique ou o proximo login.
+   O item da tela aberta aparece mesmo com o grupo fechado. Recolhida a barra,
+   sobra o icone do grupo e o da tela aberta, logo abaixo dele. */
+.sb-grupo { display:flex; flex-direction:column; gap:1px }
+.sb-grupo-cab { display:flex; align-items:center; gap:11px; width:100%; padding:7px 12px;
+  background:none; border:none; border-radius:var(--raio-p); font:inherit; font-size:13px;
+  font-weight:600; color:var(--menu-item-tinta); cursor:pointer; text-align:left; transition:all .18s }
+.sb-grupo-cab .sb-ico { width:18px; display:flex; flex-shrink:0 }
+.sb-grupo-cab:hover { background:var(--menu-item-bg) }
+.sb-grupo-cab:focus-visible { outline:2px solid var(--menu-secao); outline-offset:-2px }
+.sb-chev { margin-left:auto; font-size:11px; color:var(--menu-secao); transition:transform .18s }
+.sb-grupo.fixo .sb-chev { transform:rotate(90deg) }
+.sb-grupo-itens { display:flex; flex-direction:column; gap:1px }
+.sb-grupo-itens .sb-item { padding-left:22px }
+/* So o clique abre e fecha o grupo (pedido de 19/11/2026: passar o mouse
+   abria sem querer). Pelo teclado, Enter no titulo faz o mesmo. */
+.sb-grupo:not(.fixo) .sb-item:not(.active) { display:none }
+.sb-badge-grupo { margin-left:auto }
+.sb-badge-grupo + .sb-chev { margin-left:6px }
+.sb-grupo.fixo .sb-badge-grupo { display:none }
+.sidebar:not(:hover):not(:focus-within) .sb-grupo-itens .sb-item { padding-left:12px }
+.sb-separa { height:1px; background:var(--menu-borda); margin:6px 4px }
+.sb-item { padding:7px 12px; font-size:13px; border-radius:var(--raio-p); display:flex;
+  align-items:center; gap:11px; color:var(--menu-item); text-decoration:none; transition:all .18s }
+.sb-item .sb-ico { width:18px; display:flex; flex-shrink:0 }
+.sb-item .sb-arr { margin-left:auto; font-size:11px; opacity:0; transition:opacity .18s }
+.sb-item:hover { color:var(--menu-item-tinta); background:var(--menu-item-bg) }
+.sb-item:hover .sb-arr { opacity:.5 }
+/* ativo: laranja no texto e no ícone, com um filete à esquerda — sem bloco cheio */
+.sb-item.active { color:var(--laranja); background:var(--menu-item-bg); font-weight:600; position:relative }
+.sb-item.active::before { content:""; position:absolute; left:-16px; top:6px; bottom:6px;
+  width:3px; border-radius:0 3px 3px 0; background:var(--laranja) }
+.sb-item.active .sb-arr { opacity:.9 }
+.sb-badge { margin-left:auto; background:var(--laranja); color:#fff; font-size:10.5px;
+  font-weight:700; border-radius:20px; min-width:19px; height:19px; display:flex;
+  align-items:center; justify-content:center; padding:0 5px }
+
+.sb-rodape { margin-top:auto; padding-top:12px; display:flex; flex-direction:column; gap:1px }
+.sb-rodape .sb-item { color:var(--menu-item) }
+
+/* Notebook de 13" com a barra de favoritos aberta chega a 620px de altura útil.
+   Aí o menu aperta mais um pouco em vez de voltar a rolar. */
+@media (max-height:700px) {
+  .sidebar { padding:12px 16px 10px }
+  .sb-logo { padding:0 0 10px }
+  .sb-logo .sb-marca { width:34px; height:36px }
+  .sb-item, .sb-tema { padding:5px 12px }
+  .sb-grupo-cab { padding:5px 12px }
+  .sb-rodape { padding-top:8px }
+}
+/* Recolhida, o proprio icone vira o botao do tema: o seletor some, mas a
+   lua/sol/contraste continua visivel e clicavel, e o clique cicla os temas. */
+.sb-tema { display:flex; align-items:center; gap:11px; padding:7px 12px; color:var(--menu-item);
+  font-size:13px; cursor:pointer; border-radius:var(--raio-p); transition:all .18s }
+.sb-tema:hover { color:var(--menu-item-tinta); background:var(--menu-item-bg) }
+.sb-tema .sb-ico { flex-shrink:0 }
+#theme-name { min-width:0; overflow:hidden; text-overflow:ellipsis }
+/* Aberta, o icone da esquerda sai: ele diria exatamente o que o botao aceso do
+   seletor ja diz, e os 29px que ele ocupa sao o que falta para "Modo escuro" e
+   os tres botoes caberem na mesma linha sem quebrar. */
+.sidebar:hover .sb-tema .sb-ico,
+.sidebar:focus-within .sb-tema .sb-ico { display:none }
+
+/* Seletor de tema: tres posicoes, uma por tema. Mesma linguagem do
+   .segmentado das telas, em tamanho de menu. O trilho e o realce usam um cinza
+   neutro com alfa em vez das variaveis --menu-*: no tema claro o menu e branco
+   e no escuro e navy, e qualquer par fixo dessas variaveis deixava o botao
+   aceso mais ESCURO que o trilho em um dos dois. */
+.sidebar:not(:hover):not(:focus-within) .tema-seg { position:absolute }
+.tema-seg { display:flex; gap:2px; margin-left:auto; padding:3px; flex-shrink:0;
+  background:rgba(127,127,127,.14); border-radius:9px }
+.tema-seg button { display:inline-flex; align-items:center; justify-content:center;
+  width:25px; height:23px; padding:0; border:none; background:none; cursor:pointer;
+  color:var(--menu-item); border-radius:7px; transition:background .16s, color .16s }
+.tema-seg button svg { width:15px; height:15px }
+.tema-seg button:hover { color:var(--menu-item-tinta) }
+.tema-seg button.ativo { background:rgba(127,127,127,.30); color:var(--laranja) }
+
+/* ============================ CABEÇALHO ============================ */
+.screen-header { display:flex; align-items:center; gap:20px; margin-bottom:22px; flex-wrap:wrap }
+.screen-header h1 { font-size:23px; font-weight:600; letter-spacing:-.2px }
+.screen-header p { color:var(--tinta-3); font-size:12.5px; margin:3px 0 0 }
+.header-acoes { margin-left:auto; display:flex; align-items:center; gap:11px }
+
+.sino { position:relative }
+.sino-btn { display:flex; align-items:center; gap:9px; background:var(--card);
+  border:1px solid var(--borda); border-radius:var(--raio-p); padding:9px 14px;
+  cursor:pointer; color:var(--tinta); font-size:12.5px; box-shadow:var(--sombra) }
+.sino-btn:hover { border-color:var(--borda-forte) }
+.sino-btn.tem-alerta { color:var(--ruim) }
+.sino-n { background:var(--ruim); color:#fff; border-radius:20px; padding:1px 8px;
+  font-size:11px; font-weight:700; font-variant-numeric:tabular-nums }
+.sino-lista { position:absolute; right:0; top:calc(100% + 10px); width:400px; max-height:62vh;
+  overflow:auto; background:var(--card); border:1px solid var(--borda);
+  border-radius:var(--raio); box-shadow:0 16px 42px rgba(26,27,46,.16); z-index:60; padding:7px }
+.sino-lista h3 { font-size:10.5px; text-transform:uppercase; letter-spacing:.9px;
+  color:var(--tinta-3); padding:11px 13px 7px }
+.alerta-item { display:flex; align-items:center; gap:11px; padding:10px 13px;
+  border-radius:var(--raio-p); cursor:pointer; border:none; background:none; width:100%; text-align:left }
+.alerta-item:hover { background:var(--laranja-claro) }
+.alerta-item .ai-nome { color:var(--tinta); font-size:12.5px; flex:1; min-width:0 }
+.alerta-item .ai-casa { font-size:10.5px; color:var(--tinta-3); display:block }
+.alerta-item .ai-val { font-size:12.5px; font-weight:600; font-variant-numeric:tabular-nums }
+
+/* ============================ CARTÕES ============================ */
+.cartao { background:var(--card); border:1px solid var(--borda); border-radius:var(--raio);
+  padding:20px 22px; margin-bottom:18px; box-shadow:var(--sombra) }
+.cabeca { display:flex; justify-content:space-between; align-items:center; gap:16px;
+  flex-wrap:wrap; margin-bottom:16px }
+.cabeca h2 { font-size:16px; font-weight:600 }
+
+/* linha de indicadores, no formato do modelo: número grande, rótulo, ícone em círculo */
+.placar { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio);
+  box-shadow:var(--sombra); margin-bottom:18px; overflow:hidden }
+.ficha { display:flex; flex-direction:column; gap:3px; align-items:stretch; text-align:left;
+  background:none; border:none; border-right:1px solid var(--borda);
+  padding:20px 22px; cursor:pointer; transition:background .18s }
+.ficha:last-child { border-right:none }
+.ficha:hover { background:var(--hover) }
+.ficha.ativa { background:var(--laranja-claro) }
+body.dark .ficha.ativa { background:#F5860F14 }
+.ficha-topo { display:flex; align-items:flex-start; justify-content:space-between; gap:12px }
+/* numero e rotulo empilhados: sao dois spans, entao precisam de display:block
+   para nao sentarem lado a lado como "6Critico" */
+.ficha-vals { display:flex; flex-direction:column; gap:2px; min-width:0 }
+.ficha-n { display:block; font-size:27px; font-weight:700; color:var(--tinta);
+  letter-spacing:-.6px; font-variant-numeric:tabular-nums; line-height:1.05 }
+.ficha-r { display:block; font-size:12.5px; color:var(--tinta-2); line-height:1.3 }
+.ficha-ico { width:34px; height:34px; border-radius:50%; display:flex; align-items:center;
+  justify-content:center; flex-shrink:0 }
+.ficha.ruim .ficha-ico { background:var(--ruim-bg); color:var(--ruim) }
+.ficha.aviso .ficha-ico { background:var(--aviso-bg); color:var(--aviso) }
+.ficha.info .ficha-ico { background:var(--info-bg); color:var(--info) }
+.ficha.bom .ficha-ico { background:var(--bom-bg); color:var(--bom) }
+.ficha.neutro .ficha-ico { background:var(--campo); color:var(--tinta-3) }
+.ficha-pe { font-size:11.5px; color:var(--tinta-3); margin-top:10px }
+/* linha do meio da ficha: quanto do movimento já tem preço cadastrado */
+.ficha-meio { display:block; font-size:12px; color:var(--tinta-2); margin-top:6px;
+  font-variant-numeric:tabular-nums }
+
+/* ---------- extrato de movimentações, com cadastro de preço na linha ---------- */
+.tabela-extrato input.preco { width:100%; max-width:120px; text-align:right;
+  font-variant-numeric:tabular-nums }
+.tabela-extrato td.total,
+.tabela-extrato td.unitario { font-variant-numeric:tabular-nums; white-space:nowrap }
+/* Sem preço não é erro — é trabalho pendente. Fundo de aviso bem fraco: a lista
+   inteira começa assim, e vermelho em tudo faria a tela parecer quebrada. */
+.tabela-extrato tr.sem-preco input.preco { border-style:dashed }
+.tabela-extrato tr.sem-preco td.unitario { color:var(--tinta-3) }
+/* desperdício: a coluna de preço existe na tabela, mas não para esta linha */
+.tabela-extrato td.nao-precifica { color:var(--tinta-3) }
+
+/* ============================ CONTROLES ============================ */
+.barra { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:18px }
+.campo { display:flex; flex-direction:column; gap:5px }
+.campo > span { font-size:11.5px; color:var(--tinta-3) }
+.campo input, .campo select, .fat input, .det-controles select {
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 12px; color:var(--tinta) }
+.campo input:focus, .campo select:focus { outline:2px solid var(--laranja); outline-offset:-1px }
+
+/* Filtro de várias escolhas — o Insumo, em Movimentações. Tem a cara de um
+   select da barra e abre uma lista com caixas de marcação, agrupada como o
+   lançamento agrupa: escolher camarão G, M e P de uma vez era três consultas
+   e uma soma de cabeça. Sem variável de cor nova: o painel usa os mesmos
+   tokens do cartão, então o mono continua em preto, cinza e branco. */
+.multi { position:relative }
+.multi-botao { display:flex; align-items:center; gap:10px; min-width:200px;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 12px; color:var(--tinta); font:inherit; text-align:left; cursor:pointer }
+.multi-botao:hover { border-color:var(--borda-forte) }
+.multi-botao[aria-expanded="true"] { outline:2px solid var(--laranja); outline-offset:-1px }
+.multi-rotulo { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.multi-seta { color:var(--tinta-3); font-size:11px }
+.multi-lista { position:absolute; z-index:40; top:calc(100% + 6px); left:0;
+  min-width:280px; max-height:340px; overflow-y:auto; padding:6px;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  box-shadow:0 14px 36px rgba(26,27,46,.18) }
+body.dark .multi-lista, body.mono .multi-lista { box-shadow:0 14px 36px rgba(0,0,0,.5) }
+.multi-lista[hidden] { display:none }
+.multi-topo { display:flex; align-items:center; gap:8px; padding:4px 6px 8px;
+  border-bottom:1px solid var(--linha-tabela); margin-bottom:2px }
+.multi-conta { flex:1; font-size:11px; color:var(--tinta-3) }
+.multi-acao { background:none; border:none; padding:2px 5px; border-radius:6px;
+  color:var(--laranja); font:inherit; font-size:11.5px; cursor:pointer }
+.multi-acao:hover { background:var(--hover) }
+.multi-acao:disabled { color:var(--tinta-3); cursor:default; background:none }
+.multi-grupo { padding:8px 6px 3px; font-size:10.5px; color:var(--tinta-3);
+  text-transform:uppercase; letter-spacing:.04em }
+.multi-item { display:flex; align-items:center; gap:9px; padding:6px;
+  border-radius:6px; font-size:12.5px; color:var(--tinta); cursor:pointer }
+.multi-item:hover { background:var(--hover) }
+/* .campo input veste os campos da barra de filtros; a caixa de marcação está
+   dentro de um .campo e herdava aquele padding e fundo, virando um retângulo
+   cinza sem marca visível. */
+.multi-item input { flex:none; width:15px; height:15px; padding:0; background:none;
+  border:none; accent-color:var(--laranja); cursor:pointer }
+body.dark .multi-item input, body.mono .multi-item input { color-scheme:dark }
+.multi-item .un { color:var(--tinta-3); font-size:10.5px }
+.botao { background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 16px; cursor:pointer; color:var(--tinta); box-shadow:var(--sombra) }
+.botao:hover { border-color:var(--borda-forte); background:var(--hover) }
+.botao.primario { background:var(--laranja); border-color:var(--laranja); color:#fff;
+  font-weight:600; box-shadow:0 4px 14px #F5860F44 }
+.botao.primario:hover { background:var(--laranja-forte) }
+.botao:disabled { opacity:.5; cursor:default }
+
+/* Botão com setinha: a ação principal fica a um clique e a setinha ao lado abre
+   as opções dela (em Lançamento, o período a reimportar da planilha). Dois
+   botões separados seriam duas perguntas na cabeça da tela; um só esconderia a
+   ação de todo dia atrás de um painel. */
+.botao-duplo { position:relative; display:flex }
+.botao-duplo > .botao:first-child { border-radius:var(--raio-p) 0 0 var(--raio-p) }
+.botao-duplo > .botao-caret { border-radius:0 var(--raio-p) var(--raio-p) 0;
+  border-left:none; padding:9px 11px; font-size:13px; color:var(--tinta-3) }
+.botao-duplo > .botao-caret[aria-expanded="true"] { background:var(--hover); color:var(--tinta) }
+.painel-periodo { position:absolute; z-index:40; top:calc(100% + 6px); right:0; width:306px;
+  padding:14px; text-align:left; display:flex; flex-direction:column; gap:12px;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  box-shadow:0 14px 36px rgba(26,27,46,.18) }
+body.dark .painel-periodo, body.mono .painel-periodo { box-shadow:0 14px 36px rgba(0,0,0,.5) }
+.painel-periodo[hidden] { display:none }
+.painel-periodo .fonte { margin:0; line-height:1.5 }
+.pp-datas { display:flex; gap:10px }
+.pp-datas .campo { flex:1 }
+.pp-datas input { width:100% }
+.pp-atalhos { display:flex; gap:6px; flex-wrap:wrap }
+.segmentado { display:flex; background:var(--campo); border:1px solid var(--borda);
+  border-radius:var(--raio-p); padding:3px; gap:2px }
+.segmentado button { border:none; background:none; color:var(--tinta-2); cursor:pointer;
+  padding:7px 15px; border-radius:8px; font-size:12.5px }
+.segmentado button:hover { color:var(--tinta) }
+.segmentado button.ativo { background:var(--card); color:var(--laranja); font-weight:600;
+  box-shadow:var(--sombra) }
+.fonte { font-size:11.5px; color:var(--tinta-3) }
+.vazio { color:var(--tinta-3); padding:28px; text-align:center }
+.estado { font-size:12px; color:var(--tinta-3); min-width:100px; text-align:right }
+.estado.ok { color:var(--bom) } .estado.erro { color:var(--ruim) }
+.abas { display:flex; gap:7px; margin-left:auto }
+.abas button { background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 17px; cursor:pointer; color:var(--tinta-2) }
+.abas button.ativa { background:var(--laranja); border-color:var(--laranja); color:#fff; font-weight:600 }
+.navdata { display:flex; gap:7px }
+.fat { display:flex; align-items:center; gap:9px }
+.fat span { font-size:11.5px; color:var(--tinta-3) }
+/* Centralizado e com digito de largura fixa, igual as caixas da tabela: as
+   tres caixas de digitacao da tela seguem a mesma regua. O faturamento e
+   dinheiro e fica com duas casas, nao com tres. */
+.fat input { width:140px; text-align:center; font-variant-numeric:tabular-nums }
+/* Pedidos - descontos = faturamento: tres caixas lado a lado, rotulo em cima.
+   Quebra de linha em tela estreita em vez de empurrar a pagina para o lado. */
+.fat { flex-wrap:wrap; justify-content:flex-end; align-items:flex-end }
+.fat label { display:flex; flex-direction:column; gap:4px }
+.fat .op { font-size:16px; color:var(--tinta-3); padding-bottom:8px }
+/* Faturamento calculado: e resultado, nao digitacao — fica em negrito e sem
+   cara de caixa editavel. So tokens existentes, que o body.mono ja redefine. */
+.fat input.calculado { font-weight:600; background:var(--campo); cursor:default }
+.fat input[data-motivo] { border-color:var(--ruim); color:var(--ruim) }
+.tela-lancamento .campo input[type="date"] { text-align:center }
+.filtros { display:flex; gap:15px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px }
+.filtros .fonte { margin-left:auto }
+
+/* ============================ TABELAS ============================ */
+.rolagem { overflow-x:auto; margin:0 -6px; padding:0 6px }
+table { width:100%; border-collapse:collapse; min-width:900px }
+th, td { padding:11px 10px; text-align:right; border-bottom:1px solid var(--linha-tabela); white-space:nowrap }
+th { font-size:10.5px; font-weight:600; color:var(--tinta-3); text-transform:uppercase;
+  letter-spacing:.6px; background:var(--card); position:sticky; top:0; z-index:2 }
+th:first-child, td:first-child { text-align:left }
+tbody tr:hover { background:var(--hover) }
+td { color:var(--tinta) }
+.calc { font-variant-numeric:tabular-nums }
+.calc.neg { color:var(--ruim); font-weight:600 }
+.un { color:var(--tinta-3); font-size:11px }
+.grupo td { background:var(--campo); font-weight:600; font-size:11px; color:var(--tinta-3);
+  text-transform:uppercase; letter-spacing:.6px }
+td input { width:94px; text-align:right; background:var(--campo); border:1px solid var(--borda);
+  border-radius:8px; padding:7px 9px; color:var(--tinta) }
+td input:focus { outline:2px solid var(--laranja); outline-offset:-1px; background:var(--card) }
+/* Contagem final suspeita (uso muito acima da média): a célula acende para ser
+   conferida antes de salvar — possível final zerado ou dígito trocado. */
+input.suspeito { border-color:var(--ruim) !important; background:var(--ruim-bg) !important;
+  color:var(--ruim); font-weight:600 }
+/* Célula com erro identificado: o motivo fica no pop-up (js/app.js,
+   ligarPopupMotivo), aberto ao passar o mouse. */
+[data-motivo] { cursor:help }
+.pop-motivo { position:fixed; z-index:1000; max-width:280px; padding:7px 10px;
+  background:var(--card); color:var(--tinta); border:1px solid var(--ruim);
+  border-radius:6px; font-size:12px; line-height:1.4; pointer-events:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.18) }
+.pop-motivo[hidden] { display:none }
+/* Inicial contado diferente do final de ontem: não é erro, é ajuste a conferir.
+   Só borda e peso, com variáveis que já têm valor nos três temas. */
+input.diverge { border-color:var(--laranja) !important; font-weight:600 }
+/* Valor de perda nao e valor de compra: fica em tom apagado para ninguem
+   somar as duas colunas de olho. --tinta-2 tem valor nos tres temas. */
+.tabela-extrato td.total.perda { color:var(--tinta-2) }
+.selo { display:inline-block; padding:4px 12px; border-radius:20px; font-size:11.5px;
+  font-weight:600; white-space:nowrap }
+.selo.ruim { background:var(--ruim-bg); color:var(--ruim) }
+.selo.aviso { background:var(--aviso-bg); color:var(--aviso) }
+.selo.info { background:var(--info-bg); color:var(--info) }
+.selo.bom { background:var(--bom-bg); color:var(--bom) }
+.selo.neutro { background:var(--campo); color:var(--tinta-3) }
+.selo.laranja { background:var(--laranja-claro); color:var(--laranja-forte) }
+body.dark .selo.laranja { background:#F5860F1F; color:var(--laranja) }
+
+/* ============================ MAPA / BARRAS / GRÁFICOS ============================ */
+.mapa { display:grid; grid-template-columns:176px repeat(4,1fr); gap:1px;
+  background:var(--borda); border:1px solid var(--borda); border-radius:var(--raio); overflow:hidden }
+.mapa > div { background:var(--card); padding:9px 11px }
+.mapa .mh { font-size:10.5px; text-transform:uppercase; letter-spacing:.6px;
+  color:var(--tinta-3); font-weight:600; text-align:center }
+.mapa .mi { font-size:12.5px; color:var(--tinta); display:flex; align-items:center }
+.cel { cursor:pointer; position:relative }
+.cel:hover { background:var(--hover) }
+.cel svg { display:block; width:100%; height:32px }
+.cel .cv { position:absolute; top:7px; right:10px; font-size:11px; font-weight:700;
+  font-variant-numeric:tabular-nums }
+.cel.ruim { box-shadow:inset 3px 0 0 var(--ruim) }
+.cel.aviso { box-shadow:inset 3px 0 0 var(--aviso) }
+.cel.info { box-shadow:inset 3px 0 0 var(--info) }
+.cel.bom { box-shadow:inset 3px 0 0 var(--bom) }
+.cel.neutro { box-shadow:inset 3px 0 0 var(--borda-forte) }
+
+.barras { display:flex; flex-direction:column; gap:10px }
+.barra-l { display:grid; grid-template-columns:220px 1fr 128px; gap:14px; align-items:center;
+  cursor:pointer; padding:6px 0 }
+.barra-l:hover .bl-nome { color:var(--laranja) }
+.bl-nome { font-size:12.5px; color:var(--tinta) }
+.bl-nome small { display:block; color:var(--tinta-3); font-size:10.5px }
+.bl-trilho { background:var(--campo); border-radius:7px; height:24px }
+.bl-preenche { height:100%; border-radius:7px; background:var(--ruim) }
+.bl-preenche.economia { background:var(--bom) }
+.bl-val { text-align:right; font-size:13.5px; font-weight:700; font-variant-numeric:tabular-nums }
+.total-linha { display:flex; justify-content:space-between; align-items:baseline;
+  border-top:1px solid var(--borda); margin-top:16px; padding-top:14px }
+.total-linha .tv { font-size:22px; font-weight:700; color:var(--tinta) }
+.sem-custo { background:var(--campo); border-radius:var(--raio-p); padding:14px 16px;
+  font-size:12.5px; color:var(--tinta-2); margin-bottom:16px }
+.sem-custo code { background:var(--card); padding:1px 6px; border-radius:5px; font-size:12px }
+
+.graficos { display:grid; gap:22px }
+.grafico-bloco h3 { font-size:13.5px; font-weight:600; margin:0 0 3px }
+.grafico-bloco .fonte { display:block; margin-bottom:10px }
+
+/* Leitura do período apontado. Altura fixa e conteúdo trocado por texto: sem
+   isso a linha aparecia e desaparecia conforme o mouse, e a curva pulava
+   alguns pixels para cima e para baixo a cada movimento. */
+.g-leitura { min-height:18px; margin:2px 0 6px; font-size:12px; font-weight:600;
+  color:var(--tinta); font-variant-numeric:tabular-nums }
+.grafico .g-alvo { cursor:crosshair }
+.grafico { width:100%; height:auto }
+.eixo { font-size:10.5px; fill:var(--tinta-3) }
+.legenda { display:flex; gap:20px; flex-wrap:wrap; margin-top:10px; font-size:11.5px; color:var(--tinta-2) }
+.legenda i { display:inline-block; width:20px; height:0; vertical-align:middle;
+  border-top:2px solid currentColor; margin-right:7px }
+.legenda i.tracejada { border-top-style:dashed }
+.legenda .lg-meta { color:var(--laranja) }
+.legenda .lg-serie { color:var(--info) }
+.det-controles { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:3px }
+.det-controles h3 { margin-right:auto }
+
+.aviso-flut { position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:12px 20px; box-shadow:0 10px 30px rgba(26,27,46,.18); z-index:200; color:var(--tinta) }
+.aviso-flut.bom { border-color:var(--bom); color:var(--bom) }
+.aviso-flut.mau { border-color:var(--ruim); color:var(--ruim) }
+
+/* Projeção de Compras: a conversão fica visível sob o pedido, para ninguém
+   precisar adivinhar de onde veio o número em quilos. */
+.msg-conv { display:block; font-size:10.5px; color:var(--tinta-3); margin-top:1px }
+.ped strong { font-size:14px }
+
+/* A lista suspensa do <select> é desenhada pelo sistema e herda só a cor do
+   texto: no tema escuro isso dava branco sobre branco. Pintar as <option>
+   explicitamente resolve nos dois temas. */
+select option, select optgroup {
+  background:var(--card); color:var(--tinta);
+}
+body.dark select option:checked, body.dark select option:hover {
+  background:var(--laranja); color:#fff;
+}
+/* Controle NATIVO segue o tema, senao o navegador desenha o miudo dele no
+   esquema claro: o icone de calendario do input[type=date] e as setinhas do
+   input[type=number] saem escuros e desaparecem sobre o campo escuro. Foi o
+   que sumiu com o botao de calendario da Data do pedido, na Projecao.
+   O mono tambem e tema ESCURO (--bg:#000000): antes so o body.dark estava
+   coberto, e no mono nem a lista do select abria com cor certa. */
+select, input[type="date"], input[type="number"] { color-scheme:light }
+/* Campo de data (navegacao.js): texto por cima do campo do Chrome, que fica
+   invisivel por baixo so para o calendario abrir no lugar certo. O texto herda
+   as classes do original, entao larguras e bordas das telas continuam valendo. */
+.data-br { position:relative; display:inline-flex; align-items:center; max-width:100%; vertical-align:middle }
+.campo > .data-br, .acao-grade .campo .data-br, .campo-largo .data-br { display:flex; width:100% }
+.data-br > input[type="date"] { position:absolute; left:0; bottom:0; width:100%; height:100%;
+  opacity:0; pointer-events:none; padding:0; border:0 }
+.data-br > .data-br-txt { padding-right:30px; min-width:118px; font-variant-numeric:tabular-nums; cursor:text }
+.data-br-cal { position:absolute; right:6px; top:50%; transform:translateY(-50%); display:flex;
+  align-items:center; justify-content:center; width:22px; height:22px; padding:0; border:0;
+  border-radius:5px; background:none; color:var(--tinta-3); cursor:pointer }
+.data-br-cal:hover:not(:disabled) { color:var(--tinta); background:var(--hover) }
+.data-br-cal:disabled { opacity:.4; cursor:default }
+.data-br-txt.data-br-erro { outline:2px solid var(--ruim) !important; outline-offset:-1px }
+.tela-lancamento .campo .data-br-txt { text-align:center }
+body.dark :is(select, input[type="date"], input[type="number"]),
+body.mono :is(select, input[type="date"], input[type="number"]) { color-scheme:dark }
+
+/* ============================ ORDENS DE COMPRA ============================ */
+/* O cartão é a ordem inteira: cabeça sempre visível, corpo só quando aberta.
+   Uma ordem por vez fica aberta — editar duas ao mesmo tempo convida a salvar
+   a errada. */
+.ordem { padding:0; overflow:hidden }
+.ordem-cabeca { padding:16px 20px; cursor:pointer; margin:0;
+  transition:background .16s }
+.ordem-cabeca:hover { background:var(--hover) }
+.ordem-tit { min-width:0; display:flex; flex-direction:column; gap:2px }
+.ordem-tit .fonte { white-space:normal }
+.ordem-total { margin-left:auto; text-align:right; align-items:flex-end }
+.ordem-total .ficha-n { font-size:19px }
+.ordem-chev { color:var(--tinta-3); font-size:13px; width:14px; text-align:center }
+.ordem-corpo { padding:4px 20px 20px; border-top:1px solid var(--borda) }
+.barra-interna { margin:16px 0 4px }
+.campo-largo { flex:1; min-width:240px }
+.campo-largo input { width:100% }
+
+.nota-aviso { background:var(--aviso-bg); color:var(--aviso); border-radius:var(--raio-p);
+  padding:11px 14px; font-size:12.5px; margin:4px 0 14px }
+.tabela-itens { min-width:720px }
+.tabela-itens td input { text-align:right }
+.tabela-itens td input[data-c="nome"], .tabela-itens td input[data-c="un"] { text-align:left }
+.tabela-itens tfoot td { border-bottom:none; padding-top:14px }
+.selo-mini { font-size:10px; color:var(--tinta-3); background:var(--campo);
+  border-radius:20px; padding:2px 8px; margin-left:6px; vertical-align:middle }
+/* rendimento ainda estimado: o pedido saiu de uma média, não de uma medição */
+.selo-mini.aviso { color:var(--aviso); background:var(--aviso-bg) }
+.botao-mini { background:none; border:none; color:var(--tinta-3); cursor:pointer;
+  font-size:13px; padding:4px 7px; border-radius:6px; transition:all .16s }
+.botao-mini:hover { color:var(--ruim); background:var(--ruim-bg) }
+
+.add-item { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;
+  margin:16px 0 0; padding:14px; background:var(--campo); border-radius:var(--raio-p) }
+.ordem-acoes { display:flex; align-items:center; gap:11px; margin-top:18px; flex-wrap:wrap }
+/* Importar das lojas (js/contagem-importar.js): uma divergência por linha,
+   erro (o CDE recusa) em --ruim e alerta em --aviso — no mono viram claridade. */
+.imp-tabela td, .imp-tabela th { text-align:left }
+.imp-tabela th:first-child, .imp-tabela td:first-child { width:40px; min-width:0 }
+.imp-tabela th:nth-child(3), .imp-tabela td:nth-child(3),
+.imp-tabela th:nth-child(4), .imp-tabela td:nth-child(4) { width:140px }
+.imp-tabela th.col-texto, .imp-tabela td.col-texto { width:auto; min-width:260px }
+.imp-tabela { min-width:880px }
+.imp-div span { display:block; font-size:12px; line-height:1.45 }
+.imp-erro { color:var(--ruim); font-weight:600 }
+.imp-alerta { color:var(--aviso) }
+.ordem-acoes .excluir { color:var(--ruim); border-color:transparent }
+.ordem-acoes .excluir:hover { border-color:var(--ruim); background:var(--ruim-bg) }
+
+/* ============================ CONVERSÃO DE SALMÃO ============================ */
+/* indicador que só informa: sem cursor de clique, ao contrário das fichas do painel */
+.ficha.estatica { cursor:default }
+.ficha.estatica:hover { background:none }
+.cv-toggle { cursor:pointer }
+.cv-toggle:hover { background:var(--hover) }
+.cv-estagio { font-size:11.5px; font-weight:600; color:var(--tinta-2);
+  text-transform:uppercase; letter-spacing:.6px; margin:18px 0 10px }
+.grade-fatores { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px }
+.grade-fatores input { width:100%; text-align:right; font-variant-numeric:tabular-nums }
+
+/* ============================ MANUAL ============================ */
+/* Índice fixo à esquerda do texto: manual longo sem índice vira rolagem cega. */
+.manual-layout { display:grid; grid-template-columns:196px 1fr; gap:24px; align-items:start }
+.manual-indice { position:sticky; top:26px; display:flex; flex-direction:column; gap:1px }
+.manual-indice a { color:var(--tinta-2); text-decoration:none; font-size:12.5px;
+  padding:7px 11px; border-radius:var(--raio-p); transition:all .16s }
+.manual-indice a:hover { color:var(--tinta); background:var(--card) }
+.manual { display:flex; flex-direction:column; gap:16px; max-width:820px }
+.manual .cartao { padding:24px 26px; scroll-margin-top:20px }
+.manual h2 { font-size:18px; margin-bottom:12px }
+.manual h3 { font-size:13.5px; color:var(--tinta); margin:20px 0 7px }
+.manual p { margin:0 0 11px; font-size:13.5px; line-height:1.62 }
+.manual ol, .manual ul { margin:0 0 11px; padding-left:22px; font-size:13.5px; line-height:1.7 }
+.manual li { margin-bottom:4px }
+.manual strong { color:var(--tinta); font-weight:600 }
+.manual em { color:var(--tinta-2) }
+
+/* a fórmula é o que o leitor volta para conferir: destaque próprio, não itálico */
+.formula { background:var(--campo); border-left:3px solid var(--laranja);
+  border-radius:0 var(--raio-p) var(--raio-p) 0; padding:11px 15px !important;
+  font-variant-numeric:tabular-nums; color:var(--tinta) !important; font-size:13px !important }
+.cod { background:var(--campo); border:1px solid var(--borda); border-radius:5px;
+  padding:1px 6px; font-family:Consolas,"Courier New",monospace; font-size:12px; color:var(--tinta) }
+.nota-info { background:var(--info-bg); color:var(--info); border-radius:var(--raio-p);
+  padding:11px 14px !important; font-size:12.5px !important }
+/* tabelas do manual são curtas: não faz sentido herdar o min-width de 900px */
+.tabela-curta { min-width:0 }
+.tabela-curta td { white-space:normal }
+
+@media (max-width:900px) {
+  .manual-layout { grid-template-columns:1fr }
+  .manual-indice { position:static; flex-direction:row; flex-wrap:wrap }
+}
+
+/* ======================= ORIGEM DO VALOR (SINCRONIZAÇÃO) ======================= */
+/* Vindo da planilha: o campo agora ACEITA correção, então o traço não pode mais
+   dizer "não mexa". Diz "este número não foi digitado aqui": borda tracejada e
+   tinta um tom abaixo, com o selo "planilha" explicando a origem.
+   Corrigido por cima: volta ao traço normal e ganha o selo "editado" — a linha
+   deixou de ser espelho da planilha e a sincronização não a sobrescreve mais. */
+tr.da-planilha td input { border-style:dashed; color:var(--tinta-2) }
+tr.da-planilha td input:focus { border-style:solid; color:var(--tinta) }
+tr.da-planilha td:first-child { color:var(--tinta-2) }
+tr.editada td input { border-style:solid; color:var(--tinta) }
+tr.editada td:first-child { color:var(--tinta) }
+.selo-mini.editado { color:var(--info); background:var(--info-bg) }
+
+/* ============================ DADOS DA OC ============================ */
+/* Recolhido por padrão: no dia a dia os padrões (Boleto, 1x, CIF, prazos do
+   cadastro) já resolvem, e o que interessa na tela são os itens. */
+.bloco-oc { margin-top:16px; border:1px solid var(--borda); border-radius:var(--raio-p);
+  background:var(--campo) }
+.bloco-oc > summary { padding:12px 15px; cursor:pointer; font-size:12.5px;
+  font-weight:600; color:var(--tinta); list-style:none; display:flex;
+  align-items:center; gap:9px }
+.bloco-oc > summary::before { content:"▸"; color:var(--tinta-3); font-size:11px }
+.bloco-oc[open] > summary::before { content:"▾" }
+.bloco-oc > summary::-webkit-details-marker { display:none }
+.grade-oc { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:13px; padding:4px 15px 16px }
+.grade-oc input, .grade-oc select { width:100% }
+
+/* ============================ GRÁFICOS ============================ */
+/* Cor da série num token só: o gráfico grande usa em quatro lugares
+   (linha, área, faixa do dia, ponto) e precisam andar juntos. */
+body, body.light { --linha-graf:#3B82F6 }
+body.dark { --linha-graf:#6E9BFF }
+/* no mono a curva do Painel de Consumo e branca, como o resto do acento */
+body.mono { --linha-graf:#E8E8E8 }
+/* O mono e preto, cinza e branco: a marca entra sem cor, pela mesma arte. */
+body.mono .sb-marca { filter:grayscale(1) }
+.eixo.meta-rot { fill:var(--laranja); font-weight:600 }
+/* o dia em destaque ganha peso, não outra cor: cor demais na base do eixo
+   compete com a própria curva */
+.eixo.eixo-forte { fill:var(--tinta); font-weight:700 }
+
+/* ============================ RESUMO POR FORNECEDOR ============================ */
+/* A compra acontece por fornecedor — uma ligação, uma entrega. O resumo
+   passa a ter essa forma em vez de uma lista corrida. */
+.grupo-forn { border:1px solid var(--borda); border-radius:var(--raio-p);
+  margin-bottom:14px; overflow:hidden }
+.grupo-forn:last-child { margin-bottom:0 }
+.grupo-forn-cab { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:12px 15px; background:var(--campo); border-bottom:1px solid var(--borda) }
+.grupo-forn-cab h3 { font-size:13.5px; font-weight:600 }
+.grupo-forn table { margin:0 }
+.grupo-forn td, .grupo-forn th { padding:9px 15px }
+
+.qtd-resumo { width:104px; text-align:right; background:var(--campo);
+  border:1px solid var(--borda); border-radius:8px; padding:6px 9px;
+  font-variant-numeric:tabular-nums }
+.qtd-resumo:focus { outline:2px solid var(--laranja); outline-offset:-1px; background:var(--card) }
+/* quantidade alterada à mão fica marcada: sem isso, o número editado some no
+   meio dos calculados e ninguém lembra que foi mexido */
+.qtd-resumo.ajustada { border-color:var(--aviso); background:var(--aviso-bg);
+  color:var(--aviso); font-weight:600 }
+.ajuste-cel { white-space:nowrap }
+.ajuste-cel .qtd-resumo { width:84px }
+.ped .riscado { text-decoration:line-through; color:var(--tinta-3); font-weight:400 }
+
+/* ==================================================================
+   MÓDULO DE ORDENS DE COMPRA — telas trazidas do Gerador de OCs
+   (nova ordem pelo catálogo, cadastros e importação de planilha/PDF).
+   Reaproveitam .cartao, .barra, .campo, .botao e .tabela-itens; aqui
+   ficam só as peças que não existiam no CDE.
+   ================================================================== */
+
+/* abas dos cadastros: mesma pílula das abas de casa, mas encostada à
+   esquerda — aqui elas são a navegação da tela, não um filtro */
+.abas-cad { margin-left:0 }
+
+/* combo com datalist: 59 fornecedores num select nativo obrigam a rolar */
+.combo { background:var(--campo); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:8px 11px; width:100%; min-width:240px }
+.combo:focus { outline:2px solid var(--laranja); outline-offset:-1px }
+
+/* tabela de catálogo/cadastro: célula é campo editável, sem moldura até o foco,
+   para a tabela continuar legível como tabela */
+.tabela-cad { min-width:880px }
+.tabela-cad input { background:transparent; border:1px solid transparent; border-radius:7px;
+  padding:6px 8px; width:100%; min-width:70px }
+.tabela-cad input:hover { border-color:var(--borda) }
+.tabela-cad input:focus { background:var(--campo); border-color:var(--laranja); outline:none }
+.tabela-cad td { vertical-align:middle }
+.acoes-cel { display:flex; gap:2px; justify-content:flex-end }
+.linha-detalhe > td { background:var(--hover); padding:16px 12px 18px }
+
+/* campo com dado que trava a emissão da OC (CNPJ inválido, preço zerado) */
+.campo-ruim, .tabela-cad input.campo-ruim { border-color:var(--ruim) !important;
+  background:var(--ruim-bg) !important; color:var(--ruim) }
+
+/* catálogo da nova ordem: a coluna do nome respira, os números ficam à direita */
+.tabela-catalogo, .tabela-extras { min-width:760px }
+.tabela-catalogo .nome-prod { color:var(--tinta) }
+.tabela-catalogo input[type="checkbox"] { width:16px; height:16px; accent-color:var(--laranja);
+  cursor:pointer }
+.tabela-catalogo tbody tr:hover { background:var(--hover) }
+
+/* zona de envio de arquivo */
+.zona-envio { position:relative; border:2px dashed var(--borda-forte); border-radius:var(--raio);
+  padding:34px 20px; text-align:center; color:var(--tinta-2); cursor:pointer;
+  transition:border-color .18s, background .18s }
+.zona-envio:hover, .zona-envio.sobre { border-color:var(--laranja); background:var(--laranja-claro) }
+body.dark .zona-envio:hover, body.dark .zona-envio.sobre { background:var(--card) }
+.zona-envio input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer }
+.zona-ico { color:var(--laranja); margin-bottom:8px }
+.zona-txt { font-size:13px }
+.arquivo-escolhido { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  margin-top:14px; padding-top:14px; border-top:1px solid var(--borda) }
+.arquivo-escolhido strong { color:var(--tinta) }
+
+/* ============================================================================
+   CONCILIAÇÃO NO PEDIDO CONSOLIDADO
+   O item do CDE ("Camarão M") e o produto do fornecedor ("CAMARÃO ROSA 31/50")
+   moram na mesma linha: o seletor fica discreto para não competir com a
+   quantidade, que é o número que se digita.
+   ========================================================================== */
+.tabela-curta select.prod-oc { max-width:290px; background:var(--campo);
+  border:1px solid var(--borda); border-radius:8px; padding:5px 7px; font-size:12px }
+.tabela-curta select.prod-oc:focus { border-color:var(--laranja); outline:none }
+.botao-mini.abrir-partes { font-size:10.5px; padding:2px 8px; border-radius:20px;
+  border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--campo) }
+.botao-mini.abrir-partes:hover { border-color:var(--laranja); color:var(--laranja) }
+
+/* repartição do salmão: peixe inteiro, filé com pele e filé sem pele */
+.linha-partes > td { background:var(--hover); padding:14px 12px 16px }
+.partes-caixa { display:flex; flex-direction:column; gap:9px }
+.parte-linha { display:flex; align-items:center; gap:10px; flex-wrap:wrap }
+.parte-nome { min-width:210px; color:var(--tinta); font-size:12.5px;
+  display:flex; flex-direction:column }
+.parte-nome small { color:var(--tinta-3); font-size:10.5px }
+.parte-linha input.parte-qtd { width:92px; background:var(--card); border:1px solid var(--borda-forte);
+  border-radius:8px; padding:6px 8px; text-align:right }
+.parte-linha input.parte-qtd:focus { border-color:var(--laranja); outline:none }
+.parte-linha select.parte-prod { max-width:290px; background:var(--card);
+  border:1px solid var(--borda); border-radius:8px; padding:5px 7px; font-size:12px }
+.parte-eq { min-width:190px }
+.partes-resumo { font-size:12px; color:var(--tinta-2); border-top:1px dashed var(--borda-forte);
+  padding-top:8px }
+.partes-resumo.neg { color:var(--ruim); font-weight:600 }
+
+/* vínculo do produto com o item do CDE, na tela de Cadastros */
+.tabela-cad select.vinculo { background:transparent; border:1px solid transparent;
+  border-radius:8px; padding:5px 6px; width:100%; font-size:12px; color:var(--tinta-2) }
+.tabela-cad select.vinculo:hover { border-color:var(--borda) }
+.tabela-cad select.vinculo:focus { background:var(--campo); border-color:var(--laranja); outline:none }
+.tabela-cad select.vinculo.tem { color:var(--laranja); font-weight:600 }
+
+/* ============================================================================
+   VISÃO GERAL
+   A tela inicial reaproveita cartão, ficha, selo e tabela das outras telas —
+   o que é novo aqui é a rosca do faturamento e a coluna de totais.
+   ========================================================================== */
+/* Rosca menor e coluna mais estreita: com a legenda fora, o bloco não precisa
+   mais de espaço para duas listas, e a altura passa a ser a da tabela. */
+.pizza-bloco { display:grid; grid-template-columns:minmax(170px,210px) 1fr; gap:22px;
+  align-items:center }
+@media (max-width:900px) { .pizza-bloco { grid-template-columns:1fr } }
+.pizza { width:100%; max-width:190px; height:auto; display:block; margin:0 auto;
+  overflow:visible }
+/* O gomo é um caminho preenchido, como no modelo — corte reto nas pontas, sem
+   ponta arredondada. No hover ele cresce e os outros apagam: o olho sozinho não
+   separa dois tons vizinhos num anel, mas separa o aceso do apagado. A escala
+   parte do centro do viewBox, que é o centro da rosca. */
+.pizza .fatia { transition:opacity .18s ease, transform .18s ease;
+  cursor:pointer; transform-box:view-box; transform-origin:center }
+/* o gomo apontado cresce o suficiente para saltar do anel; o raio externo
+   máximo é 92 num viewBox de 200, então 1,09 ainda cabe sem cortar a ponta */
+.pizza .fatia.ativa { transform:scale(1.09) }
+.pizza .fatia.apagada { opacity:.28 }
+.pizza-total, .pizza-rot { transition:fill .18s }
+/* o texto vive dentro do disco branco: grande demais, encosta no anel e a
+   rosca perde o respiro que o modelo tem */
+.pizza-bloco table td, .pizza-bloco table th { padding:8px 10px }
+.pizza-total { fill:var(--tinta); font-size:15px; font-weight:700 }
+.pizza-rot { fill:var(--tinta-3); font-size:8px }
+.pizza-legenda { display:flex; flex-direction:column; gap:7px; margin-top:14px }
+.pl-item { display:flex; align-items:center; gap:9px; font-size:12.5px; cursor:default;
+  padding:3px 6px; border-radius:8px; transition:background .18s }
+.pl-item.ativa { background:var(--hover) }
+.pl-item.ativa .pl-nome { color:var(--tinta); font-weight:600 }
+.pl-item i { width:10px; height:10px; border-radius:50%; flex-shrink:0 }
+.pl-nome { color:var(--tinta) }
+.pl-parte { margin-left:auto; color:var(--tinta-2); font-variant-numeric:tabular-nums }
+
+/* ponto colorido que identifica a casa dentro das tabelas */
+.ponto { display:inline-block; width:8px; height:8px; border-radius:50%;
+  margin-right:7px; vertical-align:middle }
+
+/* linha de fechamento das tabelas de valor */
+.linha-total > td { border-top:2px solid var(--borda-forte); color:var(--tinta) }
+.linha-total { background:var(--hover) }
+
+/* ============================================================================
+   VISÃO GERAL — cartões de destaque e seções recolhíveis
+   ========================================================================== */
+
+/* Quatro capas de relatório lado a lado. Cada uma cabe em um quarto da tela,
+   então só entra o essencial: quatro linhas e o valor. O detalhe mora no
+   relatório completo, a um clique — cartão que tenta contar tudo vira tabela
+   pequena, e tabela pequena ninguém lê de relance. */
+.quadro { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px }
+@media (max-width:1350px) { .quadro { grid-template-columns:repeat(2,1fr) } }
+@media (max-width:680px)  { .quadro { grid-template-columns:1fr } }
+.quadro .cartao { margin-bottom:0; padding:16px 18px 14px; display:flex; flex-direction:column }
+
+.ca-topo { display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+  margin-bottom:8px }
+.ca-topo h2 { font-size:14px }
+.ca-topo .fonte { text-align:right; white-space:nowrap }
+
+/* o cartão inteiro é o botão que leva ao relatório completo */
+.card-atalho { cursor:pointer; transition:border-color .18s, transform .18s, box-shadow .18s }
+.card-atalho:hover { border-color:var(--laranja); transform:translateY(-2px) }
+.card-atalho:focus-visible { outline:2px solid var(--laranja); outline-offset:2px }
+.ca-ir { margin-top:auto; padding-top:10px; color:var(--tinta-3); font-size:11px;
+  transition:color .18s }
+.card-atalho:hover .ca-ir { color:var(--laranja) }
+
+/* a seção de destino pisca ao receber o clique: sem isso a página parece não
+   ter saído do lugar */
+.cartao.dobravel.piscando { border-color:var(--laranja); box-shadow:0 0 0 3px var(--laranja-claro) }
+body.dark .cartao.dobravel.piscando { box-shadow:0 0 0 3px #F5860F26 }
+
+/* lista dos principais insumos: posição, nome e valor — sem grade de tabela,
+   que aqui só acrescentaria linha para o olho pular */
+.lista-top { display:flex; flex-direction:column }
+.lt-linha { display:flex; align-items:center; gap:10px; padding:8px 2px;
+  border-bottom:1px solid var(--linha-tabela) }
+.lt-linha:last-child { border-bottom:none }
+.lt-pos { width:20px; height:20px; flex-shrink:0; border-radius:50%; background:var(--campo);
+  color:var(--tinta-2); font-size:10.5px; font-weight:700; display:flex;
+  align-items:center; justify-content:center }
+.lt-linha:first-child .lt-pos { background:var(--laranja-claro); color:var(--laranja-forte) }
+body.dark .lt-linha:first-child .lt-pos { background:#F5860F1F; color:var(--laranja) }
+.lt-nome { flex:1; min-width:0; color:var(--tinta); font-size:12.5px; font-weight:600;
+  display:flex; flex-direction:column; gap:1px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.lt-nome small, .lt-val small { color:var(--tinta-3); font-size:10px; font-weight:400 }
+.lt-val { text-align:right; color:var(--tinta); font-weight:700; font-size:12.5px;
+  white-space:nowrap; font-variant-numeric:tabular-nums; display:flex;
+  flex-direction:column; gap:1px }
+.lt-val.neg { color:var(--ruim) }
+/* seta da variação e bolinha do tipo de movimento ocupam o lugar da posição */
+.lt-seta { width:20px; flex-shrink:0; text-align:center; font-size:10px }
+.lt-seta.sobe { color:var(--ruim) }
+.lt-seta.desce { color:var(--bom) }
+.lt-marca { width:8px; height:8px; flex-shrink:0; border-radius:50%; margin:0 6px }
+.lt-marca.bom { background:var(--bom) }
+.lt-marca.info { background:var(--info) }
+.lt-marca.ruim { background:var(--ruim) }
+.lt-marca.neutro { background:var(--borda-forte) }
+
+/* estoque baixo em barra: a régua vai até o mínimo de segurança, então barra
+   curta é item para comprar hoje */
+/* Nome e quantidade na mesma linha, barra fina embaixo: em um quarto de tela
+   não há largura para nome, barra e número lado a lado sem espremer os três. */
+.barras-min { display:flex; flex-direction:column; gap:11px }
+.bm-linha { display:grid; grid-template-columns:1fr auto; gap:3px 10px; align-items:baseline }
+.bm-nome { color:var(--tinta); font-size:12.5px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap }
+.bm-nome small, .bm-val small { color:var(--tinta-3); font-size:10px }
+.bm-val { text-align:right; color:var(--tinta); font-size:12.5px; font-weight:700;
+  font-variant-numeric:tabular-nums; white-space:nowrap }
+/* estoque zerado não tem barra para mostrar: quem avisa é o número em vermelho */
+.bm-val.zerado { color:var(--ruim) }
+.bm-trilho { grid-column:1 / -1; height:7px; border-radius:20px; background:var(--campo);
+  overflow:hidden }
+.bm-preenche { display:block; height:100%; border-radius:20px; transition:width .3s ease }
+
+/* seções recolhíveis: relatório longo nasce fechado e o cabeçalho é o botão */
+.cartao.dobravel { padding-bottom:0 }
+.cartao.dobravel .cabeca.dobra { cursor:pointer; user-select:none; margin-bottom:0;
+  padding-bottom:18px }
+.cartao.dobravel .cabeca.dobra:hover h2 { color:var(--laranja) }
+.cartao.dobravel .ordem-chev { color:var(--tinta-3); font-size:13px; margin-left:10px }
+.cartao.dobravel .ordem-chev { display:inline-block; transition:transform .18s }
+.cartao.dobravel.aberta .ordem-chev { transform:rotate(90deg) }
+/* Configuracoes: o editor de usuario abre dentro da parte Usuarios */
+.us-editor { border-top:1px solid var(--borda); margin-top:16px; padding-top:16px }
+.srv-linha { display:flex; align-items:center; gap:14px; flex-wrap:wrap }
+.tela-parametros .dobravel[hidden] { display:none }
+/* Importar OC: caminho de volta para Ordens, de onde ela abre */
+.migalha { display:inline-block; font-size:12.5px; color:var(--tinta-3); text-decoration:none; margin-bottom:4px }
+.migalha:hover { color:var(--tinta) }
+.cartao.dobravel .dobra-corpo { display:none }
+.cartao.dobravel.aberta .dobra-corpo { display:block; padding-bottom:22px }
+/* Limpar só faz sentido com o quadro à vista */
+#area-nota:not(.aberta) #nf-limpar { display:none }
+
+/* Os dois gráficos da evolução ficam lado a lado em tela larga: empilhados,
+   cada um esticava para uns 350px de altura e a página ganhava meia tela de
+   rolagem só de gráfico. */
+@media (min-width:1150px) {
+  #graficos-mes { grid-template-columns:1fr 1fr; align-items:start }
+  #graficos-mes > p.fonte { grid-column:1 / -1; margin:0 }
+}
+
+/* ============================================================================
+   BOTÃO DE AÇÃO
+   Fica no canto inferior direito de todas as telas. O painel abre por cima do
+   conteúdo, sem trocar de página: quem está no meio de um filtro não perde o
+   filtro para registrar uma chegada.
+   ========================================================================== */
+.acao-botao { position:fixed; right:26px; bottom:26px; width:54px; height:54px; border-radius:50%;
+  background:var(--laranja); color:#fff; border:none; cursor:pointer; z-index:120;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 20px rgba(245,134,15,.38); transition:transform .2s, background .2s }
+.acao-botao:hover { background:var(--laranja-forte); transform:translateY(-2px) }
+.acao-botao.aberto { transform:rotate(45deg) }
+
+/* Voltar ao topo. Fica logo acima do botao de acoes e com z-index MENOR que
+   ele e que o painel: abrindo as acoes, o painel o cobre em vez de disputar o
+   canto. Em Parametros, a unica tela sem o botao de acoes, ele desce para o
+   lugar dele. */
+.topo-botao { position:fixed; right:26px; bottom:92px; width:42px; height:42px;
+  border-radius:50%; z-index:119; display:flex; align-items:center; justify-content:center;
+  background:var(--card); color:var(--tinta-2); border:1px solid var(--borda); cursor:pointer;
+  box-shadow:0 6px 18px rgba(26,27,46,.14);
+  opacity:0; pointer-events:none; transform:translateY(8px);
+  transition:opacity .18s ease, transform .18s ease, border-color .18s, color .18s }
+.topo-botao.visivel { opacity:1; pointer-events:auto; transform:none }
+.topo-botao:hover { border-color:var(--laranja); color:var(--laranja) }
+body.dark .topo-botao, body.mono .topo-botao { box-shadow:0 6px 18px rgba(0,0,0,.45) }
+body:not(:has(.acao-botao)) .topo-botao { bottom:26px }
+
+.acao-painel { position:fixed; right:26px; bottom:92px; width:390px; max-width:calc(100vw - 40px);
+  max-height:min(640px, calc(100vh - 130px)); background:var(--card); z-index:121;
+  border:1px solid var(--borda); border-radius:var(--raio); box-shadow:0 18px 48px rgba(26,27,46,.18);
+  display:flex; flex-direction:column; overflow:hidden }
+body.dark .acao-painel { box-shadow:0 18px 48px rgba(0,0,0,.5) }
+/* display:flex numa classe vence o [hidden] do HTML e o painel nascia aberto —
+   o esconder precisa ser dito de novo, com a mesma força. */
+.acao-painel[hidden], .acao-voltar[hidden] { display:none }
+.acao-cabeca { display:flex; align-items:center; gap:10px; padding:14px 16px;
+  border-bottom:1px solid var(--borda) }
+.acao-cabeca h2 { font-size:14px; flex:1 }
+.acao-voltar, .acao-fechar { background:none; border:none; color:var(--tinta-3); cursor:pointer;
+  padding:4px; border-radius:8px; display:flex }
+.acao-voltar:hover, .acao-fechar:hover { color:var(--tinta); background:var(--campo) }
+
+/* conversa: o que já foi feito nesta sessão, com o mais recente embaixo */
+.acao-conversa { max-height:190px; overflow-y:auto; padding:0 16px }
+.acao-conversa:not(:empty) { padding:14px 16px 0 }
+.acao-msg { background:var(--campo); border-radius:12px; padding:10px 12px; font-size:12.5px;
+  margin-bottom:8px; line-height:1.5; color:var(--tinta-2) }
+.acao-msg.ok { background:var(--bom-bg); color:var(--bom) }
+.acao-msg.erro { background:var(--ruim-bg); color:var(--ruim) }
+.acao-msg strong { color:inherit }
+.acao-msg-sub { color:var(--tinta-3); font-size:11.5px }
+.acao-msg-acoes { margin-top:8px }
+.acao-link { background:none; border:none; padding:0; font:inherit; color:var(--laranja);
+  cursor:pointer; text-decoration:underline }
+
+.acao-corpo { padding:16px; overflow-y:auto }
+.acao-carregando { color:var(--tinta-3); font-size:12.5px; margin:0 }
+
+/* menu com as três ações */
+.acao-opcao { width:100%; display:flex; align-items:center; gap:12px; text-align:left;
+  background:none; border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:12px; margin-bottom:9px; cursor:pointer; transition:border-color .18s, background .18s }
+.acao-opcao:hover { border-color:var(--laranja); background:var(--hover) }
+.acao-opcao-ico { width:34px; height:34px; border-radius:10px; flex-shrink:0; display:flex;
+  align-items:center; justify-content:center; background:var(--laranja-claro); color:var(--laranja-forte) }
+body.dark .acao-opcao-ico { background:#F5860F1F; color:var(--laranja) }
+.acao-opcao-txt { flex:1; display:flex; flex-direction:column; gap:2px }
+.acao-opcao-txt strong { color:var(--tinta); font-size:13px }
+.acao-opcao-txt small { color:var(--tinta-3); font-size:11px }
+.acao-opcao-seta { color:var(--tinta-3) }
+
+/* formulários */
+.acao-grade { display:grid; grid-template-columns:1fr 1fr; gap:10px }
+.acao-grade .campo-largo { grid-column:1 / -1 }
+.acao-grade .campo input, .acao-grade .campo select { width:100% }
+.acao-item { display:grid; grid-template-columns:1fr 70px 82px; gap:8px; align-items:end;
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--borda) }
+.acao-item .campo-largo { grid-column:1 / -1 }
+.acao-item .botao { grid-column:1 / -1 }
+.acao-nota { color:var(--tinta-3); font-size:11.5px; line-height:1.5; margin:12px 0 0 }
+.acao-enviar { width:100%; margin-top:14px; justify-content:center }
+.acao-botoes { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px }
+.acao-botoes .botao { width:100%; justify-content:center }
+#oc-dica { grid-column:1 / -1; margin-top:6px }
+
+.acao-itens { margin-top:12px; border:1px solid var(--borda); border-radius:var(--raio-p);
+  overflow:hidden }
+.acao-item-linha, .cv-linha { display:flex; align-items:center; gap:10px; padding:9px 11px;
+  border-bottom:1px solid var(--linha-tabela) }
+.cv-linha:last-child, .acao-item-linha:last-child { border-bottom:none }
+.ai-nome, .cv-item { flex:1; min-width:0; color:var(--tinta); font-size:12.5px;
+  display:flex; flex-direction:column }
+.ai-nome small, .cv-item small { color:var(--tinta-3); font-size:10.5px }
+.ai-val, .cv-val { color:var(--tinta); font-weight:700; font-size:12.5px;
+  font-variant-numeric:tabular-nums }
+.acao-item-total { display:flex; justify-content:space-between; padding:10px 11px;
+  background:var(--hover); color:var(--tinta-2); font-size:12.5px }
+
+@media (max-width:520px) {
+  .acao-painel { right:12px; left:12px; width:auto; bottom:84px }
+  .acao-botao { right:16px; bottom:16px }
+  .topo-botao { right:16px; bottom:80px }
+  body:not(:has(.acao-botao)) .topo-botao { bottom:16px }
+}
+
+/* ============================================================================
+   LANÇAMENTO DIÁRIO — largura contida
+   São oito colunas, cinco delas com campo de digitar. Esticadas na largura
+   inteira de um monitor de 1440, o olho percorria 40 cm entre o nome do insumo
+   e a contagem — e a chance de digitar na linha errada crescia junto. A tabela
+   passa a ter largura máxima e os campos, tamanho de número, não de frase.
+   ========================================================================== */
+/* A largura contida vale para a tela toda, não só para a tabela: cabeçalho,
+   barra de datas e cartão na mesma medida, centralizados. Um cartão estreito
+   embaixo de um cabeçalho que atravessa o monitor parece peça solta. */
+.tela-lancamento .screen-header,
+.tela-lancamento .barra,
+.tela-lancamento .cartao { max-width:1080px; margin-left:auto; margin-right:auto }
+/* Com a largura reduzida, o texto de apoio empurrava os botoes para a linha de
+   baixo. Sem quebra: o texto e que se acomoda em duas linhas, e Sincronizar e
+   Salvar continuam no alto e a direita, onde a mao ja procura. */
+.tela-lancamento .screen-header { flex-wrap:nowrap; align-items:flex-start }
+.tela-lancamento .screen-header p { max-width:52ch }
+.tela-lancamento .header-acoes { flex-shrink:0; padding-top:2px }
+.tabela-lancamento { table-layout:fixed; width:100% }
+.tabela-lancamento th, .tabela-lancamento td { padding:7px 8px }
+.tabela-lancamento thead th { white-space:normal; line-height:1.35; vertical-align:bottom }
+.tabela-lancamento thead .un { display:block; text-transform:none; letter-spacing:0 }
+.tabela-lancamento th:first-child, .tabela-lancamento td:first-child { width:auto; min-width:170px }
+.tabela-lancamento th:not(:first-child), .tabela-lancamento td:not(:first-child) { width:96px }
+/* Numero centralizado na caixa, e nao encostado a direita: com o formato
+   fixo em tres casas toda linha tem a mesma largura de texto, e centralizado
+   fica alinhado do mesmo jeito, com respiro nos dois lados. */
+.tabela-lancamento input { width:100%; max-width:88px; text-align:center;
+  padding:5px 7px; font-variant-numeric:tabular-nums }
+.tabela-lancamento td.calc { text-align:right; font-variant-numeric:tabular-nums }
+.tabela-lancamento .un { font-size:10.5px }
+
+/* Processamento: seis colunas, e as duas ultimas sao leitura (perda e
+   rendimento). A primeira precisa de mais espaco que na tabela de insumos —
+   "Tentáculo de lula" com a unidade ao lado nao cabe nos 170px de lá. */
+.cartao-processamento { margin-top:16px }
+.tabela-processamento th:first-child,
+.tabela-processamento td:first-child { min-width:210px }
+.tabela-processamento th:not(:first-child),
+.tabela-processamento td:not(:first-child) { width:120px }
+.tabela-processamento td.faixa { text-align:right; white-space:nowrap }
+
+
+/* ============================================================================
+   BLOCOS DE DESTAQUE (insights)
+   Dois desenhos possíveis, a constante MODELO no overview.js escolhe:
+     A — ícone, rótulo, número grande e pílula de variação;
+     B — cartão limpo, número grande e mini curva embaixo.
+   ========================================================================== */
+/* Os seis numa fita só: cada bloco cabe em um sexto da tela, então tudo
+   encolhe junto — recuo, número, rótulo e a curva do rodapé. Em tela menor a
+   fita quebra em três e depois em dois, para o texto não virar coluna de uma
+   palavra por linha. */
+.insights { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:18px }
+@media (max-width:1500px) { .insights { grid-template-columns:repeat(3,1fr); gap:14px } }
+@media (max-width:1000px) { .insights { grid-template-columns:repeat(2,1fr) } }
+@media (max-width:680px)  { .insights { grid-template-columns:1fr } }
+.ins-clicavel { cursor:pointer; transition:border-color .18s, transform .18s }
+.ins-clicavel:hover { border-color:var(--laranja); transform:translateY(-2px) }
+.ins { background:var(--card); border:1px solid var(--borda); border-radius:var(--raio);
+  padding:13px 14px; display:flex; flex-direction:column; box-shadow:var(--sombra);
+  min-width:0 }
+.ins-rotulo { color:var(--tinta-2); font-size:11px; line-height:1.3 }
+.ins-valor { color:var(--tinta); font-size:19px; font-weight:700; line-height:1.25;
+  font-variant-numeric:tabular-nums; margin:2px 0; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis }
+
+.ins-topo { display:flex; align-items:center; gap:8px; margin-bottom:8px }
+.ins-topo .ins-rotulo { flex:1; min-width:0 }
+.ins-ico { width:26px; height:26px; border-radius:8px; flex-shrink:0; display:flex;
+  align-items:center; justify-content:center }
+.ins-ico svg { width:14px; height:14px }
+.ins-ico.bom { background:var(--bom-bg); color:var(--bom) }
+.ins-ico.ruim { background:var(--ruim-bg); color:var(--ruim) }
+.ins-ico.aviso { background:var(--aviso-bg); color:var(--aviso) }
+.ins-ico.neutro { background:var(--info-bg); color:var(--info) }
+.ins-rodape { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px }
+.ins-pilula { display:inline-flex; align-items:center; gap:3px; padding:2px 7px;
+  border-radius:20px; font-size:10.5px; font-weight:700 }
+.ins-pilula svg { width:11px; height:11px }
+.ins-pilula.bom { background:var(--bom-bg); color:var(--bom) }
+.ins-pilula.ruim { background:var(--ruim-bg); color:var(--ruim) }
+.ins-pilula.aviso { background:var(--aviso-bg); color:var(--aviso) }
+.ins-pilula.neutro { background:var(--info-bg); color:var(--info) }
+.ins-contexto { color:var(--tinta-3); font-size:10px; line-height:1.35 }
+
+/* a curva encosta nas bordas do cartão e come o respiro de baixo */
+.ins-curva { display:block; width:calc(100% + 28px); height:26px; margin:10px -14px -13px }
+
+/* contador das casas no lançamento: laranja quando falta contar, verde quando fechou */
+.abas .pend.feito { background:var(--bom-bg); color:var(--bom) }
+.legenda-abas { flex-basis:100%; margin-top:8px }
+.legenda-abas .pend { display:inline-flex; align-items:center; justify-content:center;
+  min-width:16px; height:16px; padding:0 4px; border-radius:20px; font-size:10px;
+  background:var(--bom-bg); color:var(--bom); vertical-align:middle }
+
+/* ================================ PARÂMETROS =============================== */
+/* Tela de ajuste, não de leitura: a tabela é larga porque cada linha carrega o
+   que o histórico sugere ao lado do que o usuário decidiu — sem a sugestão do
+   lado, o campo vazio não ajuda a preencher. */
+.tela-parametros .nota-secao { display:block; max-width:88ch; margin:0 0 16px }
+.tela-parametros .param-barra { display:flex; flex-wrap:wrap; gap:12px 16px;
+  align-items:flex-end; margin-bottom:14px }
+.tela-parametros .param-barra .campo input { width:190px }
+.tela-parametros .param-grade { display:grid; gap:18px;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); margin-bottom:24px }
+.tela-parametros .param-grade .campo input { width:120px }
+.tela-parametros .param-grade small { display:block; max-width:34ch; line-height:1.45 }
+.tela-parametros .param-listas { display:grid; gap:26px;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) }
+.tela-parametros .param-lista h3 { font-size:14px; margin:0 0 4px }
+.tela-parametros .param-lista > p { margin:0 0 12px; max-width:44ch }
+.tela-parametros .param-add { display:flex; gap:8px; margin-top:12px }
+.tela-parametros .param-add input { flex:1; min-width:0; background:var(--campo);
+  border:1px solid var(--borda); border-radius:var(--raio-p); padding:9px 12px;
+  color:var(--tinta) }
+
+.fichas { display:flex; flex-wrap:wrap; gap:8px }
+.ficha-nome { display:inline-flex; align-items:center; gap:8px; font-size:13px;
+  background:var(--campo); border:1px solid var(--borda); border-radius:999px;
+  padding:5px 6px 5px 13px }
+.ficha-x { border:0; background:transparent; color:var(--tinta-3); cursor:pointer;
+  font-size:16px; line-height:1; width:20px; height:20px; border-radius:50%;
+  display:grid; place-items:center }
+.ficha-x:hover { background:var(--ruim); color:#fff }
+
+table.tabela-param { width:100%; border-collapse:collapse; font-size:13.5px }
+table.tabela-param th, table.tabela-param td { padding:7px 10px; text-align:right;
+  white-space:nowrap }
+table.tabela-param th { font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--tinta-3); border-bottom:1px solid var(--linha-tabela); font-weight:600 }
+table.tabela-param th:first-child, table.tabela-param td:first-child,
+table.tabela-param th:nth-child(2), table.tabela-param td:nth-child(2) { text-align:left }
+table.tabela-param tbody tr:hover td { background:var(--hover) }
+table.tabela-param td input { width:104px; text-align:center }
+/* A sugestão é informação de apoio: fica visível mas nunca disputa atenção com
+   o campo que o usuário preenche, à direita dela. */
+table.tabela-param td.sugestao { color:var(--laranja); font-variant-numeric:tabular-nums }
+table.tabela-param tr.linha-grupo td { text-align:left; font-size:11px;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--tinta-3);
+  background:var(--campo); padding-top:10px; padding-bottom:10px }
+.notas-param { margin:0; padding-left:20px; display:flex; flex-direction:column;
+  gap:9px; max-width:92ch; color:var(--tinta-2); font-size:13.5px }
+.notas-param strong { color:var(--tinta) }
+.notas-param code { font-size:12.5px; background:var(--campo); border-radius:4px;
+  padding:1px 5px }
+
+/* ============================================================================
+   QUALIDADE DO SALMÃO (PCQS)
+   A tela é um documento em revisão: veredito no alto, números do acerto,
+   não conformidades e o caixa a caixa. Nenhuma cor nova — tudo sai de --bom,
+   --aviso e --ruim, que já têm valor nos três temas (no mono, o veredito se
+   distingue pelo filete e pelo peso da fonte, não pela cor).
+   ========================================================================== */
+.veredito { display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio);
+  padding:16px 20px; margin-bottom:18px; box-shadow:var(--sombra);
+  border-left:4px solid var(--borda-forte) }
+.veredito.bom { border-left-color:var(--bom) }
+.veredito.aviso { border-left-color:var(--aviso) }
+.veredito.ruim { border-left-color:var(--ruim) }
+.veredito .vd-selo { font-size:15px; font-weight:700; letter-spacing:.04em;
+  padding:9px 18px; border-radius:var(--raio-p); white-space:nowrap }
+.veredito.bom .vd-selo { background:var(--bom-bg); color:var(--bom) }
+.veredito.aviso .vd-selo { background:var(--aviso-bg); color:var(--aviso) }
+.veredito.ruim .vd-selo { background:var(--ruim-bg); color:var(--ruim) }
+.veredito .vd-txt { display:flex; flex-direction:column; gap:3px; min-width:0 }
+.veredito .vd-txt strong { font-size:13.5px; color:var(--tinta); font-weight:600 }
+.veredito .vd-txt span { font-size:11.5px; color:var(--tinta-3) }
+
+/* Não conformidade: cartão de leitura, não linha de tabela. Cada uma vira um
+   item de tratativa com o fornecedor, e o texto tem de caber inteiro. */
+.nc-lista { display:flex; flex-direction:column; gap:10px }
+.nc-item { border:1px solid var(--borda); border-left:3px solid var(--borda-forte);
+  border-radius:var(--raio-p); padding:12px 15px; background:var(--campo) }
+.nc-item.alta { border-left-color:var(--ruim) }
+.nc-item.media { border-left-color:var(--aviso) }
+.nc-topo { display:flex; align-items:center; gap:12px; flex-wrap:wrap }
+.nc-topo strong { font-size:13px; color:var(--tinta); font-weight:600; flex:1; min-width:0 }
+.nc-item p { margin:6px 0 0; font-size:12.5px; line-height:1.55; color:var(--tinta-2) }
+.nc-item .fonte { display:block; margin-top:6px }
+
+/* Caixa a caixa: dez colunas curtas. Números em fonte tabular para a coluna de
+   diferença alinhar casa com casa — é nela que se procura a caixa que fugiu. */
+.tabela-caixas { min-width:760px }
+.tabela-caixas td, .tabela-caixas th { padding:9px 10px }
+.tabela-caixas td.calc { font-variant-numeric:tabular-nums }
+.tabela-caixas tfoot td { border-bottom:none; font-weight:600 }
+
+/* O textarea de observações não existia em nenhuma tela: mesma pele dos
+   campos de texto, para não parecer peça de outro sistema. */
+.campo textarea { background:var(--campo); border:1px solid var(--borda);
+  border-radius:var(--raio-p); color:var(--tinta); font:inherit; font-size:12.5px;
+  padding:8px 11px; resize:vertical; width:100%; min-height:38px }
+.campo textarea:focus { outline:2px solid var(--laranja); outline-offset:-1px }
+
+/* Nesta grade os campos largos (loja, fornecedor, assinatura, observações)
+   ocupam duas colunas em vez de esticar a trilha: o min-width de .campo-largo
+   é maior que a trilha de 190px e estouraria a grade. */
+.grade-oc .campo-largo { grid-column:span 2; min-width:0 }
+@media (max-width:640px) { .grade-oc .campo-largo { grid-column:span 1 } }
+
+/* ---------- notas fiscais e transferências (Movimentações) ---------- */
+/* o botão de notas na linha do extrato abre, não apaga: sem o vermelho do
+   .botao-mini, mesmo desenho do abrir-partes */
+.botao-mini.abrir-nota { font-size:10.5px; padding:2px 8px; border-radius:20px; margin-left:4px;
+  border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--campo) }
+.botao-mini.abrir-nota:hover { border-color:var(--laranja); color:var(--laranja) }
+.tabela-notas { width:100% }
+/* mesmo desenho dos campos da barra (.campo): a casa de destino e o
+   fornecedor ficavam com o controle cru do navegador ao lado dos selects de
+   Casa, Movimento e Insumo logo acima */
+.tabela-notas input, .tabela-notas select { width:100%; min-width:90px;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 12px; color:var(--tinta) }
+.tabela-notas input:focus, .tabela-notas select:focus { outline:2px solid var(--laranja);
+  outline-offset:-1px }
+.tabela-notas select { min-width:200px }
+.tabela-notas input.num { text-align:right; font-variant-numeric:tabular-nums; max-width:140px }
+.tabela-notas td.nf-unit { white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--tinta-2) }
+.tabela-notas .nf-tirar { font-size:16px }
+.nf-pe { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-top:12px }
+.nf-soma { font-variant-numeric:tabular-nums; color:var(--tinta-2) }
+.nf-ajuste { display:flex; align-items:center; gap:6px; font-size:13px;
+  padding:4px 10px; border-radius:8px }
+.nf-ajuste.alerta { background:var(--aviso-bg); color:var(--aviso) }
+/* quantidade corrigível no extrato: mesmo campo do valor, mais estreito */
+.tabela-extrato input.qtd { width:84px; text-align:right; font-variant-numeric:tabular-nums }
+/* kg da nota do salmão, no extrato */
+.tabela-extrato input.kg { width:84px; text-align:right; font-variant-numeric:tabular-nums }
+.tabela-extrato td.preco-kg { font-variant-numeric:tabular-nums; white-space:nowrap }
+/* Movimentações abaixo do lançamento diário: alerta de erro na linha toda */
+.tabela-extrato tr.alerta-qtd td { background:var(--ruim-bg) }
+.tabela-extrato tr.alerta-qtd td:first-child { box-shadow:inset 3px 0 0 var(--ruim) }
+.tabela-extrato tr.alerta-qtd input.qtd,
+.tabela-extrato tr.alerta-qtd td.lancamento { color:var(--ruim); font-weight:600 }
+.tabela-extrato td.lancamento { color:var(--tinta-3); font-variant-numeric:tabular-nums; white-space:nowrap }
+/* movimento detalhado por nota: uma linha por nota, agrupadas */
+.tabela-extrato tr.linha-nota td { border-bottom-style:dashed }
+.tabela-extrato tr.linha-nota.nota-ultima td { border-bottom-style:solid }
+.tabela-extrato .nota-parceiro { display:block; font-size:11.5px; color:var(--tinta-3) }
+.tabela-extrato td.lancamento .nota-soma { display:block; font-size:11px; color:var(--tinta-3);
+  font-weight:400 }
+/* fornecedor e NF editáveis no extrato; ações da linha */
+.tabela-extrato input.info-parceiro, .tabela-extrato select.info-parceiro { width:150px }
+.tabela-extrato input.info-nf { width:90px }
+.tabela-extrato input.info-parceiro, .tabela-extrato input.info-nf, .tabela-extrato select.info-parceiro {
+  background:transparent; border:1px solid transparent; border-radius:6px; padding:3px 6px }
+.tabela-extrato :is(input.info-parceiro, input.info-nf, select.info-parceiro):hover { border-color:var(--borda) }
+.tabela-extrato :is(input.info-parceiro, input.info-nf, select.info-parceiro):focus {
+  background:var(--campo); border-color:var(--laranja); outline:none }
+.tabela-extrato td.acoes { white-space:nowrap }
+/* O extrato passa da largura do cartão (14 colunas), e a coluna de ações — a
+   última — ficava fora da tela: o Editar sumia. Ela fica presa na borda
+   direita, e o extrato rola dentro do próprio cartão, para a barra horizontal
+   estar à vista e não só depois da última das centenas de linhas. */
+.rolagem:has(> .tabela-extrato) { max-height:calc(100vh - 120px); overflow:auto }
+.tabela-extrato th:last-child, .tabela-extrato td.acoes { position:sticky; right:0;
+  background:var(--card); box-shadow:inset 1px 0 0 var(--linha-tabela) }
+.tabela-extrato th:last-child { z-index:3 }
+.tabela-extrato td.acoes { z-index:1 }
+.tabela-extrato tbody tr:hover td.acoes { background:var(--hover) }
+.tabela-extrato tr.alerta-qtd td.acoes {
+  background:linear-gradient(var(--ruim-bg), var(--ruim-bg)), var(--card) }
+.tabela-extrato .botao-mini.abrir-nota + .botao-mini.excluir { margin-left:4px }
+.botao-mini.excluir { font-size:10.5px; padding:2px 8px; border-radius:20px;
+  border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--campo) }
+.botao-mini.excluir:hover { border-color:var(--ruim); color:var(--ruim); background:var(--ruim-bg) }
+
+/* ==========================================================================
+   Projeção de Compras — dias que formam a média do item.
+   Um quadradinho por dia com o consumo ao lado. Só variáveis do tema: no mono
+   o marcado se distingue por luminosidade (borda e tinta mais fortes).
+   ========================================================================== */
+.botao-mini.abrir-dias { font-size:10.5px; padding:1px 7px; border-radius:20px; margin-left:6px;
+  border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--campo) }
+.botao-mini.abrir-dias:hover { border-color:var(--laranja); color:var(--laranja); background:var(--campo) }
+.botao-mini.abrir-dias.ajustado { border-color:var(--aviso); color:var(--aviso); background:var(--aviso-bg) }
+.linha-dias > td { background:var(--hover); padding:12px 12px 14px }
+.dias-caixa { display:flex; flex-direction:column; gap:10px }
+.dias-topo { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--tinta-2) }
+.botao-mini.dias-acao { font-size:10.5px; padding:2px 8px; border-radius:20px;
+  border:1px solid var(--borda-forte); color:var(--tinta-2); background:var(--card) }
+.botao-mini.dias-acao:hover { border-color:var(--laranja); color:var(--laranja); background:var(--card) }
+.dias-grade { display:grid; grid-template-columns:repeat(7, minmax(168px, 1fr)); gap:6px; max-width:1320px }
+.dia-cab { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--tinta-3);
+  text-align:center; padding-bottom:2px }
+.dia-vazio.sem-uso { border:1px dashed var(--borda); border-radius:8px; padding:5px 8px;
+  font-size:11.5px; color:var(--tinta-3); opacity:.6 }
+/* uma linha só: data, consumo e a caixa */
+.dia-chip { display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:8px;
+  border:1px solid var(--borda); background:var(--card); font-size:11.5px; color:var(--tinta-3);
+  cursor:pointer; user-select:none; white-space:nowrap }
+.dia-chip input { margin:0; accent-color:var(--laranja) }
+.dia-chip .dia-uso { margin-left:auto; font-variant-numeric:tabular-nums }
+.dia-chip.janela { border-style:dashed }
+.dia-chip.marcado { border:1px solid var(--tinta-2); color:var(--tinta) }
+.dia-chip.marcado .dia-uso { font-weight:600 }
+.dia-chip.neg .dia-uso { color:var(--ruim) }
+/* Consumo / Coeficiente no topo do calendário: o segmentado das telas, menor */
+.segmentado-mini { padding:2px }
+.segmentado-mini button { padding:3px 10px; font-size:11px; border-radius:6px }
+.dia-chip.sem-fat .dia-uso { color:var(--tinta-3); font-style:italic; font-weight:400 }
+/* fora do padrão (muito alto ou muito baixo): o número e a borda em vermelho */
+.dia-chip.fora { border-color:var(--ruim) }
+.dia-chip.fora .dia-uso, .dia-fora-amostra { color:var(--ruim); font-weight:600 }
+.dias-legenda { margin:0 }
+/* faturamento do dia, ao lado do consumo ou do coeficiente */
+.dia-chip .dia-fat { font-size:10.5px; color:var(--tinta-3); font-variant-numeric:tabular-nums; font-weight:400 }
+
+/* Embalagem quebrada (0,68 caixa): o sistema não arredonda, marca a linha para
+   quem compra decidir. Texto junto da cor, para não depender só do vermelho. */
+tr.embalagem-quebrada td { background:var(--ruim-bg) }
+tr.embalagem-quebrada td:first-child { box-shadow:inset 3px 0 0 var(--ruim) }
+tr.embalagem-quebrada input[data-c="qtd"] { border-color:var(--ruim); color:var(--ruim); font-weight:600 }
+.msg-quebrada { display:none; font-size:10.5px; color:var(--ruim); font-weight:600; margin-top:1px }
+tr.embalagem-quebrada .msg-quebrada { display:block }
+
+/* Sugestões do nome do produto em Cadastros: a lista dos que já existem abre
+   embaixo do campo, para o cadastro novo usar a grafia do catálogo. */
+.campo-sugestao { position:relative }
+.campo-sugestao > label { font-size:11.5px; color:var(--tinta-3) }
+.sugestoes { position:absolute; z-index:40; top:calc(100% + 4px); left:0; right:0;
+  min-width:320px; max-height:340px; overflow-y:auto; padding:4px;
+  background:var(--card); border:1px solid var(--borda); border-radius:var(--raio-p);
+  box-shadow:0 14px 36px rgba(26,27,46,.18) }
+body.dark .sugestoes, body.mono .sugestoes { box-shadow:0 14px 36px rgba(0,0,0,.5) }
+.sugestoes[hidden] { display:none }
+.sug-topo { padding:6px 8px; font-size:10.5px; color:var(--tinta-3) }
+.sug-item { display:flex; flex-wrap:wrap; align-items:center; gap:2px 8px; padding:7px 8px;
+  border-radius:var(--raio-p); cursor:pointer }
+.sug-item:hover, .sug-item.ativo { background:var(--hover) }
+.sug-nome { font-weight:600; color:var(--tinta) }
+.sug-quem { flex-basis:100%; font-size:10.5px; color:var(--tinta-3) }
+
+/* Projeção: curva do consumo nos dias da média e se subiu ou caiu. A cor segue
+   o significado (consumo subindo é gasto a mais) e vem sempre com a palavra. */
+.tend-cel { display:flex; align-items:center; gap:8px; white-space:nowrap }
+.tend-curva { flex:none; overflow:visible }
+.tend-curva path { stroke:var(--tinta-3) }
+.tend-curva circle { fill:var(--tinta-3) }
+.tend-curva.ruim path { stroke:var(--ruim) }  .tend-curva.ruim circle { fill:var(--ruim) }
+.tend-curva.bom path { stroke:var(--bom) }    .tend-curva.bom circle { fill:var(--bom) }
+.tend-txt { font-size:11.5px; font-weight:600; color:var(--tinta-3) }
+.tend-txt.ruim { color:var(--ruim) }
+.tend-txt.bom { color:var(--bom) }
+
+/* ============================ CONTAGEM (diária e semanal) ============================ */
+/* Editor da lista: os campos de texto ocupam a coluna inteira, ao contrário
+   das caixas numéricas de 94px das tabelas de lançamento. Só tokens que o
+   body.mono já redefine. */
+.tabela-lista { min-width:600px }
+.tabela-lista td input { width:100%; text-align:left }
+.tabela-lista td:last-child, .tabela-lista th:last-child { width:40px; text-align:center }
+
+/* ============================ ORDENS — seleção em lote ============================ */
+/* Só tokens existentes (--card, --borda, --laranja, --ruim): valem nos três temas. */
+.lote { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--card);
+  border:1px solid var(--borda); border-radius:var(--raio); padding:12px 18px; margin-bottom:14px;
+  position:sticky; top:8px; z-index:5; box-shadow:var(--sombra) }
+.lote[hidden] { display:none }
+.lote-todas { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--tinta); cursor:pointer }
+.lote .excluir { color:var(--ruim); border-color:transparent }
+.lote .excluir:hover { border-color:var(--ruim); background:var(--ruim-bg) }
+.ordem-marca { display:flex; align-items:center; padding:6px; margin:-6px 0 -6px -6px; cursor:pointer }
+.ordem-marca input, .lote-todas input { width:17px; height:17px; accent-color:var(--laranja); cursor:pointer }
+.ordem.selecionada { border-color:var(--laranja) }
+
+/* ============================ CONFERÊNCIA — contagem diária e semanal ============================ */
+/* Mesmo desenho do Lançamento Diário: a tela usa .tela-lancamento e a tabela
+   .tabela-lancamento; aqui só o que a contagem tem a mais (motivo/observação,
+   embalagem, folhas). Só tokens existentes — valem nos três temas. */
+.tabela-contagem th.col-texto, .tabela-contagem td.col-texto { width:150px }
+.tabela-lancamento input.texto { max-width:none; text-align:left }
+.tabela-contagem .conv { display:block; font-size:10px; color:var(--tinta-3); text-align:center;
+  white-space:nowrap; margin-top:2px }
+.tabela-contagem td:first-child .selo-mini { white-space:nowrap }
+.tabela-filetamento th:first-child, .tabela-filetamento td:first-child { min-width:120px; width:130px }
+.tabela-filetamento th:not(:first-child), .tabela-filetamento td:not(:first-child) { width:auto }
+.tabela-filetamento tr.total td, .tabela-contagem tr.total td { font-weight:600; border-top:2px solid var(--borda) }
+.cartao-lancamento .tabela-processamento th.col-texto,
+.cartao-lancamento .tabela-processamento td.col-texto { width:auto }
+/* Folhas da contagem diária: mesmas pílulas das abas de casa, à esquerda,
+   entre o cabeçalho do cartão e a tabela. */
+.abas-folhas { margin:4px 0 14px; margin-left:0; flex-wrap:wrap }
+.abas-folhas .pend { margin-left:2px }
+.folha-sec { font-size:13.5px; font-weight:600; margin:6px 0 4px }
+[data-folha] .folha-sec:not(:first-child) { margin-top:22px }
+.folha-sec + .fonte { margin-bottom:8px }
+.contagem-resp { width:220px !important; text-align:left !important }
+.campo-obs { width:100%; resize:vertical; font:inherit }
+.tabela-lista { min-width:1060px }
+.tabela-lista input.curto { min-width:70px }
+.casas-item { white-space:nowrap }
+.casas-item label { display:inline-flex; align-items:center; gap:3px; margin-right:8px; font-size:11.5px; cursor:pointer }
+.tabela-lista .casas-item input { width:auto; accent-color:var(--laranja) }
+/* Subprodutos (camarão M/P/G, salmão, lula, atum, polvo): recuados embaixo do
+   item primário — fica visível que
+   são o mesmo insumo em estados diferentes. Só o recuo, sem traço nem símbolo.
+   O primário sem campos (Polvo) é só título; o que também é contado (salmão
+   inteiro, camarão in natura) vai em negrito. */
+.tabela-contagem tr.pai td { font-weight:600; color:var(--tinta); padding-top:12px; padding-bottom:6px }
+.tabela-contagem tr.primario td:first-child { font-weight:600 }
+.tabela-contagem tr.filho td:first-child { padding-left:34px }
+/* Nota da lista como comentário ("Pacote, limpo e esticado"), logo abaixo do nome. */
+.tabela-contagem .comentario { display:block; font-weight:400; font-size:11px; color:var(--tinta-3); font-style:italic; margin-top:1px }
+
+/* Código do produto no ERP, antes do nome do item na contagem */
+.tabela-contagem .cod { display:inline-block; min-width:52px; margin-right:6px; font-size:11px;
+  font-weight:400; color:var(--tinta-3); font-variant-numeric:tabular-nums }
+
+/* Visão Geral, curva ABC: o salmão em peixes ganha o peso em kg ao lado */
+#abc-tabela .em-kg { display:block; font-size:11px; font-weight:400; color:var(--tinta-3) }
+
+/* ============================ PAINEL — RESUMO DO DIA ============================ */
+.so-periodo[hidden], #resumo[hidden] { display:none }
+.rd-topo { display:flex; justify-content:space-between; align-items:flex-end; gap:16px;
+  flex-wrap:wrap; margin-bottom:16px }
+.rd-topo h2 { font-size:18px; font-weight:600 }
+.rd-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+.rd-nav input { background:var(--campo); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:8px 10px; color:var(--tinta) }
+/* Blocos do resumo: os quatro indicadores em colunas iguais; abaixo, as
+   pendencias ao lado dos dois graficos com a MESMA altura — a lista de
+   pendencias acompanha a coluna da direita e rola por dentro, em vez de
+   esticar a pagina e deixar os blocos terminando em alturas diferentes. */
+.rd-placar { grid-template-columns:repeat(4,minmax(0,1fr)) }
+.rd-ficha { cursor:default; justify-content:space-between }
+.rd-ficha:hover { background:none }
+.rd-ficha .ficha-n { font-size:24px }
+.rd-grade { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:18px;
+  align-items:stretch; margin-bottom:18px }
+.rd-grade > .rd-cartao { display:flex; flex-direction:column; margin-bottom:0 }
+.rd-col { display:flex; flex-direction:column; gap:18px }
+.rd-col > .rd-cartao { margin-bottom:0 }
+.rd-col > .rd-cartao:last-child { flex:1 }
+.rd-cartao { margin-bottom:18px }
+.rd-cab { margin-bottom:14px }
+.rd-cab h3 { font-size:15px; font-weight:600 }
+.rd-cab .fonte { margin:2px 0 0 }
+.rd-pend-caixa { position:relative; flex:1; min-height:320px }
+.rd-pend-caixa .rd-pend-lista { position:absolute; inset:0; max-height:none }
+@media (max-width:1100px) {
+  .rd-placar { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .rd-grade { grid-template-columns:1fr }
+  .rd-pend-caixa { min-height:0 }
+  .rd-pend-caixa .rd-pend-lista { position:static; max-height:520px }
+}
+
+/* pendencias */
+.rd-grupo { display:flex; align-items:center; gap:10px; margin:14px 0 8px }
+.rd-grupo:first-child { margin-top:0 }
+.rd-pend { border:1px solid var(--borda); border-left:3px solid var(--borda-forte);
+  border-radius:var(--raio-p); padding:11px 14px; margin-bottom:8px; background:var(--card) }
+.rd-pend.p1 { border-left-color:var(--ruim) }
+.rd-pend.p2 { border-left-color:var(--aviso) }
+.rd-pend-topo { display:flex; justify-content:space-between; gap:10px; color:var(--tinta) }
+.rd-pend-r { font-weight:700; font-variant-numeric:tabular-nums; color:var(--tinta) }
+.rd-pend-onde { font-size:12px; color:var(--tinta-2) }
+.rd-pend-det { font-size:12px; color:var(--tinta-3); margin-top:4px }
+.rd-pend-olhar { font-size:12.5px; color:var(--tinta-2); margin-top:6px }
+.rd-pend-olhar b { color:var(--tinta); font-weight:600 }
+.rd-pend-acoes { display:flex; gap:8px; margin-top:9px; flex-wrap:wrap }
+.rd-pend-acoes .botao { font-size:12px; padding:5px 11px; text-decoration:none }
+
+/* subiu x baixou: barra que sai do centro */
+.rd-div { display:flex; flex-direction:column; gap:4px }
+.rd-div-l { display:grid; grid-template-columns:minmax(120px,190px) 1fr 96px; gap:12px;
+  align-items:center; background:none; border:none; padding:4px 6px; border-radius:8px;
+  cursor:pointer; text-align:left }
+.rd-div-l:hover { background:var(--hover) }
+.rd-div-nome { font-size:12.5px; color:var(--tinta); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.rd-div-trilho { position:relative; height:14px; background:var(--campo); border-radius:4px }
+.rd-div-zero { position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--borda-forte) }
+.rd-div-barra { position:absolute; top:2px; bottom:2px; border-radius:4px; min-width:2px }
+.rd-div-val { text-align:right; font-size:12px; color:var(--tinta); font-variant-numeric:tabular-nums }
+.rd-div-val small { display:block; font-size:10.5px; color:var(--tinta-3) }
+
+/* faturamento por casa */
+.rd-fat { display:flex; flex-direction:column; gap:10px }
+.rd-fat-l { display:grid; grid-template-columns:110px 1fr 110px; gap:12px; align-items:center }
+.rd-fat-nome { font-size:13px; color:var(--tinta); font-weight:600 }
+.rd-fat-nome small, .rd-fat-val small { display:block; font-size:10.5px; color:var(--tinta-3); font-weight:400 }
+.rd-fat-trilho { position:relative; height:18px; background:var(--campo); border-radius:5px }
+.rd-fat-barra { position:absolute; left:0; top:0; bottom:0; border-radius:5px; background:var(--tinta-2); opacity:.55 }
+.rd-fat-media { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--tinta); border-radius:1px }
+.rd-fat-val { text-align:right; font-size:12.5px; color:var(--tinta); font-variant-numeric:tabular-nums }
+
+/* mapa insumo x casa */
+.rd-mapa td:first-child, .rd-mapa th:first-child { text-align:left }
+.rd-mapa th, .rd-mapa td { text-align:center }
+.rd-cel { cursor:pointer; font-variant-numeric:tabular-nums; font-size:12px; color:var(--tinta-3) }
+.rd-cel:hover { background:var(--hover) }
+.rd-cel.marcada { font-weight:600 }
+.rd-cel.marcada.ruim { background:var(--ruim-bg); color:var(--ruim) }
+.rd-cel.marcada.info { background:var(--info-bg); color:var(--info) }
+.rd-cel.marcada.aviso { background:var(--aviso-bg); color:var(--aviso) }
+.rd-cel-e { display:block; font-size:10px; font-weight:400; opacity:.85 }
+.rd-cel.vazio-cel { cursor:default }
+.rd-mapa tr.piscar td { background:var(--laranja-claro) }
+/* a lista de pendencias rola por dentro: com 20 itens ela empurrava o mapa para longe */
+.rd-pend-lista { max-height:720px; overflow-y:auto; padding-right:4px }
+
+/* ============================ LOGIN E USUÁRIOS ============================ */
+.login-pagina { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:16px }
+.login-cartao { width:100%; max-width:400px; margin:0 }
+.login-cartao form, .form-senha { display:flex; flex-direction:column; gap:12px }
+.login-cartao h2 { font-size:16px; margin-bottom:2px }
+.login-marca { display:flex; align-items:center; gap:12px; margin-bottom:20px }
+.login-marca img { width:42px; height:42px; object-fit:contain }
+.login-marca h1 { font-size:18px }
+.login-marca p { margin:0; font-size:12px; color:var(--tinta-3) }
+.login-cartao .campo, .form-senha .campo { display:flex; flex-direction:column }
+.login-cartao input, .form-senha input, .us-campos input, .us-campos select, .us-redefinir input {
+  background:var(--campo); border:1px solid var(--borda); border-radius:var(--raio-p);
+  padding:9px 11px; color:var(--tinta) }
+.login-botao { justify-content:center; padding:10px }
+.login-erro { color:var(--ruim); font-size:12.5px; min-height:1em; margin:0 }
+.login-dica { margin:0; text-align:center }
+
+/* menu: quem esta logado */
+.sb-usuario { display:flex; align-items:center; gap:10px; padding:7px 12px; color:var(--menu-item);
+  font-size:12.5px; border-top:1px solid var(--menu-borda); margin-top:4px; padding-top:10px }
+.sb-usuario .sb-ico { width:18px; display:flex; flex-shrink:0 }
+.sb-usuario b { color:var(--menu-item-tinta); font-weight:600; display:block; line-height:1.2 }
+.sb-usuario small { display:block; font-size:10.5px; color:var(--menu-sub) }
+.sidebar:not(:hover):not(:focus-within) .sb-usuario .sb-txt { display:none }
+
+/* tela em modo consulta e aviso de permissao */
+.faixa-consulta { background:var(--info-bg); color:var(--info); border-radius:var(--raio-p);
+  padding:9px 14px; font-size:12.5px; margin-bottom:14px }
+.aviso-acesso { position:fixed; left:50%; bottom:24px; transform:translate(-50%,20px); opacity:0;
+  background:var(--tinta); color:var(--card); padding:10px 18px; border-radius:var(--raio-p);
+  font-size:13px; z-index:200; pointer-events:none; transition:all .2s; max-width:calc(100% - 32px) }
+.aviso-acesso.visivel { opacity:1; transform:translate(-50%,0) }
+
+/* tela Usuarios */
+#lista tr.clicavel { cursor:pointer }
+#lista tr.clicavel:hover td { background:var(--hover) }
+#lista td, #lista th { text-align:left }
+.us-campos { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:12px }
+.us-campos .campo { display:flex; flex-direction:column }
+.us-marcas { display:flex; gap:22px; flex-wrap:wrap; margin-bottom:8px; color:var(--tinta) }
+.us-matriz th, .us-matriz td { text-align:center }
+/* a marcacao das permissoes herdava o contorno laranja de "td input:focus" e o
+   laranja do navegador: fica neutra, com o anel so para quem navega no teclado */
+.us-matriz td input[type="radio"] { width:16px; height:16px; padding:0; margin:0;
+  accent-color:var(--tinta-2, var(--tinta)); background:none; border:none; cursor:pointer }
+.us-matriz td input[type="radio"]:focus { outline:none; background:none }
+.us-matriz td input[type="radio"]:focus-visible { outline:2px solid var(--tinta-3); outline-offset:2px }
+.us-matriz td:first-child, .us-matriz th:first-child { text-align:left }
+.us-acoes { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:10px }
+.us-redefinir { display:flex; gap:8px }
+/* o display:flex/grid acima venceria o atributo hidden */
+.login-cartao [hidden], #editor[hidden], .us-campos [hidden], .us-marcas [hidden],
+.us-acoes [hidden], .sem-custo[hidden] { display:none !important }
+
+/* Projeção de Compras: 12 colunas cabem na largura da tela sem rolagem
+   lateral — cabeçalho quebra em duas linhas, campos e textos de apoio
+   (equivalência do salmão, conta da caixa) quebram dentro da célula. */
+table.tabela-proj { min-width:0; table-layout:auto }
+.tabela-proj th { white-space:normal; line-height:1.3; vertical-align:bottom; letter-spacing:.3px }
+.tabela-proj th, .tabela-proj td { padding:9px 6px }
+.tabela-proj td:first-child { white-space:normal; min-width:96px }
+.tabela-proj td input { width:68px; padding-left:6px; padding-right:6px }
+.tabela-proj td input[data-c="fator"], .tabela-proj td input[data-c="dias"] { width:46px !important }
+.tabela-proj td input[style*="width:56px"] { width:52px !important }
+.tabela-proj td select { max-width:96px }
+.tabela-proj .msg-conv { white-space:normal; max-width:150px; margin-left:auto; line-height:1.3 }
+.tabela-proj .ajuste-cel .qtd-resumo { width:68px }
+.tabela-proj .tend-cel { gap:5px }
+/* em tela estreita, o seletor de libragem desce para baixo do número, o botão
+   de dias para baixo da média e o texto da tendência para baixo da curva */
+.tabela-proj td:nth-child(3), .tabela-proj td:nth-child(4), .tabela-proj td.media { white-space:normal }
+.tabela-proj td:nth-child(3) select, .tabela-proj td:nth-child(4) select { margin-top:3px }
+.tabela-proj td.media .botao-mini { margin-top:3px }
+.tabela-proj .tend-cel { flex-direction:column; align-items:flex-end; gap:1px }
+
+/* ============================ RECEBIMENTO DE SALMÃO ============================ */
+.rec-corpo { padding:4px 20px 20px }
+.rec-tab td input { text-align:right }
+.rec-tab .msg-conv { text-align:right }
+.rec-dif { color:var(--ruim); font-weight:600; font-size:12px }
+#filtro button b { font-weight:700; margin-left:4px }
+a.selo { text-decoration:none }
+.doc-rec { display:none }
+@media print {
+  body.imprimindo-rec .app-layout, body.imprimindo-rec .sidebar, body.imprimindo-rec .aviso-flut,
+  body.imprimindo-rec .faixa-consulta { display:none !important }
+  body.imprimindo-rec { background:#fff !important }
+  body.imprimindo-rec .doc-rec { display:block; color:#000; font-size:11pt; padding:0 }
+  @page { size:A4 landscape; margin:12mm }
+}
+.doc-rec h1 { font-size:17pt; margin:0 0 2px }
+.doc-rec .dr-cab { display:flex; justify-content:space-between; gap:20px; border-bottom:2px solid #000; padding-bottom:8px }
+.doc-rec .dr-cab p { margin:0 }
+.doc-rec .dr-ids { text-align:right; line-height:1.5 }
+.doc-rec .dr-instr { font-size:9.5pt; margin:8px 0 }
+.doc-rec table.dr-tab { width:100%; min-width:0; border-collapse:collapse; margin-top:6px }
+.doc-rec .dr-tab th, .doc-rec .dr-tab td { border:1px solid #000; padding:7px 6px; text-align:center;
+  white-space:normal; color:#000; background:#fff; position:static; font-size:10pt; letter-spacing:0 }
+.doc-rec .dr-tab td:first-child { text-align:left }
+.doc-rec .dr-tab th { text-transform:none; font-weight:700 }
+.doc-rec .dr-tab td.dr-branco { min-width:22mm; height:11mm }
+.doc-rec .dr-total td { font-weight:700 }
+.doc-rec .dr-assin { display:flex; gap:24px; margin-top:22mm }
+.doc-rec .dr-assin div { flex:1; font-size:9.5pt; border-top:1px solid #000; padding-top:4px }
+.doc-rec .dr-rodape { font-size:8pt; color:#444; margin-top:10mm }
+
+/* salmão a caminho (pedido real do Recebimento): tag informativa, fora da conta */
+.tag-caminho { display:block; margin:5px 0 0 auto; max-width:170px; padding:3px 7px; text-align:left;
+  font-size:10.5px; line-height:1.35; white-space:normal; text-decoration:none;
+  color:var(--info); background:var(--info-bg); border:1px dashed var(--info); border-radius:8px }
+.tag-caminho:hover { border-style:solid }

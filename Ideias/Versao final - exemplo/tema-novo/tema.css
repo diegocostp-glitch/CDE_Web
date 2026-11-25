@@ -1,0 +1,291 @@
+/* Tema novo do CDE Web — EXEMPLO para aprovação.
+   Muda só: menu lateral (trilho com painel ao passar o mouse), botões de navegação, troca de tela e gráficos.
+   Cores, cartões e telas continuam exatamente os do CDE de hoje (variáveis do style.css, nos três temas). */
+:root { --tn-ease: cubic-bezier(.22, 1, .36, 1) }
+
+/* ---------- troca de tela: o navegador cruza as duas páginas e as partes da nova entram em sequência ---------- */
+@view-transition { navigation: auto }
+::view-transition-old(root) { animation: tn-vt-out .16s ease both }
+::view-transition-new(root) { animation: tn-vt-in .24s ease both }
+@keyframes tn-vt-out { to { opacity: 0 } }
+@keyframes tn-vt-in { from { opacity: 0 } }
+html.tn .main-content > * { animation: tn-rise .5s var(--tn-ease) both }
+html.tn .main-content > *:nth-child(2) { animation-delay: .05s }
+html.tn .main-content > *:nth-child(3) { animation-delay: .1s }
+html.tn .main-content > *:nth-child(4) { animation-delay: .15s }
+html.tn .main-content > *:nth-child(5) { animation-delay: .2s }
+html.tn .main-content > *:nth-child(6) { animation-delay: .25s }
+html.tn .main-content > *:nth-child(n+7) { animation-delay: .3s }
+@keyframes tn-rise { from { opacity: 0; transform: translateY(10px) } }
+
+/* ---------- menu: trilho de 72px; "aberto" fixa os nomes e empurra a tela ---------- */
+html.tn .sidebar, html.tn .sidebar:hover, html.tn .sidebar:focus-within {
+  width: var(--sidebar-rail); box-shadow: none; transition: width .38s var(--tn-ease) }
+html.tn.aberto .sidebar, html.tn.aberto .sidebar:hover, html.tn.aberto .sidebar:focus-within { width: var(--sidebar-w) }
+html.tn .main-content { margin-left: var(--sidebar-rail); transition: margin-left .38s var(--tn-ease) }
+html.tn.aberto .main-content { margin-left: var(--sidebar-w) }
+html.tn .sidebar:hover ~ .main-content, html.tn .sidebar:focus-within ~ .main-content { opacity: 1; filter: none }
+
+/* recolhido: só ícones */
+html.tn:not(.aberto) .sidebar :is(.sb-txt, .sb-logo-txt, .sb-chev, #theme-name, .sb-arr, .tema-seg, .tn-busca-txt, .tn-kbd) { display: none !important }
+html.tn:not(.aberto) .sb-grupo-itens { display: none }
+html.tn:not(.aberto) .sidebar :is(.sb-item, .sb-grupo-cab, .sb-tema) { justify-content: center; padding: 0 !important; height: 40px; width: 100% }
+html.tn:not(.aberto) .sidebar:hover .sb-tema .sb-ico, html.tn:not(.aberto) .sidebar:focus-within .sb-tema .sb-ico { display: flex }
+html.tn:not(.aberto) .sb-usuario { justify-content: center; padding: 6px 0 }
+html.tn:not(.aberto) .sb-usuario .sb-txt { display: none }
+html.tn:not(.aberto) .sidebar .sb-badge { position: absolute; top: 6px; right: 9px; min-width: 0; width: 8px; height: 8px; padding: 0; font-size: 0 }
+html.tn:not(.aberto) .sb-logo { flex-direction: column; align-items: center; gap: 8px; padding-bottom: 10px }
+html.tn:not(.aberto) .sb-separa { margin: 6px 8px }
+
+/* aberto: os nomes ficam sempre visíveis (as regras antigas só mostravam com o mouse em cima) */
+html.tn.aberto .sidebar :is(.sb-txt, .sb-logo-txt, .sb-chev, #theme-name, .sb-arr, .sb-badge, .tema-seg) { opacity: 1 !important; pointer-events: auto !important }
+html.tn.aberto .tema-seg { position: static !important }
+html.tn.aberto .sb-tema .sb-ico { display: none }
+html.tn.aberto .sb-grupo-itens .sb-item { padding-left: 22px !important }
+
+html.tn .sb-nav { position: relative }
+html.tn .sb-item, html.tn .sb-grupo-cab, html.tn .sb-tema { position: relative; z-index: 1 }
+html.tn .sb-item:hover, html.tn .sb-grupo-cab:hover, html.tn .sb-tema:hover { transform: none }
+html.tn .sb-item .sb-ico, html.tn .sb-grupo-cab .sb-ico { transition: transform .3s var(--tn-ease) }
+html.tn .sb-item:hover .sb-ico, html.tn .sb-grupo-cab:hover .sb-ico { transform: scale(1.1) }
+html.tn .sb-item:active, html.tn .sb-grupo-cab:active { transform: scale(.98) }
+
+/* a tela aberta: pílula que desliza entre as telas, no lugar do bloco fixo com filete */
+html.tn .sb-item.active { background: transparent; box-shadow: none }
+html.tn .sb-item.active::before { display: none }
+html.tn .sb-grupo.tem-ativo > .sb-grupo-cab { color: var(--laranja) }
+html.tn .tn-pill { position: absolute; left: 0; right: 0; top: 0; height: 40px; border-radius: var(--raio-p); pointer-events: none; opacity: 0;
+  background: color-mix(in srgb, var(--laranja) 16%, transparent);
+  transition: transform .46s var(--tn-ease), height .46s var(--tn-ease), opacity .2s; z-index: 0 }
+
+/* botão de recolher e busca */
+html.tn .tn-recolher { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: 0 0 auto; margin-left: auto;
+  background: rgba(127, 127, 127, .14); border: 0; color: var(--menu-item); cursor: pointer; transition: background .18s, color .18s }
+html.tn:not(.aberto) .tn-recolher { margin-left: 0 }
+html.tn .tn-recolher:hover { background: rgba(127, 127, 127, .28); color: var(--menu-item-tinta) }
+html.tn .tn-recolher svg { width: 17px; height: 17px; transition: transform .38s var(--tn-ease) }
+html.tn:not(.aberto) .tn-recolher svg { transform: scaleX(-1) }
+html.tn .tn-busca { display: flex; align-items: center; gap: 10px; width: 100%; height: 38px; padding: 0 8px 0 12px; margin: 2px 0 10px; border-radius: var(--raio-p);
+  background: rgba(127, 127, 127, .12); border: 0; color: var(--menu-item); font: inherit; font-size: 13px; cursor: pointer; transition: background .18s, color .18s }
+html.tn .tn-busca:hover { background: rgba(127, 127, 127, .24); color: var(--menu-item-tinta) }
+html.tn .tn-busca svg { flex: 0 0 auto }
+html.tn .tn-busca-txt { flex: 1; text-align: left }
+html.tn .tn-kbd { font-size: 10.5px; padding: 2px 6px; border-radius: 6px; background: rgba(127, 127, 127, .2) }
+html.tn:not(.aberto) .tn-busca { justify-content: center; padding: 0 }
+
+/* painel que abre ao passar o mouse: mostra o que há dentro do grupo */
+.tn-fly { position: fixed; z-index: 200; padding-left: 12px; animation: tn-fly .2s var(--tn-ease) }
+.tn-fly__in { min-width: 230px; background: var(--menu-bg); border: 1px solid var(--menu-borda); border-radius: 12px; padding: 8px; box-shadow: 0 14px 36px rgba(0, 0, 0, .3) }
+.tn-fly__t { font-size: 11.5px; font-weight: 600; color: var(--menu-sub); padding: 6px 10px }
+.tn-fly a { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; font-size: 13px; text-decoration: none;
+  color: var(--menu-item); transition: background .15s, color .15s }
+.tn-fly a:hover, .tn-fly a:focus-visible { background: var(--menu-item-bg); color: var(--menu-item-tinta); outline: 0 }
+.tn-fly a.active { color: var(--laranja); font-weight: 600 }
+.tn-fly a.active::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--laranja); margin-right: -2px }
+.tn-fly a .sb-badge { margin-left: auto }
+.tn-fly--tip .tn-fly__in { min-width: 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--menu-item-tinta); box-shadow: none }
+@keyframes tn-fly { from { opacity: 0; transform: translateX(-6px) } }
+
+/* pesquisa (Ctrl K) */
+.tn-pal { position: fixed; inset: 0; z-index: 300; display: none; align-items: flex-start; justify-content: center; padding-top: 14vh; background: rgba(0, 0, 0, .5) }
+.tn-pal.on { display: flex; animation: tn-fade .18s }
+.tn-pal__box { width: min(560px, 92vw); background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, .4); animation: tn-pop .28s var(--tn-ease) }
+.tn-pal__in { display: flex; align-items: center; gap: 12px; padding: 0 18px; height: 54px; border-bottom: 1px solid var(--borda); color: var(--tinta-3) }
+.tn-pal__in input { flex: 1; border: 0; background: none; outline: 0; font-size: 15px; color: var(--tinta) }
+.tn-pal__list { max-height: 50vh; overflow: auto; padding: 8px }
+.tn-pal__g { font-size: 11.5px; font-weight: 600; color: var(--tinta-3); padding: 8px 10px 4px }
+.tn-pal__it { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 9px 10px; border: 0; background: none; border-radius: var(--raio-p); color: var(--tinta); font-size: 13.5px; cursor: pointer }
+.tn-pal__it[aria-selected="true"] { background: var(--laranja-claro); color: var(--laranja-forte) }
+.tn-pal__vazio { padding: 28px; text-align: center; color: var(--tinta-3) }
+@keyframes tn-fade { from { opacity: 0 } }
+@keyframes tn-pop { from { opacity: 0; transform: translateY(-10px) scale(.97) } }
+
+/* ---------- botões de navegação ---------- */
+html.tn .botao, html.tn .abas button, html.tn .segmentado button {
+  transition: transform .16s var(--tn-ease), background .18s, border-color .18s, color .18s, box-shadow .18s }
+html.tn .botao:not(:disabled):hover, html.tn .abas button:hover { transform: translateY(-1px) }
+html.tn .botao:not(:disabled):active, html.tn .abas button:active { transform: scale(.97) }
+html.tn .botao:focus-visible, html.tn .abas button:focus-visible, html.tn .segmentado button:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px }
+html.tn .segmentado { position: relative }
+html.tn .segmentado button { position: relative; z-index: 1 }
+html.tn .segmentado.tn-ok button.ativo { background: transparent; box-shadow: none }
+.tn-thumb { position: absolute; top: 2px; bottom: 2px; left: 0; border-radius: calc(var(--raio-p) - 2px); background: var(--card); z-index: 0; pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .14); transition: transform .38s var(--tn-ease), width .38s var(--tn-ease) }
+
+/* ---------- gráficos ---------- */
+.grafico-bloco[data-dinamico] svg.grafico { cursor: crosshair }
+.g-guia { transition: opacity .2s }
+
+@media (prefers-reduced-motion: reduce) {
+  html.tn .main-content > *, .tn-fly, .tn-pal.on, .tn-pal__box { animation: none }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none }
+  html.tn .sidebar, html.tn .main-content, .tn-pill, .tn-thumb { transition-duration: .01ms }
+}
+
+/* =====================================================================================================
+   RODADA 3 — medidas e fontes do Bastio, ícones novos, botões em pílula, painel de gráfico na Visão Geral,
+   gráficos do vídeo de Reports, resumo do Painel como a tela de Alertas e Lançamento na largura da tela.
+   Cores continuam as do CDE (variáveis do style.css, nos três temas).
+   ===================================================================================================== */
+@font-face { font-family: "Urbanist"; font-weight: 400; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-ext-400.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF }
+@font-face { font-family: "Urbanist"; font-weight: 400; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-400.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD }
+@font-face { font-family: "Urbanist"; font-weight: 500; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-ext-500.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF }
+@font-face { font-family: "Urbanist"; font-weight: 500; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-500.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD }
+@font-face { font-family: "Urbanist"; font-weight: 600; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-ext-600.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF }
+@font-face { font-family: "Urbanist"; font-weight: 600; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-600.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD }
+@font-face { font-family: "Urbanist"; font-weight: 700; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-ext-700.woff2) format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF }
+@font-face { font-family: "Urbanist"; font-weight: 700; font-style: normal; font-display: swap; src: url(fonts/urbanist-latin-700.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD }
+
+html.tn { --sidebar-w: 252px; --sidebar-rail: 80px; --raio: 22px; --raio-p: 14px; --fonte: "Urbanist", "Segoe UI", system-ui, -apple-system, sans-serif }
+html.tn body { font-family: var(--fonte); font-size: 14px; line-height: 1.5 }
+html.tn :is(button, input, select, textarea) { font-family: inherit }
+html.tn .screen-header h1 { font-size: clamp(28px, 2.6vw, 37px); font-weight: 600; letter-spacing: -.025em; line-height: 1.1 }
+html.tn .screen-header p { font-size: 14px; margin-top: 6px }
+html.tn :is(.cartao h2, .cabeca h2, .rd-cab h3) { font-size: 15px; font-weight: 600; letter-spacing: -.005em }
+html.tn .fonte { font-size: 12.5px }
+html.tn .cartao { border-radius: var(--raio) }
+
+/* menu lateral: 252 px aberto e 80 px recolhido, itens com cantos totalmente redondos, como no Bastio */
+html.tn .sidebar { padding: 14px }
+html.tn .sb-logo-title { font-size: 20px; font-weight: 700; letter-spacing: -.02em; line-height: 1 }
+html.tn .sb-logo-sub { font-size: 11.5px; margin-top: 4px }
+html.tn.aberto :is(.sb-item, .sb-grupo-cab, .sb-tema) { height: 34px; padding: 0 10px 0 12px; border-radius: 99px; font-size: 13.5px; font-weight: 600; gap: 12px }
+html.tn.aberto .sb-grupo-itens .sb-item { height: 32px; font-size: 13px }
+html.tn .sb-item.active { color: var(--menu-item-tinta) }
+html.tn .sb-item.active .sb-ico, html.tn .sb-grupo.tem-ativo > .sb-grupo-cab .sb-ico { color: var(--laranja) }
+html.tn .sb-grupo.tem-ativo > .sb-grupo-cab { color: var(--menu-item-tinta) }
+html.tn .tn-pill { border-radius: 99px }
+html.tn .sb-ico { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center }
+html.tn .sb-ico svg { width: 20px; height: 20px }
+html.tn .tn-busca { border-radius: 99px; height: 40px; font-weight: 500 }
+html.tn .tn-recolher { border-radius: 10px }
+html.tn .tn-fly__in { border-radius: 18px }
+html.tn .tn-fly a { border-radius: 99px; font-weight: 600; height: 34px }
+@media (max-width: 900px) {
+  html.tn.aberto .main-content { margin-left: var(--sidebar-rail) }
+  html.tn.aberto .sidebar { box-shadow: var(--menu-sombra) }
+}
+
+/* botões: pílulas de 40 px, no desenho do Export / New / Start reviewing */
+html.tn .botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 99px;
+  font-size: 13.5px; font-weight: 600; background: var(--card); color: var(--tinta); box-shadow: inset 0 0 0 1px var(--borda-forte); text-decoration: none }
+html.tn .botao:not(:disabled):hover { background: var(--hover); box-shadow: inset 0 0 0 1px var(--borda-forte) }
+html.tn .botao.primario { background: var(--laranja); color: #fff; box-shadow: 0 8px 18px -12px var(--laranja) }
+html.tn .botao.primario:not(:disabled):hover { background: var(--laranja-forte); box-shadow: 0 8px 18px -12px var(--laranja) }
+html.tn body.mono .botao.primario { color: #000 }
+html.tn .botao.peq { height: 32px; padding: 0 12px; font-size: 12.5px }
+html.tn .botao.fantasma { background: transparent; box-shadow: none }
+html.tn .botao.fantasma:hover { background: var(--hover) }
+html.tn .abas button { height: 36px; padding: 0 16px; border: 0; border-radius: 99px; font-size: 13.5px; font-weight: 600; box-shadow: inset 0 0 0 1px var(--borda-forte) }
+html.tn .abas button.ativa { box-shadow: none }
+html.tn .segmentado { border-radius: 99px; padding: 3px; border: 0; box-shadow: inset 0 0 0 1px var(--borda) }
+html.tn .segmentado button { height: 32px; padding: 0 14px; border-radius: 99px; font-size: 13px; font-weight: 600 }
+html.tn .tn-thumb { border-radius: 99px }
+html.tn .sino-btn { border-radius: 99px; height: 40px; font-weight: 600 }
+html.tn :is(.campo input, .campo select, select) { border-radius: 14px }
+
+/* Visão Geral: os blocos pequenos viram abas; o escolhido fica escuro e abre o painel */
+html.tn .insights { gap: 14px }
+html.tn .ins { border-radius: 22px; cursor: pointer; transition: background .25s, color .25s, transform .2s var(--tn-ease), border-color .25s }
+html.tn .ins:hover { transform: translateY(-2px) }
+html.tn .ins:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px }
+html.tn .ins.sel { background: var(--tinta); border-color: var(--tinta) }
+html.tn .ins.sel .ins-valor { color: var(--card) }
+html.tn .ins.sel :is(.ins-rotulo, .ins-contexto) { color: color-mix(in srgb, var(--card) 72%, transparent) }
+html.tn .ins-valor { font-size: 21px; font-weight: 600; letter-spacing: -.02em }
+html.tn .rp { padding: 20px 22px; margin-bottom: 18px }
+.rp-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px }
+.rp-ctl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap }
+.rp-corpo { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 22px; align-items: start }
+.rp-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.rp-num { padding: 14px 16px; border-radius: 18px; background: var(--campo); display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+.rp-num.dest { grid-column: 1 / 3; background: var(--tinta); color: var(--card) }
+.rp-num small { font-size: 12px; opacity: .78 }
+.rp-num b { white-space: nowrap; font-size: 21px; font-weight: 600; letter-spacing: -.02em; color: inherit }
+.rp-num span { font-size: 12px; opacity: .8 }
+.rp-tog { display: inline-flex; align-items: center; gap: 10px; height: 40px; font-weight: 600; font-size: 13px; color: var(--tinta); background: none; border: 0; cursor: pointer }
+.rp-tog i { width: 40px; height: 24px; border-radius: 99px; background: var(--borda-forte); position: relative; transition: background .25s }
+.rp-tog i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--card); transition: transform .3s var(--tn-ease) }
+.rp-tog[aria-pressed="true"] i { background: var(--tinta) }
+.rp-tog[aria-pressed="true"] i::after { transform: translateX(16px) }
+@media (max-width: 1100px) { .rp-corpo { grid-template-columns: 1fr } .rp-nums { grid-template-columns: repeat(4, 1fr) } .rp-num.dest { grid-column: auto } }
+@media (max-width: 640px) { .rp-nums { grid-template-columns: 1fr 1fr } }
+
+/* gráficos: o desenho do vídeo de Reports */
+.tc { position: relative }
+.tc svg { display: block; width: 100%; height: auto; overflow: visible }
+.tc text { fill: var(--tinta-3); font-size: 11px; font-family: inherit }
+.tc-gl { stroke: var(--borda-forte); stroke-dasharray: 2 4 }
+.tc-ln { fill: none; stroke: var(--tinta); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round }
+.tc-ln2 { fill: none; stroke: var(--tinta-3); stroke-width: 1.6; stroke-dasharray: 5 5; transition: opacity .35s }
+.tc.sem-comp .tc-ln2 { opacity: 0 }
+.tc-ar { fill: color-mix(in srgb, var(--tinta) 7%, transparent) }
+.tc-fim, .tc-pt { fill: var(--card); stroke: var(--tinta); stroke-width: 2.2 }
+.tc-cur { stroke: var(--borda-forte); transition: opacity .18s }
+.tc-pt { transition: opacity .18s }
+.tc-cap { cursor: crosshair }
+.tc-tip { position: absolute; left: 0; top: 0; pointer-events: none; background: var(--tinta); color: var(--card); border-radius: 12px; padding: 6px 12px;
+  font-size: 12px; font-weight: 500; white-space: nowrap; opacity: 0; transition: opacity .15s; z-index: 5; transform: translate(-50%, -100%) }
+.tc-tip.on { opacity: 1 }
+.tc-tip b { font-weight: 700 }
+.tc-bx { fill: color-mix(in srgb, var(--tinta) 26%, transparent); transition: y .55s var(--tn-ease), height .55s var(--tn-ease), fill .2s }
+.tc-bx.hi { fill: var(--tinta) }
+.tc text.tc-x.hi { fill: var(--tinta); font-weight: 700 }
+.tc-duplo { display: grid; grid-template-columns: 1fr 1fr; gap: 28px }
+.tc-bloco h3 { font-size: 14px; font-weight: 600; margin: 0 0 6px }
+.tc-nota { margin-top: 10px }
+@media (max-width: 900px) { .tc-duplo { grid-template-columns: 1fr } }
+
+/* Painel de Consumo — resumo montado como a tela de Alertas */
+html.tn #visoes { box-shadow: inset 0 0 0 1px var(--borda-forte) }
+.al-sevs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px }
+.al-chip { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 22px; background: var(--card); border: 1px solid var(--borda) }
+.al-ico { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; flex: 0 0 auto }
+.al-ico.p1 { background: var(--ruim-bg); color: var(--ruim) }
+.al-ico.p2 { background: var(--aviso-bg); color: var(--aviso) }
+.al-ico.p3 { background: var(--info-bg); color: var(--info) }
+.al-vals { display: flex; flex-direction: column; gap: 2px }
+.al-n { font-size: 26px; font-weight: 600; line-height: 1; color: var(--tinta); letter-spacing: -.02em }
+.al-l { font-size: 12.5px; color: var(--tinta-3) }
+html.tn .al-lista { padding: 18px 12px 12px; margin-bottom: 14px }
+html.tn .al-lista .rd-cab { padding: 0 10px 10px }
+.al-rows { display: flex; flex-direction: column; gap: 4px }
+.al-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 16px 14px; border-radius: 18px }
+.al-row.p1 { background: color-mix(in srgb, var(--ruim) 7%, transparent) }
+.al-row:hover { background: var(--hover) }
+.al-corpo { min-width: 0 }
+.al-tit { display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
+.al-tit b { font-size: 15px; font-weight: 600; color: var(--tinta) }
+.al-pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 99px; font-size: 12px; font-weight: 600 }
+.al-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor }
+.al-pill.p1 { background: var(--ruim-bg); color: var(--ruim) }
+.al-pill.p2 { background: var(--aviso-bg); color: var(--aviso) }
+.al-pill.p3 { background: var(--info-bg); color: var(--info) }
+.al-det, .al-olhar, .al-meta { margin: 4px 0 0; font-size: 13.5px; color: var(--tinta-2); max-width: 78ch }
+.al-olhar b { color: var(--tinta); font-weight: 600 }
+.al-meta { font-size: 12px; color: var(--tinta-3) }
+.al-acoes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end }
+.rd-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; align-items: start }
+@media (max-width: 1100px) { .rd-duas { grid-template-columns: 1fr } .al-row { grid-template-columns: 44px minmax(0, 1fr) } .al-acoes { grid-column: 2; justify-content: flex-start } }
+@media (max-width: 700px) { .al-sevs { grid-template-columns: 1fr } }
+
+/* Lançamento diário (e contagens): a tela usa a largura que tem e o nome do item ganha espaço e quebra de linha */
+html.tn .tela-lancamento .screen-header, html.tn .tela-lancamento .barra, html.tn .tela-lancamento .cartao { max-width: none }
+html.tn .tela-lancamento .screen-header { flex-wrap: wrap }
+html.tn .tela-lancamento .screen-header p { max-width: 70ch }
+html.tn .tela-lancamento .cartao { overflow-x: auto }
+html.tn .tabela-lancamento { table-layout: fixed; width: 100%; min-width: 940px }
+html.tn .tabela-lancamento th:first-child, html.tn .tabela-lancamento td:first-child { width: 27%; min-width: 250px }
+html.tn .tabela-lancamento th:not(:first-child), html.tn .tabela-lancamento td:not(:first-child) { width: auto }
+html.tn .tabela-lancamento td:first-child { white-space: normal; overflow-wrap: anywhere; line-height: 1.3 }
+html.tn .tabela-lancamento td:first-child .un { white-space: nowrap }
+html.tn .tabela-lancamento input { max-width: 112px; min-width: 56px }
+html.tn .tabela-lancamento input.texto { max-width: none }
+html.tn .tabela-lancamento td.col-texto, html.tn .tabela-lancamento th.col-texto { width: 16% }
+@media (max-width: 640px) {
+  html.tn .header-acoes { margin-left: 0; flex-wrap: wrap; width: 100% }
+  html.tn .header-acoes .campo { flex: 1 1 140px; min-width: 0 }
+  html.tn .header-acoes select { width: 100% }
+}
+html.tn.aberto .sidebar .sb-usuario .sb-txt { display: block !important }
+html.tn .sb-usuario { border-radius: 99px }

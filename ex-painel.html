@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Exemplo] CDE — Painel de Consumo</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/tema-novo.css">
+<script src="js/navegacao.js"></script>
+<script src="js/tema-novo.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content">
+  <div class="screen-header">
+    <div>
+      <h1>Painel de Consumo</h1>
+      <p id="periodo-txt">carregando…</p>
+    </div>
+    <div class="header-acoes">
+      <div class="segmentado" id="visoes">
+        <button data-v="resumo" class="ativo">Resumo do dia</button>
+        <button data-v="tabela">Tabela</button>
+        <button data-v="mapa">Visão Geral</button>
+        <button data-v="dinheiro">Impacto R$</button>
+      </div>
+      <div class="sino">
+        <button class="sino-btn" id="sino-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+          </svg>
+          <span id="sino-txt">Sem alertas</span>
+        </button>
+        <div class="sino-lista" id="sino-lista" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="barra so-periodo">
+    <label class="campo"><span>De</span><input type="date" id="inicio"></label>
+    <label class="campo"><span>Até</span><input type="date" id="fim"></label>
+    <button class="botao" id="ultimos30">Últimos 30 dias</button>
+  </section>
+
+  <div class="placar so-periodo" id="placar"></div>
+
+  <section class="cartao so-periodo">
+    <div class="filtros">
+      <label class="campo"><span>Loja</span><select id="f-casa"></select></label>
+      <label class="campo"><span>Insumo</span><select id="f-insumo"></select></label>
+      <label class="campo"><span>Situação</span><select id="f-situacao"></select></label>
+      <span class="fonte" id="contagem"></span>
+    </div>
+    <div class="rolagem" id="tabela"></div>
+  </section>
+
+  <!-- Resumo do dia: sempre abre no dia anterior (ontem). O servidor compara
+       cada insumo com a media dos 28 dias antes e junta as pendencias. -->
+  <section id="resumo" hidden>
+    <div class="rd-topo">
+      <div>
+        <h2 id="rd-titulo">Resumo do dia</h2>
+        <p class="fonte" id="rd-sub"></p>
+      </div>
+      <div class="rd-nav">
+        <button class="botao" id="rd-ant" title="Dia anterior">Dia anterior</button>
+        <input type="date" id="rd-data">
+        <button class="botao" id="rd-seg" title="Dia seguinte">Dia seguinte</button>
+        <button class="botao" id="rd-ontem">Ontem</button>
+      </div>
+    </div>
+    <div id="rd-corpo"><p class="vazio">carregando…</p></div>
+  </section>
+
+  <section class="cartao" id="detalhe" hidden>
+    <div class="cabeca">
+      <h2 id="det-titulo"></h2>
+      <button class="botao" id="det-fechar">Fechar</button>
+    </div>
+    <div class="graficos" id="det-graficos"></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("painel")</script>
+<script src="js/painel.js"></script>
+<script src="js/painel-resumo-novo.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>

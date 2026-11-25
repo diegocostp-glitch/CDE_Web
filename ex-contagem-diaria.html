@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[Exemplo] CDE — Contagem diária</title>
+<link rel="icon" type="image/png" href="centurion_aba.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/tema-novo.css">
+<script src="js/navegacao.js"></script>
+<script src="js/tema-novo.js"></script>
+</head>
+<body class="light">
+<div class="app-layout">
+
+<main class="main-content tela-lancamento">
+  <div class="screen-header">
+    <div>
+      <h1>Contagem diária</h1>
+    </div>
+    <div class="header-acoes">
+      <span id="estado" class="estado"></span>
+      <button class="botao" data-imprimir="rascunho" title="Ficha de bancada: as pesagens do dia, item a item">Imprimir rascunho</button>
+      <button class="botao" data-imprimir="diaria">Imprimir ficha</button>
+      <button class="botao primario" id="btn-salvar">Salvar contagem</button>
+    </div>
+  </div>
+
+  <section class="barra">
+    <label class="campo"><span>Data</span><input type="date" id="data"></label>
+    <div class="navdata">
+      <button class="botao" id="anterior" title="Dia anterior">◀</button>
+      <button class="botao" id="hoje">Hoje</button>
+      <button class="botao" id="seguinte" title="Próximo dia">▶</button>
+    </div>
+    <nav class="abas" id="abas-casas"></nav>
+    <span class="fonte legenda-abas">O número ao lado de cada casa é quantos itens ainda
+      estão sem contagem; <span class="pend feito">✓</span> é contagem completa.</span>
+  </section>
+
+  <div id="painel"></div>
+
+  <section class="cartao cartao-processamento">
+    <div class="cabeca cv-toggle" id="abrir-lista" role="button" tabindex="0">
+      <h2>Itens da lista</h2>
+      <span class="fonte" id="resumo-lista"></span>
+      <span class="ordem-chev" id="chev-lista">▸</span>
+    </div>
+    <div id="editor-lista" hidden></div>
+  </section>
+</main>
+</div>
+<script>montarSidebar("contagem_diaria")</script>
+<script>const TIPO_CONTAGEM = "diaria";</script>
+
+<div id="aviso" class="aviso-flut" hidden></div>
+<script src="js/comum.js"></script>
+<script src="js/contagem-comum.js"></script>
+<script src="js/contagem.js"></script>
+<script src="js/contagem-importar.js"></script>
+<script src="js/acoes.js"></script>
+</body>
+</html>
