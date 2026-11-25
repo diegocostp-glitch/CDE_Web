@@ -256,6 +256,7 @@ const txtManual = (v) => temManual(v)
 
 function desenhar() {
   sincronizarPeriodo();
+  alertaACaminho();
   const casa = PROJ.casas[CASA];
   const cab = ["Insumo", "Estoque", "Trânsito entrada", "Trânsito saída", "Média/dia",
                "", "Fator", "Duração",
@@ -310,9 +311,9 @@ function fornecedoresDe(i) {
 // Célula de trânsito. No salmão vem com a libragem ao lado e, embaixo, quanto
 // aquilo dá em equivalente 08/10 (preenchido no recalcular).
 // Salmão a caminho: o pedido real (espelho do fornecedor) lançado no
-// Recebimento de Salmão e ainda não conferido pela loja. Aparece como tag
-// embaixo do Trânsito entrada — só para leitura: NÃO preenche a célula, não
-// entra no disponível nem na duração. Quem decide digitar o trânsito é quem
+// Recebimento de Salmão e ainda não conferido pela loja. Aparece como alerta
+// no canto da tela (não mais na linha do salmão) — só para leitura: NÃO
+// preenche o trânsito, não entra no disponível nem na duração. Quem decide digitar o trânsito é quem
 // faz o pedido. Vale para pedidos de datas anteriores à desta projeção (o
 // pedido de terça aparece na projeção seguinte) dos últimos 14 dias.
 let A_CAMINHO = [];
@@ -343,12 +344,34 @@ function tagACaminho(casa) {
       const nome = /file|filé/i.test(i.nome) ? "filé " : "";
       return `${nome}${fmt(i.real_kg, 3)} kg${px ? " · " + px : ""}${eq}`;
     });
-    return `<a class="tag-caminho" href="recebimento.html?id=${encodeURIComponent(x.id)}"
+    return `<a class="ac-item" href="recebimento.html?id=${encodeURIComponent(x.id)}"
       title="Pedido real lançado no Recebimento de Salmão, ainda não conferido pela loja.
 Só informativo: não está no trânsito e não muda a duração do estoque.">
-      A caminho · OC ${x.numero_oc ? "nº " + escapa(x.numero_oc) : "—"} de ${brDate(x.data).slice(0, 5)}${
-        x.pedido_real && x.pedido_real.previsto ? " · chega " + brDate(x.pedido_real.previsto).slice(0, 5) : ""}<br>${linhas.join("<br>")}</a>`;
+      <b>OC ${x.numero_oc ? "nº " + escapa(x.numero_oc) : "—"} de ${brDate(x.data).slice(0, 5)}${
+        x.pedido_real && x.pedido_real.previsto ? " · chega " + brDate(x.pedido_real.previsto).slice(0, 5) : ""}</b>${linhas.map((l) => `<span>${l}</span>`).join("")}</a>`;
   }).join("");
+}
+
+// Alerta do canto: o salmão a caminho da casa aberta. Fechado, só volta ao
+// recarregar a tela (cada casa tem o seu).
+const CAMINHO_FECHADO = new Set();
+function alertaACaminho() {
+  let el = $("#alerta-caminho");
+  if (!el) {
+    el = document.createElement("aside");
+    el.id = "alerta-caminho";
+    el.className = "alerta-canto";
+    el.setAttribute("role", "status");
+    document.body.appendChild(el);
+  }
+  const corpo = tagACaminho(CASA);
+  if (!corpo || CAMINHO_FECHADO.has(CASA)) { el.hidden = true; el.innerHTML = ""; return; }
+  const casa = PROJ.casas[CASA] || {};
+  el.innerHTML = `<div class="ac-cab"><span class="ac-ponto" aria-hidden="true"></span>
+      <strong>Salmão a caminho</strong><span class="ac-casa">${nomeLoja(CASA, casa.nome)}</span>
+      <button type="button" class="ac-fechar" title="Fechar" aria-label="Fechar">×</button></div>${corpo}`;
+  el.hidden = false;
+  el.querySelector(".ac-fechar").onclick = () => { CAMINHO_FECHADO.add(CASA); el.hidden = true; };
 }
 
 function celTransito(i, campo, dica) {
@@ -358,7 +381,7 @@ function celTransito(i, campo, dica) {
   return `<td>${input} style="width:56px">
     <select data-c="${campo}_tam" title="Libragem que está ${campo === "transito" ? "chegando" : "saindo"}">${
       PROJ.libragens.map((l) => `<option value="${l.chave}"${l.chave === tam ? " selected" : ""}>${l.nome}</option>`).join("")}</select>
-    <span class="msg-conv eq-${campo}"></span>${campo === "transito" ? tagACaminho(CASA) : ""}</td>`;
+    <span class="msg-conv eq-${campo}"></span></td>`;
 }
 
 // Os dias que formam a média do item, num calendário de segunda a domingo:

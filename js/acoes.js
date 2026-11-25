@@ -121,6 +121,14 @@
         <div class="acao-corpo" id="acao-corpo"></div>
       </section>`);
 
+    // O botão entra na barra do topo, como último item ao lado dos outros
+    // botões da tela; só fica solto no canto quando a tela não tem barra.
+    const cab = document.querySelector(".screen-header");
+    if (cab) {
+      const lugar = cab.querySelector(".header-acoes") || cab;
+      lugar.appendChild($$$("#acao-botao"));
+      $$$("#acao-botao").classList.add("no-topo");
+    }
     $$$("#acao-botao").onclick = () => alternar();
     $$$("#acao-fechar").onclick = () => alternar(false);
     $$$("#acao-voltar").onclick = () => irPara("menu");
@@ -130,9 +138,19 @@
     irPara("menu");
   }
 
+  // O painel abre logo abaixo do botão, alinhado pela direita dele.
+  function posicionarPainel() {
+    const b = $$$("#acao-botao"), p = $$$("#acao-painel");
+    if (!b.classList.contains("no-topo")) return;
+    const r = b.getBoundingClientRect();
+    p.style.top = (r.bottom + window.scrollY + 10) + "px";
+    p.style.right = Math.max(12, document.documentElement.clientWidth - r.right) + "px";
+  }
+
   function alternar(forcar) {
     aberto = forcar === undefined ? !aberto : forcar;
     $$$("#acao-painel").hidden = !aberto;
+    if (aberto) posicionarPainel();
     $$$("#acao-botao").classList.toggle("aberto", aberto);
     if (aberto) {
       const primeiro = $$$("#acao-corpo input, #acao-corpo select, #acao-corpo button");

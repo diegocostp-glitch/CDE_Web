@@ -237,7 +237,8 @@ const ICO_INS = {
 const svgIns = (d) => `<svg width="17" height="17" viewBox="0 0 24 24" fill="none"
   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 
-// Os seis cartões, na ordem de quem decide: o dinheiro que entrou, o que dele
+// Os sete cartões, na ordem de quem decide: o dinheiro que entrou, onde o mês
+// fecha nesse ritmo, o que dele
 // virou insumo, o que está parado, o que mais subiu, o que mais caiu e quanto
 // do faturamento virou insumo. Os quatro primeiros vêm do antigo placar — nada se perdeu ao
 // apagá-lo.
@@ -262,6 +263,41 @@ function destaques() {
       ? (d.faturamento_total - d.faturamento_anterior) / d.faturamento_anterior : null,
     bomSeSobe: true, icone: ICO_INS.dinheiro, contexto, serie: serieFat,
   });
+
+  // Onde o mês fecha no ritmo de agora: a primeira pergunta de quem abre o
+  // sistema. Mês em curso: faturamento até o dia ÷ dias corridos × dias do
+  // mês, contra o mês anterior FECHADO. Mês fechado: a média por dia, contra a
+  // do mês anterior. Na curva, o mês em curso entra já projetado.
+  const meses = d.serie_meses || [];
+  const [ano, mm] = String(d.mes).split("-").map(Number);
+  const diasMes = new Date(ano, mm, 0).getDate();
+  const iAnt = meses.findIndex((m) => m.mes === d.mes_anterior);
+  const fatAntCheio = iAnt >= 0 ? meses[iAnt].faturamento : null;
+  if (d.parcial && d.dia_limite > 0 && d.faturamento_total) {
+    const porDia = d.faturamento_total / d.dia_limite;
+    const proj = porDia * diasMes;
+    fora.push({
+      rotulo: "Faturamento projetado do mês", valor: curto(proj),
+      delta: fatAntCheio ? (proj - fatAntCheio) / fatAntCheio : null,
+      bomSeSobe: true, icone: ICO_INS.alta,
+      contexto: `${curto(porDia)} por dia × ${diasMes} dias · vs. ${mesFrase(d.mes_anterior)} fechado`,
+      serie: meses.map((m) => (m.mes === d.mes ? proj : m.faturamento)),
+    });
+  } else if (d.faturamento_total) {
+    const diasAnt = iAnt >= 0 ? new Date(ano, mm - 1, 0).getDate() : null;
+    const porDia = d.faturamento_total / diasMes;
+    const antDia = fatAntCheio && diasAnt ? fatAntCheio / diasAnt : null;
+    fora.push({
+      rotulo: "Faturamento médio por dia", valor: curto(porDia),
+      delta: antDia ? (porDia - antDia) / antDia : null,
+      bomSeSobe: true, icone: ICO_INS.dinheiro,
+      contexto: `${diasMes} dias · vs. ${mesFrase(d.mes_anterior)}`,
+      serie: meses.map((m) => {
+        const [a, b] = String(m.mes).split("-").map(Number);
+        return m.faturamento / new Date(a, b, 0).getDate();
+      }),
+    });
+  }
 
   fora.push({
     rotulo: "Consumo de insumo", valor: curto(d.consumo_valor),

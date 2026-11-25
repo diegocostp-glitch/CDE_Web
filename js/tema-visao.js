@@ -29,9 +29,12 @@
       const ok = values.map((v, i) => ({ v, l: labels[i], m: meses[ini + i] })).filter((x) => isFinite(x.v));
       const maior = ok.reduce((a, b) => (b.v > a.v ? b : a)), menor = ok.reduce((a, b) => (b.v < a.v ? b : a));
       const media = ok.reduce((s, x) => s + x.v, 0) / ok.length;
+      // o mês de antes do último da curva: fecha a grade de números em 2 × 2
+      const ant = ok.length >= 2 ? ok[ok.length - 2] : null;
       return { linha: true, cfg: { labels, values, comp: comparar ? comp : null, fmt: f.fmt, fmtEixo: f.eixo, aria: it.rotulo,
           titulo: (i) => `${mesBR(meses[ini + i].mes)} — <b>${f.fmt(values[i])}</b>` },
-        stats: [["Agora", it.valor, pilula(it)], ["Maior mês", f.fmt(maior.v), maior.l], ["Menor mês", f.fmt(menor.v), menor.l], ["Média do período", f.fmt(media), `${ok.length} meses`]] };
+        stats: [["Agora", it.valor, pilula(it)], ["Maior mês", f.fmt(maior.v), maior.l], ["Menor mês", f.fmt(menor.v), menor.l], ["Média do período", f.fmt(media), `${ok.length} meses`],
+          ["Mês anterior", ant ? f.fmt(ant.v) : "—", ant ? ant.l : ""]] };
     }
     // sem série mensal (custo do estoque): uma barra por casa
     const por = {};
@@ -42,7 +45,8 @@
     const iMax = vals.indexOf(Math.max(...vals)), iMin = vals.indexOf(Math.min(...vals));
     return { linha: false, cfg: { labels: casas, values: vals, fmt: (v) => curto(v), fmtEixo: (v) => curto(v), destaque: iMax, aria: it.rotulo,
         titulo: (i) => `${nome(casas[i])}: <b>${curto(vals[i])}</b>` },
-      stats: [["Total", curto(tot), ""], ["Maior casa", curto(vals[iMax] || 0), nome(casas[iMax])], ["Menor casa", curto(vals[iMin] || 0), nome(casas[iMin])], ["Contagens", String((DADOS.estoque || []).length), "linhas de insumo"]] };
+      stats: [["Total", curto(tot), ""], ["Maior casa", curto(vals[iMax] || 0), nome(casas[iMax])], ["Menor casa", curto(vals[iMin] || 0), nome(casas[iMin])], ["Contagens", String((DADOS.estoque || []).length), "linhas de insumo"],
+        ["Média por casa", curto(casas.length ? tot / casas.length : 0), `${casas.length} casas`]] };
   }
 
   function desenha(it, animar) {
@@ -101,14 +105,28 @@
     host.innerHTML = `<div class="tc-duplo"><div class="tc-bloco"><h3>Faturamento (Bruto) do grupo por mês</h3><div id="tcg-fat"></div></div>
       <div class="tc-bloco"><h3>Consumo de insumo sobre o Faturamento (Bruto)</h3><div id="tcg-peso"></div></div></div>
       <p class="fonte tc-nota">O último mês pode estar em curso — a curva sobe de novo quando o mês fecha.</p>`;
+    // desenha na largura que o bloco tem: o texto dos eixos sai no tamanho real
+    const largura = Math.max(360, Math.round($("#tcg-fat").clientWidth || 760));
     TNChart.linha($("#tcg-fat"), { labels, values: s.map((m) => m.faturamento), comp: s.map((m, i) => (i ? s[i - 1].faturamento : null)),
-      fmt: (v) => curto(v), fmtEixo: (v) => curto(v), aria: "Faturamento por mês", altura: 250,
+      fmt: (v) => curto(v), fmtEixo: (v) => curto(v), aria: "Faturamento por mês", altura: 340, largura,
       titulo: (i) => `${mesBR(s[i].mes)} — <b>${reais(s[i].faturamento)}</b>` });
     TNChart.linha($("#tcg-peso"), { labels, values: s.map((m) => (m.peso === null || m.peso === undefined ? NaN : m.peso * 100)),
       comp: s.map((m, i) => (i && s[i - 1].peso != null ? s[i - 1].peso * 100 : null)),
-      fmt: (v) => fmt(v, 1) + "%", fmtEixo: (v) => fmt(v, 0) + "%", aria: "Insumo sobre faturamento por mês", altura: 250,
+      fmt: (v) => fmt(v, 1) + "%", fmtEixo: (v) => fmt(v, 0) + "%", aria: "Insumo sobre faturamento por mês", altura: 340, largura,
       titulo: (i) => `${mesBR(s[i].mes)} — <b>${parte(s[i].peso)}</b> do faturamento bruto em insumo` });
   };
+
+  let larguraEvolucao = 0, tEvolucao = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(tEvolucao);
+    tEvolucao = setTimeout(() => {
+      const el = $("#tcg-fat");
+      if (!el || typeof VISTA === "undefined" || !VISTA) return;
+      if (Math.abs(el.clientWidth - larguraEvolucao) < 40) return;
+      larguraEvolucao = el.clientWidth;
+      window.graficosMes();
+    }, 200);
+  });
 
   // se a tela já desenhou antes deste arquivo carregar, desenha de novo com o tema
   if (typeof VISTA !== "undefined" && VISTA) { window.insights(); window.graficosMes(); }

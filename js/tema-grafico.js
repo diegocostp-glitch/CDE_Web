@@ -37,7 +37,7 @@
 
   // ----------------------------------------------------------------- linha
   function linha(host, cfg) {
-    const W = 760, Ht = cfg.altura || 290, L = 62, R = 14, T = 14, B = 30;
+    const W = cfg.largura || 760, Ht = cfg.altura || 290, L = 62, R = 14, T = 14, B = 30;
     let st = null; // estado atual do desenho
     const gx = (i, n) => L + (n < 2 ? 0 : (i * (W - L - R)) / (n - 1));
 

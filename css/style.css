@@ -947,14 +947,17 @@ body.dark .lt-linha:first-child .lt-pos { background:#F5860F1F; color:var(--lara
   #graficos-mes { grid-template-columns:1fr 1fr; align-items:start }
   #graficos-mes > p.fonte { grid-column:1 / -1; margin:0 }
 }
+/* com o tema novo o par já vem montado (.tc-duplo): ocupa a largura toda */
+#graficos-mes:has(> .tc-duplo) { display:block }
 
 /* ============================================================================
    BOTÃO DE AÇÃO
-   Fica no canto inferior direito de todas as telas. O painel abre por cima do
+   Fica no canto superior direito de todas as telas, na altura do título, e
+   sobe junto com a página (fixo, cobriria o canto dos cartões ao rolar). O painel abre por cima do
    conteúdo, sem trocar de página: quem está no meio de um filtro não perde o
    filtro para registrar uma chegada.
    ========================================================================== */
-.acao-botao { position:fixed; right:26px; bottom:26px; width:54px; height:54px; border-radius:50%;
+.acao-botao { position:absolute; right:26px; top:22px; width:46px; height:46px; border-radius:50%;
   background:var(--laranja); color:#fff; border:none; cursor:pointer; z-index:120;
   display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 20px rgba(245,134,15,.38); transition:transform .2s, background .2s }
@@ -965,7 +968,7 @@ body.dark .lt-linha:first-child .lt-pos { background:#F5860F1F; color:var(--lara
    ele e que o painel: abrindo as acoes, o painel o cobre em vez de disputar o
    canto. Em Parametros, a unica tela sem o botao de acoes, ele desce para o
    lugar dele. */
-.topo-botao { position:fixed; right:26px; bottom:92px; width:42px; height:42px;
+.topo-botao { position:fixed; right:26px; bottom:26px; width:42px; height:42px;
   border-radius:50%; z-index:119; display:flex; align-items:center; justify-content:center;
   background:var(--card); color:var(--tinta-2); border:1px solid var(--borda); cursor:pointer;
   box-shadow:0 6px 18px rgba(26,27,46,.14);
@@ -974,10 +977,15 @@ body.dark .lt-linha:first-child .lt-pos { background:#F5860F1F; color:var(--lara
 .topo-botao.visivel { opacity:1; pointer-events:auto; transform:none }
 .topo-botao:hover { border-color:var(--laranja); color:var(--laranja) }
 body.dark .topo-botao, body.mono .topo-botao { box-shadow:0 6px 18px rgba(0,0,0,.45) }
-body:not(:has(.acao-botao)) .topo-botao { bottom:26px }
+/* Na barra do topo (.no-topo): mesmo tamanho dos botões ao lado e alinhado
+   pela base, junto com os filtros que têm rótulo em cima (Mês, Casa). */
+.acao-botao.no-topo { position:static; flex:none; width:40px; height:40px; align-self:flex-end;
+  box-shadow:0 4px 14px rgba(245,134,15,.30) }
+.screen-header > .acao-botao.no-topo { margin-left:auto }
+.acao-botao.no-topo svg { width:20px; height:20px }
 
-.acao-painel { position:fixed; right:26px; bottom:92px; width:390px; max-width:calc(100vw - 40px);
-  max-height:min(640px, calc(100vh - 130px)); background:var(--card); z-index:121;
+.acao-painel { position:absolute; right:26px; top:78px; width:390px; max-width:calc(100vw - 40px);
+  max-height:min(640px, calc(100vh - 100px)); background:var(--card); z-index:121;
   border:1px solid var(--borda); border-radius:var(--raio); box-shadow:0 18px 48px rgba(26,27,46,.18);
   display:flex; flex-direction:column; overflow:hidden }
 body.dark .acao-painel { box-shadow:0 18px 48px rgba(0,0,0,.5) }
@@ -1048,10 +1056,9 @@ body.dark .acao-opcao-ico { background:#F5860F1F; color:var(--laranja) }
   background:var(--hover); color:var(--tinta-2); font-size:12.5px }
 
 @media (max-width:520px) {
-  .acao-painel { right:12px; left:12px; width:auto; bottom:84px }
-  .acao-botao { right:16px; bottom:16px }
-  .topo-botao { right:16px; bottom:80px }
-  body:not(:has(.acao-botao)) .topo-botao { bottom:16px }
+  .acao-painel { right:12px; left:12px; width:auto; top:68px }
+  .acao-botao:not(.no-topo) { right:16px; top:14px }
+  .topo-botao { right:16px; bottom:16px }
 }
 
 /* ============================================================================
@@ -1108,10 +1115,16 @@ body.dark .acao-opcao-ico { background:#F5860F1F; color:var(--laranja) }
    encolhe junto — recuo, número, rótulo e a curva do rodapé. Em tela menor a
    fita quebra em três e depois em dois, para o texto não virar coluna de uma
    palavra por linha. */
-.insights { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:18px }
-@media (max-width:1500px) { .insights { grid-template-columns:repeat(3,1fr); gap:14px } }
-@media (max-width:1000px) { .insights { grid-template-columns:repeat(2,1fr) } }
-@media (max-width:680px)  { .insights { grid-template-columns:1fr } }
+/* Em fita flexível e centralizada: quando sobra bloco numa linha (quatro ou
+   cinco em vez de seis, ou a última linha da quebra), eles ficam no meio em vez
+   de encostados à esquerda com buraco à direita. */
+.insights { --ins-n:7; --ins-g:10px; display:flex; flex-wrap:wrap; justify-content:center;
+  gap:var(--ins-g); margin-bottom:18px }
+.insights > * { flex:0 1 calc((100% - (var(--ins-n) - 1) * var(--ins-g)) / var(--ins-n)) }
+/* sete blocos: numa fita só em tela bem larga; abaixo disso, 4 em cima e 3 no meio embaixo */
+@media (max-width:1750px) { .insights { --ins-n:4; --ins-g:14px } }
+@media (max-width:1000px) { .insights { --ins-n:2 } }
+@media (max-width:680px)  { .insights { --ins-n:1 } }
 .ins-clicavel { cursor:pointer; transition:border-color .18s, transform .18s }
 .ins-clicavel:hover { border-color:var(--laranja); transform:translateY(-2px) }
 .ins { background:var(--card); border:1px solid var(--borda); border-radius:var(--raio);
@@ -1696,8 +1709,25 @@ a.selo { text-decoration:none }
 .doc-rec .dr-assin div { flex:1; font-size:9.5pt; border-top:1px solid #000; padding-top:4px }
 .doc-rec .dr-rodape { font-size:8pt; color:#444; margin-top:10mm }
 
-/* salmão a caminho (pedido real do Recebimento): tag informativa, fora da conta */
-.tag-caminho { display:block; margin:5px 0 0 auto; max-width:170px; padding:3px 7px; text-align:left;
-  font-size:10.5px; line-height:1.35; white-space:normal; text-decoration:none;
-  color:var(--info); background:var(--info-bg); border:1px dashed var(--info); border-radius:8px }
-.tag-caminho:hover { border-style:solid }
+/* salmão a caminho (pedido real do Recebimento): alerta no canto da Projeção, fora da conta */
+.alerta-canto { position:fixed; right:20px; bottom:20px; z-index:60; width:280px; max-height:60vh; overflow:auto;
+  background:var(--card); border:1px solid var(--borda-forte); border-left:3px solid var(--info);
+  border-radius:var(--raio-p); box-shadow:0 10px 30px rgba(0,0,0,.14); padding:10px 12px 8px;
+  font-size:12px; animation:ac-entra .3s ease-out }
+.alerta-canto[hidden] { display:none }
+.ac-cab { display:flex; align-items:center; gap:7px; margin-bottom:6px }
+.ac-cab strong { font-size:13px; color:var(--tinta) }
+.ac-ponto { width:8px; height:8px; border-radius:50%; background:var(--info); flex:none }
+.ac-casa { color:var(--tinta-3); font-size:11.5px }
+.ac-fechar { margin-left:auto; border:0; background:none; color:var(--tinta-3); font-size:18px;
+  line-height:1; cursor:pointer; padding:0 2px }
+.ac-fechar:hover { color:var(--tinta) }
+.ac-item { display:block; padding:7px 8px; margin:0 -4px; border-radius:8px; color:var(--tinta-2);
+  text-decoration:none; line-height:1.45 }
+.ac-item + .ac-item { border-top:1px solid var(--borda) }
+.ac-item:hover { background:var(--campo) }
+.ac-item b { display:block; color:var(--tinta); font-weight:600 }
+.ac-item span { display:block }
+@keyframes ac-entra { from { opacity:0; transform:translateY(10px) } }
+@media (prefers-reduced-motion: reduce) { .alerta-canto { animation:none } }
+@media print { .alerta-canto { display:none !important } }
