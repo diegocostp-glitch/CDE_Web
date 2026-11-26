@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centurion — modelo 4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --navy:#0f1b3d; --sub:#697285; --borda:#e3e7ef }
+  * { box-sizing:border-box; margin:0 }
+  body { font-family:"Poppins", system-ui, sans-serif; background:#f3f5f9; color:var(--navy); padding:32px 16px 64px }
+  .pag { max-width:1100px; margin:0 auto; display:grid; gap:20px }
+  h1 { font-size:22px } h1 + p { color:var(--sub); font-size:14px; margin-top:4px }
+  .azul { background:var(--navy); border-radius:20px; display:flex; align-items:center; justify-content:center }
+  .azul.grande { min-height:620px; padding:40px 16px }
+  .azul.grande svg { width:100%; max-width:380px; height:auto; display:block }
+  .linha { display:grid; grid-template-columns:1fr 1fr; gap:20px }
+  .claro { background:#fff; border:1px solid var(--borda); border-radius:20px; display:flex; align-items:center; justify-content:center; padding:28px 16px }
+  .linha .azul, .linha .claro { min-height:190px; padding:28px 16px }
+  .linha svg { width:100%; max-width:400px; height:auto; display:block }
+  .fav { display:flex; gap:22px; align-items:flex-end; justify-content:center; flex-wrap:wrap; padding:24px 16px }
+  .fav figure { display:flex; flex-direction:column; align-items:center; gap:6px }
+  .fav figcaption { font-size:11px; color:var(--sub) }
+  .q { display:grid; place-items:center; border-radius:12px; background:#fff; border:1px solid var(--borda) }
+  .q.e { background:var(--navy); border-color:var(--navy) }
+  .aba { display:flex; align-items:center; gap:8px; background:#dfe3eb; border-radius:10px 10px 0 0; padding:7px 14px 7px 10px; font-size:12px; color:#333; font-family:"Segoe UI",system-ui,sans-serif }
+  .linha .fav svg { width:auto; max-width:none; display:block }
+  .rot { font-size:12px; color:var(--sub); margin:-10px 0 0 4px }
+  @media (max-width:760px) { .linha { grid-template-columns:1fr } .azul.grande { min-height:440px } }
+</style>
+</head>
+<body>
+<div class="pag">
+  <div><h1>Centurion — modelo 4 (Recorte)</h1><p>Logo centralizado no fundo azul, com as versões de apoio.</p></div>
+
+  <div class="azul grande" id="v-azul"></div>
+  <p class="rot">Vertical sobre o azul (#0f1b3d), centralizada</p>
+
+  <div class="linha">
+    <div class="azul" id="h-azul"></div>
+    <div class="claro" id="h-claro"></div>
+  </div>
+  <p class="rot">Horizontal (menu e login), centralizada — azul e claro</p>
+
+  <div class="linha">
+    <div class="claro" id="v-claro"></div>
+    <div class="claro fav" id="fav"></div>
+  </div>
+  <p class="rot">Vertical no claro · favicon nos tamanhos reais</p>
+</div>
+
+<script>
+const NAVY = "#0f1b3d", CY = "#00d4ff", SUB = "#697285", PONT = "#c3cad6";
+let uid = 0;
+const P = (cx, cy, r, a) => [cx + r * Math.sin(a * Math.PI / 180), cy - r * Math.cos(a * Math.PI / 180)];
+const f = (n) => +n.toFixed(2);
+function arco(cx, cy, r, a0, a1) {
+  const [x0, y0] = P(cx, cy, r, a0), [x1, y1] = P(cx, cy, r, a1);
+  return `M${f(x0)} ${f(y0)} A${r} ${r} 0 ${(a1 - a0) % 360 > 180 ? 1 : 0} 1 ${f(x1)} ${f(y1)}`;
+}
+const hexP = (cx, cy, r) => [0, 60, 120, 180, 240, 300].map((a) => P(cx, cy, r, a).map(f).join(",")).join(" ");
+function seta(cx, cy, s) {
+  const c = (x, y) => `${f(cx + x * s)} ${f(cy + y * s)}`;
+  return `M${c(0, -1)} L${c(.92, -.02)} L${c(.38, -.02)} L${c(.38, 1)} L${c(-.38, 1)} L${c(-.38, -.02)} L${c(-.92, -.02)} Z`;
+}
+const grad = (id, e) => `<linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${CY}"/><stop offset="100%" stop-color="${e ? "#2f6bff" : NAVY}"/></linearGradient>`;
+
+// emblema do modelo 4 (caixa 200×200)
+function emblema(e) {
+  const g = "g" + uid++;
+  return `<defs>${grad(g, e)}</defs>
+    ${[[15, 95], [135, 215], [255, 335]].map(([a, b]) => `<path d="${arco(100, 100, 88, a, b)}" fill="none" stroke="url(#${g})" stroke-width="12" stroke-linecap="round"/>`).join("")}
+    <polygon points="${hexP(100, 100, 62)}" fill="url(#${g})" stroke="url(#${g})" stroke-width="6" stroke-linejoin="round"/>
+    <path d="${seta(100, 102, 34)}" fill="${e ? NAVY : "#fff"}"/>`;
+}
+// vertical: emblema e textos no mesmo eixo central (x = 190)
+const vertical = (e) => `<svg viewBox="0 17 380 411" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="190" cy="185" r="158" fill="none" stroke="${e ? "#2a3a66" : PONT}" stroke-width="1.5" stroke-dasharray="2 9"/>
+  <g transform="translate(50 45) scale(1.4)">${emblema(e)}</g>
+  <text x="190" y="388" text-anchor="middle" font-family="Poppins" font-size="38" font-weight="700" letter-spacing="3" fill="${e ? "#fff" : NAVY}">CENTURION</text>
+  <text x="190" y="414" text-anchor="middle" font-family="Poppins" font-size="13" font-weight="500" letter-spacing="1" fill="${e ? "#9aa6bd" : SUB}">SISTEMA DE CONTROLE DE ESTOQUE</text></svg>`;
+// horizontal: o viewBox tem a largura exata do conjunto, então centralizar a caixa centraliza o logo
+const horizontal = (e) => `<svg viewBox="0 0 410 110" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(0 5) scale(.5)">${emblema(e)}</g>
+  <text x="116" y="62" font-family="Poppins" font-size="38" font-weight="700" letter-spacing="3" fill="${e ? "#fff" : NAVY}">CENTURION</text>
+  <text x="118" y="86" font-family="Poppins" font-size="13" font-weight="500" letter-spacing="1" fill="${e ? "#9aa6bd" : SUB}">SISTEMA DE CONTROLE DE ESTOQUE</text></svg>`;
+const fav = (px, e) => `<svg width="${px}" height="${px}" viewBox="0 0 200 200">${emblema(e)}</svg>`;
+
+document.getElementById("v-azul").innerHTML = vertical(true);
+document.getElementById("v-claro").innerHTML = vertical(false);
+document.getElementById("h-azul").innerHTML = horizontal(true);
+document.getElementById("h-claro").innerHTML = horizontal(false);
+document.getElementById("fav").innerHTML =
+  [64, 32, 16].map((px) => `<figure><div class="q" style="width:${px + 24}px;height:${px + 24}px">${fav(px, false)}</div><figcaption>${px} px</figcaption></figure>`).join("") +
+  [64, 32].map((px) => `<figure><div class="q e" style="width:${px + 24}px;height:${px + 24}px">${fav(px, true)}</div><figcaption>${px} px azul</figcaption></figure>`).join("") +
+  `<figure><div class="aba">${fav(16, false)}Centurion — Visão Geral</div><figcaption>na aba</figcaption></figure>`;
+
+// ajusta o horizontal à largura real do texto, para o centro ficar exato
+document.fonts.ready.then(() => document.querySelectorAll("#h-azul svg, #h-claro svg").forEach((s) => {
+  const b = s.getBBox(); s.setAttribute("viewBox", `${f(b.x)} ${f(b.y)} ${f(b.width)} ${f(b.height)}`);
+}));
+</script>
+</body>
+</html>

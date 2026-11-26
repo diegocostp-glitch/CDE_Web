@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CDE — Entrar</title>
+<title>Centurion — Entrar</title>
 <link rel="icon" type="image/png" href="centurion_aba.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -13,11 +13,25 @@
   try { const t = localStorage.getItem("sb_theme_v1");
         if (["light", "dark", "mono"].includes(t)) document.body.className = t; } catch (e) {}
 </script>
-<main class="login-pagina">
+<main class="login-pagina login-dividido">
+  <!-- painel azul com o emblema grande (modelo 4 do logo) -->
+  <aside class="login-lado" aria-hidden="true">
+    <svg viewBox="0 0 200 200">
+      <defs><linearGradient id="lg-emb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00d4ff"/><stop offset="100%" stop-color="#2f6bff"/></linearGradient></defs>
+      <g fill="none" stroke="url(#lg-emb)" stroke-width="12" stroke-linecap="round">
+        <path d="M122.78 15 A88 88 0 0 1 187.67 107.67"/><path d="M162.23 162.23 A88 88 0 0 1 49.53 172.09"/><path d="M15 122.78 A88 88 0 0 1 62.81 20.24"/>
+      </g>
+      <polygon points="100,38 153.69,69 153.69,131 100,162 46.31,131 46.31,69" fill="url(#lg-emb)" stroke="url(#lg-emb)" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M100 68 L131.28 101.32 L112.92 101.32 L112.92 136 L87.08 136 L87.08 101.32 L68.72 101.32 Z" fill="#0f1b3d"/>
+    </svg>
+    <h2>Estoque das casas em um só lugar.</h2>
+    <p>Contagens, compras, recebimento e consumo de todas as lojas, conferidos todos os dias.</p>
+  </aside>
+  <div class="login-form-lado">
   <section class="cartao login-cartao">
     <div class="login-marca">
       <img src="centurion_menu.png" alt="">
-      <div><h1>Centurion Beta</h1><p>Controle de estoque · CDE Web</p></div>
+      <div><h1>Centurion</h1><p>Controle de estoque · CDE Web</p></div>
     </div>
 
     <form id="f-entrar" hidden>
@@ -52,6 +66,7 @@
       <a class="botao" href="/">Abrir o sistema</a>
     </div>
   </section>
+  </div>
 </main>
 <script>
 const $ = (s) => document.querySelector(s);

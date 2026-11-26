@@ -186,9 +186,9 @@ function montarSidebar(atual, extras) {
   alvo.insertAdjacentHTML("afterbegin",
     '<aside class="sidebar">' +
       '<div class="sb-logo">' +
-        '<img class="sb-marca" src="centurion_menu.png" alt="Centurion Beta">' +
+        '<img class="sb-marca" src="centurion_menu.png" alt="Centurion">' +
         '<div class="sb-logo-txt">' +
-          '<div class="sb-logo-title">Centurion Beta</div>' +
+          '<div class="sb-logo-title">Centurion</div>' +
           '<div class="sb-logo-sub">Controle de estoque</div>' +
         "</div></div>" +
       '<nav class="sb-nav">' +

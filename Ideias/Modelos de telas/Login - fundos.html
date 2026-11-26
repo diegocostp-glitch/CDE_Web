@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login — 5 fundos</title>
+<style>
+  :root { --laranja:#F5860F; --laranja-forte:#DE7409; --navy:#0E1A3A; --navy-2:#13234D; --ciano:#1FB6E6; --ciano-2:#7FE0FF;
+          --tinta:#1A1B2E; --tinta-2:#6E7288; --tinta-3:#A0A3B5; --borda:#EDEEF3; --campo:#F7F8FB; }
+  * { box-sizing:border-box; margin:0 }
+  html, body { height:100% }
+  body { font-family:"Segoe UI", system-ui, -apple-system, Roboto, sans-serif; color:var(--tinta); background:#F4F5F9 }
+
+  /* barra de escolha */
+  .escolha { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:50; display:flex; gap:4px; padding:5px;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px); border:1px solid #DDDFE8; border-radius:999px; box-shadow:0 6px 24px rgba(0,0,0,.12);
+    max-width:calc(100vw - 32px); overflow-x:auto }
+  .escolha button { border:0; background:transparent; font:inherit; font-size:13px; font-weight:600; color:var(--tinta-2); padding:8px 14px; border-radius:999px; cursor:pointer; white-space:nowrap }
+  .escolha button.ativo { background:var(--tinta); color:#fff }
+
+  .palco { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:16px; overflow:hidden }
+  .palco.ativo { display:flex }
+  .nome-modelo { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); z-index:50; font-size:12.5px; color:var(--tinta-2);
+    background:rgba(255,255,255,.9); padding:6px 14px; border-radius:999px; border:1px solid #DDDFE8; white-space:nowrap }
+
+  /* cartão de login (igual ao do sistema) */
+  .cartao { position:relative; z-index:2; width:100%; max-width:400px; background:#fff; border:1px solid var(--borda); border-radius:16px; padding:28px;
+    box-shadow:0 1px 2px rgba(26,27,46,.04), 0 18px 50px rgba(14,26,58,.14) }
+  .marca { display:flex; align-items:center; gap:12px; margin-bottom:22px }
+  .marca img { width:44px; height:44px }
+  .marca h1 { font-size:19px; letter-spacing:-.01em }
+  .marca p { font-size:12px; color:var(--tinta-3) }
+  form { display:flex; flex-direction:column; gap:12px }
+  label { display:flex; flex-direction:column; gap:5px; font-size:12.5px; font-weight:600; color:var(--tinta-2) }
+  input { font:inherit; font-size:14px; padding:10px 12px; border:1px solid #DDDFE8; border-radius:10px; background:var(--campo); color:var(--tinta) }
+  .btn { margin-top:6px; border:0; border-radius:10px; padding:11px; font:inherit; font-weight:600; color:#fff; background:var(--laranja); cursor:pointer }
+  .btn:hover { background:var(--laranja-forte) }
+  .dica { font-size:12px; color:var(--tinta-3); text-align:center }
+
+  /* ---------- 1. Aurora: azul-noite com brilhos ciano do logo ---------- */
+  #m1 { background:radial-gradient(1200px 700px at 15% 10%, #1B3570 0%, transparent 60%), linear-gradient(160deg, #0A1430, #0E1A3A 55%, #081026) }
+  #m1 .bolha { position:absolute; border-radius:50%; filter:blur(70px); opacity:.55; animation:flutua 18s ease-in-out infinite alternate }
+  #m1 .b1 { width:520px; height:520px; background:#1FB6E6; top:-140px; right:-120px }
+  #m1 .b2 { width:420px; height:420px; background:#3A5BD9; bottom:-160px; left:-100px; animation-delay:-6s }
+  #m1 .b3 { width:260px; height:260px; background:#7FE0FF; bottom:12%; right:18%; opacity:.25; animation-delay:-11s }
+  @keyframes flutua { to { transform:translate(40px, 30px) scale(1.08) } }
+
+  /* ---------- 2. Colmeia: hexágonos do logo, claro ---------- */
+  #m2 { background:#F4F6FA }
+  #m2 svg.fundo { position:absolute; inset:0; width:100%; height:100% }
+  #m2::after { content:""; position:absolute; inset:0; background:radial-gradient(closest-side at 50% 50%, #F4F6FA 30%, transparent 100%); pointer-events:none }
+
+  /* ---------- 3. Anéis: o círculo aberto do logo, repetido ---------- */
+  #m3 { background:linear-gradient(180deg, #FFFFFF, #EEF3F9) }
+  #m3 svg.fundo { position:absolute; width:1400px; height:1400px; left:50%; top:50%; transform:translate(-50%,-50%) }
+  #m3 .gira { transform-origin:700px 700px; animation:gira 60s linear infinite }
+  #m3 .gira.r { animation-direction:reverse; animation-duration:90s }
+  @keyframes gira { to { transform:rotate(360deg) } }
+
+  /* ---------- 4. Dividido: painel azul com a marca + formulário ---------- */
+  #m4 { padding:0; background:#fff; align-items:stretch; justify-content:stretch }
+  #m4 .lado { flex:1.1; position:relative; overflow:hidden; color:#fff; padding:56px; display:flex; flex-direction:column; justify-content:flex-end;
+    background:linear-gradient(150deg, #13234D, #0A1430) }
+  #m4 .lado svg { position:absolute; right:-120px; top:-80px; width:620px; opacity:.9 }
+  #m4 .lado h2 { font-size:40px; line-height:1.05; letter-spacing:-.02em; max-width:12ch; position:relative }
+  #m4 .lado p { margin-top:14px; color:#9FB3D9; font-size:15px; max-width:36ch; position:relative }
+  #m4 .form-lado { flex:1; display:flex; align-items:center; justify-content:center; padding:24px 16px; background:#F7F8FB }
+  #m4 .cartao { box-shadow:none; border:0; background:transparent }
+  @media (max-width:820px) { #m4 { flex-direction:column } #m4 .lado { flex:0 0 200px; padding:28px } #m4 .lado h2 { font-size:26px } #m4 .lado p { display:none } #m4 .lado svg { width:360px; right:-90px; top:-70px } }
+
+  /* ---------- 5. Gráfico: grade de pontos e curva de estoque subindo ---------- */
+  #m5 { background-color:#FBFBFD; background-image:radial-gradient(#D7DAE5 1.2px, transparent 1.3px); background-size:22px 22px }
+  #m5 svg.fundo { position:absolute; left:0; right:0; bottom:0; width:100%; height:62% }
+  #m5 .traco { stroke-dasharray:3000; stroke-dashoffset:3000; animation:desenha 3.2s cubic-bezier(.22,1,.36,1) .2s forwards }
+  @keyframes desenha { to { stroke-dashoffset:0 } }
+
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important } #m5 .traco { stroke-dashoffset:0 } }
+</style>
+</head>
+<body>
+
+<nav class="escolha" aria-label="Modelos">
+  <button data-m="1" class="ativo">1 · Aurora</button>
+  <button data-m="2">2 · Colmeia</button>
+  <button data-m="3">3 · Anéis</button>
+  <button data-m="4">4 · Dividido</button>
+  <button data-m="5">5 · Gráfico</button>
+</nav>
+
+<template id="login">
+  <div class="cartao">
+    <div class="marca"><img src="../../centurion_menu.png" alt=""><div><h1>Centurion</h1><p>Controle de estoque · CDE Web</p></div></div>
+    <form onsubmit="return false">
+      <label>E-mail<input type="email" placeholder="exemplo@sushiboulevard.com.br"></label>
+      <label>Senha<input type="password"></label>
+      <button class="btn">Entrar</button>
+      <p class="dica">Esqueceu a senha? Peça a um administrador para redefinir.</p>
+    </form>
+  </div>
+</template>
+
+<!-- 1 -->
+<section class="palco ativo" id="m1" data-nome="Aurora — fundo azul-noite com brilhos em ciano, que se mexem devagar">
+  <div class="bolha b1"></div><div class="bolha b2"></div><div class="bolha b3"></div>
+  <div class="slot"></div>
+</section>
+
+<!-- 2 -->
+<section class="palco" id="m2" data-nome="Colmeia — malha de hexágonos (a forma do logo), clara, com alguns destacados">
+  <svg class="fundo" aria-hidden="true">
+    <defs>
+      <pattern id="hex" width="56" height="97" patternUnits="userSpaceOnUse" patternTransform="scale(1.1)">
+        <path d="M28 0 L56 16.2 L56 48.5 L28 64.7 L0 48.5 L0 16.2 Z M28 64.7 L28 97" fill="none" stroke="#D5DCE8" stroke-width="1.2"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#hex)"/>
+    <g fill="#1FB6E6">
+    </g>
+  </svg>
+  <div class="slot"></div>
+</section>
+
+<!-- 3 -->
+<section class="palco" id="m3" data-nome="Anéis — o círculo aberto do logo, em arcos que giram bem devagar">
+  <svg class="fundo" viewBox="0 0 1400 1400" aria-hidden="true">
+    <defs>
+      <linearGradient id="arco" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1FB6E6"/><stop offset="1" stop-color="#13234D"/></linearGradient>
+    </defs>
+    <g fill="none" stroke-linecap="round">
+      <g class="gira"><circle cx="700" cy="700" r="300" stroke="url(#arco)" stroke-width="14" stroke-dasharray="1500 385" opacity=".18"/></g>
+      <g class="gira r"><circle cx="700" cy="700" r="420" stroke="url(#arco)" stroke-width="8" stroke-dasharray="1900 739" opacity=".13"/></g>
+      <g class="gira"><circle cx="700" cy="700" r="540" stroke="url(#arco)" stroke-width="5" stroke-dasharray="2600 793" opacity=".10"/></g>
+      <g class="gira r"><circle cx="700" cy="700" r="660" stroke="#1FB6E6" stroke-width="2" stroke-dasharray="6 14" opacity=".25"/></g>
+    </g>
+  </svg>
+  <div class="slot"></div>
+</section>
+
+<!-- 4 -->
+<section class="palco" id="m4" data-nome="Dividido — painel azul com a marca à esquerda e o login à direita (no celular, o painel vai para cima)">
+  <div class="lado">
+    <svg viewBox="0 0 600 600" aria-hidden="true">
+      <circle cx="300" cy="300" r="250" fill="none" stroke="#1FB6E6" stroke-width="26" stroke-linecap="round" stroke-dasharray="1300 271" transform="rotate(-70 300 300)" opacity=".55"/>
+      <path d="M300 120 L456 210 L456 390 L300 480 L144 390 L144 210 Z" fill="#0E1A3A" stroke="#1FB6E6" stroke-width="6" opacity=".9"/>
+      <path d="M300 205 L385 300 H335 V390 H265 V300 H215 Z" fill="#1FB6E6" opacity=".85"/>
+    </svg>
+    <h2>Estoque das casas em um só lugar.</h2>
+    <p>Contagens, compras, recebimento e consumo de todas as lojas, conferidos todos os dias.</p>
+  </div>
+  <div class="form-lado"><div class="slot"></div></div>
+</section>
+
+<!-- 5 -->
+<section class="palco" id="m5" data-nome="Gráfico — papel quadriculado em pontos com uma curva subindo ao fundo">
+  <svg class="fundo" viewBox="0 0 1440 560" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="area5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1FB6E6" stop-opacity=".22"/><stop offset="1" stop-color="#1FB6E6" stop-opacity="0"/></linearGradient>
+    </defs>
+    <path d="M0 470 C120 450 180 400 280 410 S440 470 560 380 S760 300 860 330 S1040 250 1160 200 S1340 90 1440 60 V560 H0 Z" fill="url(#area5)"/>
+    <path class="traco" d="M0 470 C120 450 180 400 280 410 S440 470 560 380 S760 300 860 330 S1040 250 1160 200 S1340 90 1440 60" fill="none" stroke="#1FB6E6" stroke-width="3" vector-effect="non-scaling-stroke"/>
+  </svg>
+  <div class="slot"></div>
+</section>
+
+<div class="nome-modelo" id="nome"></div>
+
+<script>
+  // o mesmo cartão de login em todos os modelos
+  const tpl = document.getElementById("login");
+  document.querySelectorAll(".slot").forEach((s) => s.replaceWith(tpl.content.cloneNode(true)));
+
+  // colmeia: alguns hexágonos acesos espalhados
+  (function () {
+    const g = document.querySelector("#m2 svg.fundo g");
+    g.innerHTML = "";
+    const w = 61.6, h = 106.7; // célula do padrão já escalada
+    const hex = (cx, cy, r) => `M${cx} ${cy - r} l${r * .866} ${r / 2} v${r} l${-r * .866} ${r / 2} l${-r * .866} ${-r / 2} v${-r}z`;
+    let semente = 7; const rnd = () => (semente = (semente * 9301 + 49297) % 233280) / 233280;
+    for (let k = 0; k < 26; k++) {
+      const col = Math.floor(rnd() * 34), lin = Math.floor(rnd() * 12), par = rnd() > .5;
+      const cx = col * w + (par ? w / 2 : 0) + w / 2, cy = lin * h + (par ? h / 2 + 35.6 : 35.6);
+      g.insertAdjacentHTML("beforeend", `<path d="${hex(cx, cy, 35.6)}" opacity="${(.08 + rnd() * .22).toFixed(2)}"/>`);
+    }
+  })();
+
+  const nome = document.getElementById("nome");
+  function mostra(m) {
+    document.querySelectorAll(".palco").forEach((p) => p.classList.toggle("ativo", p.id === "m" + m));
+    document.querySelectorAll(".escolha button").forEach((b) => b.classList.toggle("ativo", b.dataset.m === String(m)));
+    nome.textContent = document.getElementById("m" + m).dataset.nome;
+  }
+  document.querySelector(".escolha").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) mostra(b.dataset.m); });
+  document.addEventListener("keydown", (e) => { if (/^[1-5]$/.test(e.key) && e.target.tagName !== "INPUT") mostra(e.key); });
+  mostra(/^#[1-5]$/.test(location.hash) ? location.hash.slice(1) : 1);
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Centurion — exportar</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=block" rel="stylesheet">
+<style>html, body { margin:0; background:transparent; overflow:hidden } svg { display:block; width:100vw; height:100vh }</style>
+</head>
+<body>
+<!-- Abre uma peça por vez para virar PNG: exportar.html#wordmark | #wordmark-azul | #favicon | #favicon-azul | #icone -->
+<script>
+const NAVY = "#0f1b3d", CY = "#00d4ff", SUB = "#697285", PONT = "#c3cad6", AZUL = "#2f6bff";
+const P = (cx, cy, r, a) => [cx + r * Math.sin(a * Math.PI / 180), cy - r * Math.cos(a * Math.PI / 180)];
+const f = (n) => +n.toFixed(2);
+function arco(cx, cy, r, a0, a1) {
+  const [x0, y0] = P(cx, cy, r, a0), [x1, y1] = P(cx, cy, r, a1);
+  return `M${f(x0)} ${f(y0)} A${r} ${r} 0 ${(a1 - a0) % 360 > 180 ? 1 : 0} 1 ${f(x1)} ${f(y1)}`;
+}
+const hexP = (cx, cy, r) => [0, 60, 120, 180, 240, 300].map((a) => P(cx, cy, r, a).map(f).join(",")).join(" ");
+function seta(cx, cy, s) {
+  const c = (x, y) => `${f(cx + x * s)} ${f(cy + y * s)}`;
+  return `M${c(0, -1)} L${c(.92, -.02)} L${c(.38, -.02)} L${c(.38, 1)} L${c(-.38, 1)} L${c(-.38, -.02)} L${c(-.92, -.02)} Z`;
+}
+// fim do degradê: navy (fundo claro) ou azul vivo (fundo azul / ícone que serve nos dois)
+// seta: branca no claro e no ícone, navy sobre o azul
+function emblema(fim, corSeta) {
+  return `<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${CY}"/><stop offset="100%" stop-color="${fim}"/></linearGradient></defs>
+    ${[[15, 95], [135, 215], [255, 335]].map(([a, b]) => `<path d="${arco(100, 100, 88, a, b)}" fill="none" stroke="url(#g)" stroke-width="12" stroke-linecap="round"/>`).join("")}
+    <polygon points="${hexP(100, 100, 62)}" fill="url(#g)" stroke="url(#g)" stroke-width="6" stroke-linejoin="round"/>
+    <path d="${seta(100, 102, 34)}" fill="${corSeta}"/>`;
+}
+const wordmark = (azul) => `<svg viewBox="0 0 380 460" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="190" cy="185" r="158" fill="none" stroke="${azul ? "#2a3a66" : PONT}" stroke-width="1.5" stroke-dasharray="2 9"/>
+  <g transform="translate(50 45) scale(1.4)">${azul ? emblema(AZUL, NAVY) : emblema(NAVY, "#fff")}</g>
+  <text x="190" y="388" text-anchor="middle" font-family="Poppins" font-size="38" font-weight="700" letter-spacing="3" fill="${azul ? "#fff" : NAVY}">CENTURION</text>
+  <text x="190" y="414" text-anchor="middle" font-family="Poppins" font-size="13" font-weight="500" letter-spacing="1" fill="${azul ? "#9aa6bd" : SUB}">SISTEMA DE CONTROLE DE ESTOQUE</text></svg>`;
+const quadrado = (conteudo) => `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">${conteudo}</svg>`;
+const PECAS = {
+  "wordmark": () => wordmark(false),
+  "wordmark-azul": () => wordmark(true),
+  "favicon": () => quadrado(emblema(NAVY, "#fff")),
+  "favicon-azul": () => quadrado(emblema(AZUL, NAVY)),
+  "icone": () => quadrado(emblema(AZUL, "#fff")),   // menu e aba do sistema: lê bem no tema claro e no escuro
+};
+document.body.innerHTML = (PECAS[location.hash.slice(1)] || PECAS.wordmark)();
+</script>
+</body>
+</html>

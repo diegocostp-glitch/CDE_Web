@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centurion — 10 logos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --navy:#0f1b3d; --ciano:#00d4ff; --sub:#697285; --pont:#c3cad6; --fundo:#f3f5f9; --borda:#e3e7ef }
+  * { box-sizing:border-box; margin:0 }
+  body { font-family:"Poppins", system-ui, sans-serif; background:var(--fundo); color:var(--navy); padding:32px 16px 64px }
+  header { max-width:1180px; margin:0 auto 28px }
+  header h1 { font-size:24px; letter-spacing:.02em }
+  header p { color:var(--sub); font-size:14px; margin-top:6px; max-width:80ch }
+  .grade { max-width:1180px; margin:0 auto; display:grid; gap:20px }
+  .mod { background:#fff; border:1px solid var(--borda); border-radius:18px; padding:20px; display:grid; grid-template-columns:300px 1fr; gap:20px; align-items:center }
+  .mod .vert { background:#fff; border:1px solid var(--borda); border-radius:14px; padding:8px }
+  .mod .vert svg { display:block; width:100%; height:auto }
+  .info h2 { font-size:18px; display:flex; gap:10px; align-items:baseline }
+  .info h2 span { font-size:13px; color:var(--sub); font-weight:500 }
+  .info p { font-size:13.5px; color:var(--sub); margin-top:4px; max-width:70ch; line-height:1.5 }
+  .lado { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px }
+  .hz { border-radius:12px; padding:16px 18px; display:flex; align-items:center; border:1px solid var(--borda) }
+  .hz svg { width:100%; max-width:330px; height:auto; display:block }
+  .hz.escuro { background:var(--navy); border-color:var(--navy) }
+  .fav { display:flex; gap:18px; align-items:flex-end; margin-top:14px; flex-wrap:wrap }
+  .fav figure { display:flex; flex-direction:column; align-items:center; gap:6px }
+  .fav figcaption { font-size:11px; color:var(--sub) }
+  .fav .q { display:grid; place-items:center; border-radius:10px; border:1px solid var(--borda); background:#fff }
+  .fav .q.escuro { background:var(--navy); border-color:var(--navy) }
+  .aba { display:flex; align-items:center; gap:8px; background:#dfe3eb; border-radius:10px 10px 0 0; padding:7px 14px 7px 10px; font-size:12px; color:#333; font-family:"Segoe UI",system-ui,sans-serif }
+  .aba svg { width:16px; height:16px }
+  @media (max-width:820px) { .mod { grid-template-columns:1fr } .lado { grid-template-columns:1fr } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Centurion — 10 modelos de logo</h1>
+  <p>Todos seguem o conceito: guardião do estoque, órbita de precisão (anel), caixa (hexágono) e controle (seta), com traço grosso,
+    navy #0f1b3d, ciano #00d4ff e Poppins. Em cada modelo: a versão vertical (wordmark), a horizontal para o menu, a mesma
+    sobre fundo escuro e o favicon nos tamanhos reais (64, 32 e 16 px) e numa aba do navegador.</p>
+</header>
+<main class="grade" id="grade"></main>
+
+<script>
+const NAVY = "#0f1b3d", CY = "#00d4ff", SUB = "#697285", PONT = "#c3cad6";
+let uid = 0;
+
+// ---------- auxiliares de desenho (caixa 200×200, centro 100,100) ----------
+const P = (cx, cy, r, a) => [cx + r * Math.sin(a * Math.PI / 180), cy - r * Math.cos(a * Math.PI / 180)];
+const f = (n) => +n.toFixed(2);
+function arco(cx, cy, r, a0, a1) {          // ângulos em graus, sentido horário a partir do topo
+  const [x0, y0] = P(cx, cy, r, a0), [x1, y1] = P(cx, cy, r, a1);
+  return `M${f(x0)} ${f(y0)} A${r} ${r} 0 ${(a1 - a0) % 360 > 180 ? 1 : 0} 1 ${f(x1)} ${f(y1)}`;
+}
+function hexP(cx, cy, r) { return [0, 60, 120, 180, 240, 300].map((a) => P(cx, cy, r, a).map(f).join(",")).join(" "); }
+function seta(cx, cy, s) {
+  const c = (x, y) => `${f(cx + x * s)} ${f(cy + y * s)}`;
+  return `M${c(0, -1)} L${c(.92, -.02)} L${c(.38, -.02)} L${c(.38, 1)} L${c(-.38, 1)} L${c(-.38, -.02)} L${c(-.92, -.02)} Z`;
+}
+function grad(id, escuro, ang) {
+  const fim = escuro ? "#2f6bff" : NAVY;
+  return `<linearGradient id="${id}" x1="0%" y1="0%" x2="100%" y2="100%" ${ang ? `gradientTransform="rotate(${ang} .5 .5)"` : ""}>
+    <stop offset="0%" stop-color="${CY}"/><stop offset="100%" stop-color="${fim}"/></linearGradient>`;
+}
+
+// ---------- os 10 emblemas ----------
+// cada um devolve o SVG interno (caixa 200×200). e = fundo escuro?
+const MODELOS = [
+  { nome: "Órbita", tag: "evolução do atual",
+    txt: "O anel do modelo atual, mais grosso, com um satélite na abertura. A seta ganhou corpo para ler bem a 16 px.",
+    em(e, g) { return `<defs>${grad(g, e)}</defs>
+      <path d="${arco(100, 100, 84, 50, 350)}" fill="none" stroke="url(#${g})" stroke-width="14" stroke-linecap="round"/>
+      <circle cx="${f(P(100, 100, 84, 20)[0])}" cy="${f(P(100, 100, 84, 20)[1])}" r="8" fill="${CY}"/>
+      <polygon points="${hexP(100, 100, 52)}" fill="${NAVY}" stroke="${CY}" stroke-width="4" stroke-linejoin="round"/>
+      <path d="${seta(100, 102, 29)}" fill="${CY}"/>`; } },
+
+  { nome: "Escudo", tag: "o guardião",
+    txt: "O hexágono vira escudo de centurião, com a ponta para baixo. O anel passa por trás como um arco de proteção.",
+    em(e, g) { return `<defs>${grad(g, e)}</defs>
+      <path d="${arco(100, 100, 88, 205, 515)}" fill="none" stroke="url(#${g})" stroke-width="13" stroke-linecap="round"/>
+      <path d="M100 30 L156 50 V100 C156 136 132 158 100 174 C68 158 44 136 44 100 V50 Z" fill="${NAVY}" stroke="${CY}" stroke-width="5" stroke-linejoin="round"/>
+      <path d="${seta(100, 100, 32)}" fill="${CY}"/>`; } },
+
+  { nome: "Caixa", tag: "estoque em 3D",
+    txt: "O hexágono aberto como uma caixa vista de cima, com a tampa em ciano. O anel abre por cima e a seta sai da caixa.",
+    em(e, g) {
+      const t = [100, 44], r = [148.5, 72], c = [100, 100], l = [51.5, 72], rb = [148.5, 128], b = [100, 156], lb = [51.5, 128];
+      const pt = (...a) => a.map((p) => p.join(",")).join(" ");
+      return `<defs>${grad(g, e)}</defs>
+      <path d="${arco(100, 100, 88, 40, 320)}" fill="none" stroke="url(#${g})" stroke-width="13" stroke-linecap="round"/>
+      <polygon points="${pt(l, c, b, lb)}" fill="${NAVY}" stroke="${e ? "#2b3c6e" : NAVY}" stroke-width="2" stroke-linejoin="round"/>
+      <polygon points="${pt(c, r, rb, b)}" fill="#1d3170" stroke-linejoin="round"/>
+      <polygon points="${pt(t, r, c, l)}" fill="${CY}"/>
+      <path d="M78 80 L100 62 L122 80" fill="none" stroke="${NAVY}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M100 20 V44" stroke="${CY}" stroke-width="9" stroke-linecap="round"/>
+      <path d="M86 32 L100 16 L114 32" fill="none" stroke="${CY}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`; } },
+
+  { nome: "Recorte", tag: "seta em negativo",
+    txt: "Hexágono cheio em gradiente com a seta recortada dentro. O anel vira três segmentos, como uma mira de precisão.",
+    em(e, g) { return `<defs>${grad(g, e)}${grad(g + "b", e, 0)}</defs>
+      ${[[15, 95], [135, 215], [255, 335]].map(([a, b]) => `<path d="${arco(100, 100, 88, a, b)}" fill="none" stroke="url(#${g})" stroke-width="12" stroke-linecap="round"/>`).join("")}
+      <polygon points="${hexP(100, 100, 62)}" fill="url(#${g}b)" stroke="url(#${g}b)" stroke-width="6" stroke-linejoin="round"/>
+      <path d="${seta(100, 102, 34)}" fill="${e ? NAVY : "#fff"}"/>`; } },
+
+  { nome: "Elmo", tag: "centurião",
+    txt: "O anel sobe e vira a crista do elmo de centurião sobre o hexágono, com a viseira embaixo da seta. É o mais ligado ao nome.",
+    em(e, g) { return `<defs>${grad(g, e, 90)}</defs>
+      <path d="${arco(100, 112, 80, -78, 78)}" fill="none" stroke="url(#${g})" stroke-width="18" stroke-linecap="round"/>
+      <path d="${arco(100, 112, 80, -78, 78)}" fill="none" stroke="${e ? NAVY : "#fff"}" stroke-width="3" stroke-dasharray="2 13" opacity=".55"/>
+      <polygon points="${hexP(100, 116, 50)}" fill="${NAVY}" stroke="${CY}" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M80 142 H120" stroke="${CY}" stroke-width="9" stroke-linecap="round"/>
+      <path d="${seta(100, 106, 24)}" fill="${CY}"/>`; } },
+
+  { nome: "Ciclo", tag: "o anel é a seta",
+    txt: "O anel termina numa ponta de seta: o ciclo de entrada e saída do estoque. Dentro, a caixa com as prateleiras.",
+    em(e, g) {
+      const a = 112, r = 84, [px, py] = P(100, 100, r, a), t = [Math.cos(a * Math.PI / 180), Math.sin(a * Math.PI / 180)], n = [Math.sin(a * Math.PI / 180), -Math.cos(a * Math.PI / 180)];
+      const tip = [px + t[0] * 30, py + t[1] * 30], b1 = [px + n[0] * 21, py + n[1] * 21], b2 = [px - n[0] * 21, py - n[1] * 21];
+      return `<defs>${grad(g, e)}</defs>
+      <path d="${arco(100, 100, r, 160, 472)}" fill="none" stroke="url(#${g})" stroke-width="14" stroke-linecap="round"/>
+      <polygon points="${[tip, b1, b2].map((p) => p.map(f).join(",")).join(" ")}" fill="${e ? "#2f6bff" : NAVY}" stroke="${e ? "#2f6bff" : NAVY}" stroke-width="4" stroke-linejoin="round"/>
+      <polygon points="${hexP(100, 100, 50)}" fill="${NAVY}" stroke="${CY}" stroke-width="4" stroke-linejoin="round"/>
+      ${[80, 100, 120].map((y, i) => `<path d="M80 ${y} H120" stroke="${CY}" stroke-width="9" stroke-linecap="round" opacity="${[1, .75, .5][i]}"/>`).join("")}`; } },
+
+  { nome: "Monograma C", tag: "a letra no anel",
+    txt: "O anel grosso desenha o C de Centurion, aberto para a direita. A seta sai pela abertura: o estoque saindo sob controle.",
+    em(e, g) { return `<defs>${grad(g, e)}</defs>
+      <path d="${arco(100, 100, 76, 135, 405)}" fill="none" stroke="url(#${g})" stroke-width="24" stroke-linecap="round"/>
+      <polygon points="${hexP(100, 100, 40)}" fill="${NAVY}" stroke="${CY}" stroke-width="4" stroke-linejoin="round"/>
+      <g transform="rotate(45 112 88)"><path d="${seta(112, 88, 28)}" fill="${CY}"/></g>`; } },
+
+  { nome: "Órbita dupla", tag: "tecnológico",
+    txt: "Duas órbitas cruzadas em volta da caixa, como um átomo. Passa a ideia de sistema e precisão.",
+    em(e, g) { return `<defs>${grad(g, e)}</defs>
+      <ellipse cx="100" cy="100" rx="90" ry="36" fill="none" stroke="url(#${g})" stroke-width="10" transform="rotate(-32 100 100)"/>
+      <ellipse cx="100" cy="100" rx="90" ry="36" fill="none" stroke="url(#${g})" stroke-width="10" transform="rotate(32 100 100)"/>
+      <circle cx="${f(100 + 90 * Math.cos(-32 * Math.PI / 180))}" cy="${f(100 + 90 * Math.sin(-32 * Math.PI / 180))}" r="9" fill="${CY}"/>
+      <polygon points="${hexP(100, 100, 48)}" fill="${NAVY}" stroke="${CY}" stroke-width="4" stroke-linejoin="round"/>
+      <path d="${seta(100, 102, 27)}" fill="${CY}"/>`; } },
+
+  { nome: "Pilha", tag: "estoque subindo",
+    txt: "Três divisas empilhadas dentro da caixa, a de cima mais forte: camadas de estoque e crescimento.",
+    em(e, g) { return `<defs>${grad(g, e)}</defs>
+      <path d="${arco(100, 100, 86, 35, 325)}" fill="none" stroke="url(#${g})" stroke-width="14" stroke-linecap="round"/>
+      <polygon points="${hexP(100, 100, 58)}" fill="${NAVY}" stroke="${CY}" stroke-width="4" stroke-linejoin="round"/>
+      ${[74, 100, 126].map((y, i) => `<path d="M76 ${y + 12} L100 ${y - 8} L124 ${y + 12}" fill="none" stroke="${CY}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="${[1, .7, .4][i]}"/>`).join("")}`; } },
+
+  { nome: "Mostrador", tag: "precisão",
+    txt: "O anel vira o mostrador de um medidor, com marcações grossas. O hexágono vazado e a seta ficam no centro.",
+    em(e, g) {
+      const ticks = [];
+      for (let a = -135; a <= 135; a += 15) {
+        const [x0, y0] = P(100, 100, 76, a), [x1, y1] = P(100, 100, a % 45 === 0 ? 94 : 88, a);
+        ticks.push(`<path d="M${f(x0)} ${f(y0)} L${f(x1)} ${f(y1)}" stroke="${a >= -45 && a <= 45 ? CY : (e ? "#3a4a78" : PONT)}" stroke-width="${a % 45 === 0 ? 7 : 5}" stroke-linecap="round"/>`);
+      }
+      return `<defs>${grad(g, e)}</defs>${ticks.join("")}
+      <polygon points="${hexP(100, 104, 50)}" fill="${NAVY}" stroke="url(#${g})" stroke-width="10" stroke-linejoin="round"/>
+      <path d="${seta(100, 106, 25)}" fill="${CY}"/>`; } },
+];
+
+// ---------- montagem: vertical, horizontal, favicon ----------
+function emblema(m, e) { return m.em(e, "g" + uid++); }
+function vertical(m) {
+  return `<svg viewBox="0 0 380 460" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="190" cy="185" r="158" fill="none" stroke="${PONT}" stroke-width="1.5" stroke-dasharray="2 9"/>
+    <g transform="translate(50 45) scale(1.4)">${emblema(m, false)}</g>
+    <text x="190" y="388" text-anchor="middle" font-family="Poppins" font-size="38" font-weight="700" letter-spacing="3" fill="${NAVY}">CENTURION</text>
+    <text x="190" y="414" text-anchor="middle" font-family="Poppins" font-size="13" font-weight="500" letter-spacing="1" fill="${SUB}">SISTEMA DE CONTROLE DE ESTOQUE</text></svg>`;
+}
+function horizontal(m, e) {
+  return `<svg viewBox="0 0 430 110" xmlns="http://www.w3.org/2000/svg">
+    <g transform="translate(5 5) scale(.5)">${emblema(m, e)}</g>
+    <text x="118" y="62" font-family="Poppins" font-size="38" font-weight="700" letter-spacing="3" fill="${e ? "#fff" : NAVY}">CENTURION</text>
+    <text x="120" y="86" font-family="Poppins" font-size="13" font-weight="500" letter-spacing="1" fill="${e ? "#9aa6bd" : SUB}">SISTEMA DE CONTROLE DE ESTOQUE</text></svg>`;
+}
+const fav = (m, px, e) => `<svg width="${px}" height="${px}" viewBox="0 0 200 200">${emblema(m, e)}</svg>`;
+
+document.getElementById("grade").innerHTML = MODELOS.map((m, i) => `
+  <section class="mod" id="m${i + 1}">
+    <div class="vert">${vertical(m)}</div>
+    <div class="info">
+      <h2>${i + 1}. ${m.nome} <span>${m.tag}</span></h2>
+      <p>${m.txt}</p>
+      <div class="lado"><div class="hz">${horizontal(m, false)}</div><div class="hz escuro">${horizontal(m, true)}</div></div>
+      <div class="fav">
+        ${[64, 32, 16].map((px) => `<figure><div class="q" style="width:${px + 24}px;height:${px + 24}px">${fav(m, px, false)}</div><figcaption>${px} px</figcaption></figure>`).join("")}
+        ${[64, 32].map((px) => `<figure><div class="q escuro" style="width:${px + 24}px;height:${px + 24}px">${fav(m, px, true)}</div><figcaption>${px} px escuro</figcaption></figure>`).join("")}
+        <figure><div class="aba">${fav(m, 16, false)}Centurion — Visão Geral</div><figcaption>na aba</figcaption></figure>
+      </div>
+    </div>
+  </section>`).join("");
+</script>
+</body>
+</html>
